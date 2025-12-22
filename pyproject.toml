@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "telecraft"
+version = "0.0.1"
+description = "Telegram MTProto client library (MTProto-first)."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "cryptography>=42",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff>=0.5",
+  "mypy>=1.10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [".venv", "src/telecraft/tl/generated"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = "src"
+strict = true
+exclude = "src/telecraft/tl/generated"
+
+
