@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import base64
 import json
+import logging
 from pathlib import Path
 
 from telecraft.mtproto.auth.handshake import exchange_auth_key
@@ -25,6 +26,8 @@ def _b64(data: bytes) -> str:
 
 
 async def _run(args: argparse.Namespace) -> int:
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+    
     if args.host is not None:
         host, port = args.host, args.port
     else:

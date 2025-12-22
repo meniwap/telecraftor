@@ -76,7 +76,15 @@ async def send_req_pq_multi(transport: PacketTransport, msg_id_gen: MsgIdGenerat
 
     nonce = random_bytes(16)
     req = ReqPqMulti(nonce=nonce)
+    logger.debug("Sending req_pq_multi...")
     obj = await _send_unencrypted_request(transport, msg_id_gen, req)
+    logger.debug(f"Received response: {type(obj)}")
+    if hasattr(obj, "msg_id"):
+        # Not all TL objects have msg_id field, but UnencryptedMessage wrapper does.
+        # Wait, obj is the *body* (ResPq). ResPq doesn't have msg_id field.
+        # The msg_id was in the UnencryptedMessage envelope which we unwrapped inside _send.
+        pass
+    
     if not isinstance(obj, ResPq):
         raise AuthHandshakeError(f"Unexpected response: {type(obj)}")
     return obj
@@ -100,7 +108,9 @@ def build_pq_inner_data(res_pq: ResPq, *, dc: int | None = None) -> HandshakeSta
     if not isinstance(pq_bytes, (bytes, bytearray)):
         raise AuthHandshakeError("resPQ.pq is not bytes")
     pq_int = _pq_bytes_to_int(bytes(pq_bytes))
+    logger.debug(f"Factorizing pq: {pq_int} (hex: {pq_int:x})")
     p_int, q_int = factorize_pq(pq_int)
+    logger.debug(f"Factorized: p={p_int}, q={q_int}")
     p_bytes = _int_to_bytes_be(p_int)
     q_bytes = _int_to_bytes_be(q_int)
 
@@ -202,7 +212,9 @@ async def _send_unencrypted_request(
     max_ignored_small_frames: int = 64,
 ) -> Any:
     body = dumps(req)
-    msg = UnencryptedMessage(msg_id=msg_id_gen.next(), body=body)
+    msg_id = msg_id_gen.next()
+    logger.debug(f"Sending unencrypted request: msg_id={msg_id}, type={type(req)}")
+    msg = UnencryptedMessage(msg_id=msg_id, body=body)
     await transport.send(msg.pack())
     ignored_small = 0
 
@@ -234,6 +246,7 @@ async def _send_unencrypted_request(
 
         try:
             resp = unpack_unencrypted(payload)
+            logger.debug(f"Received unencrypted message: msg_id={resp.msg_id}, length={len(resp.body)}")
         except UnencryptedMessageError as e:
             preview = payload[:32].hex()
             raise AuthHandshakeError(
@@ -282,11 +295,18 @@ async def exchange_auth_key(
         raise AuthHandshakeError("server_public_key_fingerprints is not a list[int]")
     fps = cast(list[int], fps_obj)
 
+    logger.debug(f"Server returned fingerprints: {fps}")
+
     key = next((k for k in rsa_keys if k.fingerprint in fps), None)
     if key is None:
+        logger.error(f"FATAL: No matching key found! Server wants {fps}, we have {[k.fingerprint for k in rsa_keys]}")
         raise AuthHandshakeError(f"No matching RSA key for server fingerprints: {fps!r}")
+    
+    logger.debug(f"Selected RSA key fingerprint: {key.fingerprint}")
 
     encrypted_inner = rsa_encrypt_inner_data(st.inner_data, key)
+    logger.debug(f"Encrypted inner data length: {len(encrypted_inner)}")
+    
     req_dh = ReqDhParams(
         nonce=st.nonce,
         server_nonce=st.server_nonce,
@@ -295,8 +315,14 @@ async def exchange_auth_key(
         public_key_fingerprint=key.fingerprint,
         encrypted_data=encrypted_inner,
     )
+    
+    req_blob = dumps(req_dh)
+    logger.debug(f"ReqDhParams serialized length: {len(req_blob)} bytes")
+    logger.debug(f"ReqDhParams raw hex prefix: {req_blob[:64].hex()}")
 
     dh_params = await _send_unencrypted_request(transport, msg_id_gen, req_dh)
+    logger.debug(f"Received dh_params response type: {type(dh_params)}")
+    
     if isinstance(dh_params, ServerDhParamsFail):
         raise AuthHandshakeError("Server returned server_DH_params_fail")
     if not isinstance(dh_params, ServerDhParamsOk):
