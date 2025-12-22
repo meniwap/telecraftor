@@ -90,7 +90,7 @@ async def send_req_pq_multi(transport: PacketTransport, msg_id_gen: MsgIdGenerat
     return obj
 
 
-def build_pq_inner_data(res_pq: ResPq, *, dc: int | None = None) -> HandshakeState:
+def build_pq_inner_data(res_pq: ResPq) -> HandshakeState:
     """
     Compute p/q from pq and prepare PQInnerData.
 
@@ -238,21 +238,30 @@ async def _send_unencrypted_request(
                     "Too many small frames while waiting for unencrypted response "
                     f"(ignored_small={ignored_small}, min_len={_UNENCRYPTED_ENVELOPE_MIN_LEN})"
                 )
+            preview = payload.hex()
             logger.debug(
-                "Ignoring small frame while waiting for unencrypted response: %d bytes",
+                "Ignoring small frame while waiting for unencrypted response: %d bytes (hex=%s)",
                 len(payload),
+                preview,
             )
             continue
 
         try:
             resp = unpack_unencrypted(payload)
-            logger.debug(f"Received unencrypted message: msg_id={resp.msg_id}, length={len(resp.body)}")
+            logger.debug(
+                "Received unencrypted message: msg_id=%d, length=%d",
+                resp.msg_id,
+                len(resp.body),
+            )
         except UnencryptedMessageError as e:
             preview = payload[:32].hex()
             raise AuthHandshakeError(
                 "Failed to parse unencrypted response "
                 f"(len={len(payload)}, first32={preview}): {e}"
             ) from e
+
+        # Keep outgoing msg_ids ahead of the server-provided msg_id.
+        msg_id_gen.observe(int(resp.msg_id))
 
         return loads(resp.body)
 
@@ -299,7 +308,12 @@ async def exchange_auth_key(
 
     key = next((k for k in rsa_keys if k.fingerprint in fps), None)
     if key is None:
-        logger.error(f"FATAL: No matching key found! Server wants {fps}, we have {[k.fingerprint for k in rsa_keys]}")
+        have = [k.fingerprint for k in rsa_keys]
+        logger.error(
+            "FATAL: No matching key found! Server wants %s, we have %s",
+            fps,
+            have,
+        )
         raise AuthHandshakeError(f"No matching RSA key for server fingerprints: {fps!r}")
     
     logger.debug(f"Selected RSA key fingerprint: {key.fingerprint}")
