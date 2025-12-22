@@ -1,10 +1,35 @@
 from __future__ import annotations
 
+import gzip
 import struct
-from dataclasses import is_dataclass
+from dataclasses import dataclass, is_dataclass
 from typing import Any
 
 VECTOR_CONSTRUCTOR_ID = 0x1CB5C415
+
+# MTProto core "special" constructors which are not present in the generated schema.
+# These are still sent by the server and must be parsed manually.
+_RPC_RESULT_CONSTRUCTOR_ID = -213707519  # 0xF35C6D01
+_MSG_CONTAINER_CONSTRUCTOR_ID = 1945237724  # 0x73F1F8DC
+_GZIP_PACKED_CONSTRUCTOR_ID = 812830625  # 0x3072CFA1
+
+
+@dataclass(slots=True)
+class RpcResult:
+    req_msg_id: int
+    result: Any
+
+
+@dataclass(slots=True)
+class ContainerMessage:
+    msg_id: int
+    seqno: int
+    obj: Any
+
+
+@dataclass(slots=True)
+class MsgContainer:
+    messages: list[ContainerMessage]
 
 
 class TLCodecError(Exception):
@@ -261,6 +286,37 @@ class TLReader:
         from telecraft.tl.generated.registry import CONSTRUCTORS_BY_ID, METHODS_BY_ID
 
         cid = self.read_int()
+
+        # Manual parsing for core MTProto containers/results.
+        if cid == _RPC_RESULT_CONSTRUCTOR_ID:
+            req_msg_id = self.read_long()
+            result = self.read_object()
+            return RpcResult(req_msg_id=req_msg_id, result=result)
+
+        if cid == _MSG_CONTAINER_CONSTRUCTOR_ID:
+            count = self.read_int()
+            if count < 0:
+                raise TLCodecError("Negative msg_container message count")
+            messages: list[ContainerMessage] = []
+            for _ in range(count):
+                msg_id = self.read_long()
+                seqno = self.read_int()
+                ln = self.read_int()
+                if ln < 0:
+                    raise TLCodecError("Negative msg_container message length")
+                payload = self._read(ln)
+                obj = loads(payload)
+                messages.append(ContainerMessage(msg_id=msg_id, seqno=seqno, obj=obj))
+            return MsgContainer(messages=messages)
+
+        if cid == _GZIP_PACKED_CONSTRUCTOR_ID:
+            packed = self.read_bytes()
+            try:
+                unpacked = gzip.decompress(packed)
+            except Exception as e:  # noqa: BLE001
+                raise TLCodecError("Failed to decompress gzip_packed payload") from e
+            return loads(unpacked)
+
         cls = CONSTRUCTORS_BY_ID.get(cid) or METHODS_BY_ID.get(cid)
         if cls is None:
             raise TLCodecError(f"Unknown constructor id: {cid}")
