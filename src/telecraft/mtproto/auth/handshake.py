@@ -197,7 +197,7 @@ async def _send_unencrypted_request(
     msg_id_gen: MsgIdGenerator,
     req: Any,
     *,
-    recv_timeout: float | None = 10.0,
+    recv_timeout: float | None = None,
     max_frames: int = 128,
     max_ignored_small_frames: int = 64,
 ) -> Any:

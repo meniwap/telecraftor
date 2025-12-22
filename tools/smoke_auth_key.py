@@ -36,10 +36,14 @@ async def _run(args: argparse.Namespace) -> int:
     await transport.connect()
     try:
         rsa_keys = list(DEFAULT_SERVER_KEYRING.keys_by_fingerprint.values())
-        res = await asyncio.wait_for(
-            exchange_auth_key(transport, rsa_keys=rsa_keys),
-            timeout=args.timeout,
-        )
+        try:
+            res = await asyncio.wait_for(
+                exchange_auth_key(transport, rsa_keys=rsa_keys),
+                timeout=args.timeout,
+            )
+        except TimeoutError:
+            print(f"Timed out after {args.timeout:.1f}s while exchanging auth_key")
+            return 1
     finally:
         await transport.close()
 
