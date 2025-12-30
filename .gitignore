@@ -9,4 +9,13 @@ build/
 *.egg-info/
 .DS_Store
 
+# Local auth/session artifacts (never commit)
+.sessions/
+session.json
+*.session.json
+
+# Local env files (never commit)
+.env
+apps/env.sh
+
 

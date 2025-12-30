@@ -71,7 +71,7 @@ class MtprotoState:
             return out
         return self._seq * 2
 
-    def encrypt_inner_message(self, inner: bytes) -> bytes:
+    def encrypt_inner_message(self, inner: bytes, *, to_server: bool = True) -> bytes:
         """
         Encrypt an MTProto inner message (msg_id+seqno+len+body) into an encrypted packet:
           auth_key_id (8) + msg_key (16) + aes_ige(ciphertext...)
@@ -87,19 +87,23 @@ class MtprotoState:
         pad_len = (-(len(data) + 12) % 16) + 12
         padding = secrets.token_bytes(pad_len)
 
-        msg_key_large = sha256(self.auth_key[88 : 88 + 32] + data + padding)
+        # MTProto 2.0 uses different auth_key slices depending on direction:
+        # - client -> server: auth_key[88:120]
+        # - server -> client: auth_key[96:128]
+        auth_slice = self.auth_key[88 : 88 + 32] if to_server else self.auth_key[96 : 96 + 32]
+        msg_key_large = sha256(auth_slice + data + padding)
         msg_key = msg_key_large[8:24]
 
         aes_key, aes_iv = _calc_key_iv_mtproto2(
             auth_key=self.auth_key,
             msg_key=msg_key,
-            client=True,
+            client=to_server,
         )
         ct = AesIge(key=aes_key, iv=aes_iv).encrypt(data + padding)
 
         return struct.pack("<Q", self.auth_key_id) + msg_key + ct
 
-    def decrypt_packet(self, packet: bytes) -> bytes:
+    def decrypt_packet(self, packet: bytes, *, from_server: bool = True) -> bytes:
         """
         Decrypt an incoming MTProto encrypted packet and return the inner message bytes
         (msg_id+seqno+len+body), after validating msg_key and session_id.
@@ -116,12 +120,13 @@ class MtprotoState:
         aes_key, aes_iv = _calc_key_iv_mtproto2(
             auth_key=self.auth_key,
             msg_key=msg_key,
-            client=False,
+            client=not from_server,
         )
         plain = AesIge(key=aes_key, iv=aes_iv).decrypt(packet[24:])
 
         # Validate msg_key (MTProto security guidelines).
-        expected = sha256(self.auth_key[96 : 96 + 32] + plain)[8:24]
+        auth_slice = self.auth_key[96 : 96 + 32] if from_server else self.auth_key[88 : 88 + 32]
+        expected = sha256(auth_slice + plain)[8:24]
         if expected != msg_key:
             raise MtprotoStateError("msg_key mismatch after decryption")
 

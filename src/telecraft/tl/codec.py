@@ -9,7 +9,7 @@ VECTOR_CONSTRUCTOR_ID = 0x1CB5C415
 
 # MTProto core "special" constructors which are not present in the generated schema.
 # These are still sent by the server and must be parsed manually.
-_RPC_RESULT_CONSTRUCTOR_ID = -213707519  # 0xF35C6D01
+_RPC_RESULT_CONSTRUCTOR_ID = -212046591  # 0xF35C6D01
 _MSG_CONTAINER_CONSTRUCTOR_ID = 1945237724  # 0x73F1F8DC
 _GZIP_PACKED_CONSTRUCTOR_ID = 812830625  # 0x3072CFA1
 

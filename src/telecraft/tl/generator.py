@@ -63,6 +63,8 @@ def _render_constructor(cls: TLConstructor) -> tuple[str, str]:
     params_meta: list[tuple[str, str]] = []
     seen: set[str] = set()
     for p in cls.params:
+        if getattr(p, "is_generic", False):
+            continue
         fname = _safe_ident(p.name)
         if fname in seen:
             # very rare, but guard anyway
@@ -93,6 +95,8 @@ def _render_method(m: TLMethod) -> tuple[str, str]:
     params_meta: list[tuple[str, str]] = []
     seen: set[str] = set()
     for p in m.params:
+        if getattr(p, "is_generic", False):
+            continue
         fname = _safe_ident(p.name)
         if fname in seen:
             i = 2

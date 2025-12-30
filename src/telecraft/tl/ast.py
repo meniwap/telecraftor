@@ -23,6 +23,8 @@ class TLTypeRef:
 class TLParam:
     name: str
     type_ref: TLTypeRef
+    # Curly-brace params in TL schema (e.g. `{X:Type}`) declare generics and are not serialized.
+    is_generic: bool = False
 
 
 @dataclass(frozen=True, slots=True)

@@ -35,8 +35,8 @@ class String(TLObject):
 class Vector(TLObject):
     TL_ID: ClassVar[int] = 0
     TL_NAME: ClassVar[str] = "vector"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('t', 'Type'),)
-    t: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
 @dataclass(slots=True)
 class Int128(TLObject):
     TL_ID: ClassVar[int] = 0
@@ -463,8 +463,8 @@ class TLTrue(TLObject):
 class Vector(TLObject):
     TL_ID: ClassVar[int] = 481674261
     TL_NAME: ClassVar[str] = "vector"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('t', 'Type'),)
-    t: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
 @dataclass(slots=True)
 class Error(TLObject):
     TL_ID: ClassVar[int] = -994444869

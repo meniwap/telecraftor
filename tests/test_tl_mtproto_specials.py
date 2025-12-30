@@ -21,7 +21,7 @@ def _tl_bytes(data: bytes) -> bytes:
 def test_parse_rpc_result() -> None:
     pong = Pong(msg_id=123, ping_id=456)
     payload = dumps(pong)
-    rpc_result_cid = -213707519  # 0xF35C6D01
+    rpc_result_cid = -212046591  # 0xF35C6D01
     data = struct.pack("<i", rpc_result_cid) + struct.pack("<q", 777) + payload
     obj = loads(data)
     assert isinstance(obj, RpcResult)
@@ -42,7 +42,7 @@ def test_parse_gzip_packed_unwraps() -> None:
 
 def test_parse_msg_container() -> None:
     pong = Pong(msg_id=10, ping_id=20)
-    rpc_result_cid = -213707519  # 0xF35C6D01
+    rpc_result_cid = -212046591  # 0xF35C6D01
     inner_obj = struct.pack("<i", rpc_result_cid) + struct.pack("<q", 999) + dumps(pong)
 
     msg_container_cid = 1945237724  # 0x73F1F8DC

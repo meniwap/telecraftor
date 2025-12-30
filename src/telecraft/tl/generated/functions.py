@@ -90,8 +90,7 @@ class InvokeAfterMsg(TLRequest):
     TL_ID: ClassVar[int] = -878758099
     TL_NAME: ClassVar[str] = "invokeAfterMsg"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('msg_id', 'long'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('msg_id', 'long'), ('query', '!X'))
     msg_id: object
     query: object
 @dataclass(slots=True)
@@ -99,8 +98,7 @@ class InvokeAfterMsgs(TLRequest):
     TL_ID: ClassVar[int] = 1036301552
     TL_NAME: ClassVar[str] = "invokeAfterMsgs"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('msg_ids', 'Vector<long>'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('msg_ids', 'Vector<long>'), ('query', '!X'))
     msg_ids: object
     query: object
 @dataclass(slots=True)
@@ -108,8 +106,7 @@ class InitConnection(TLRequest):
     TL_ID: ClassVar[int] = -1043505495
     TL_NAME: ClassVar[str] = "initConnection"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('flags', '#'), ('api_id', 'int'), ('device_model', 'string'), ('system_version', 'string'), ('app_version', 'string'), ('system_lang_code', 'string'), ('lang_pack', 'string'), ('lang_code', 'string'), ('proxy', 'flags.0?InputClientProxy'), ('params', 'flags.1?JSONValue'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('api_id', 'int'), ('device_model', 'string'), ('system_version', 'string'), ('app_version', 'string'), ('system_lang_code', 'string'), ('lang_pack', 'string'), ('lang_code', 'string'), ('proxy', 'flags.0?InputClientProxy'), ('params', 'flags.1?JSONValue'), ('query', '!X'))
     flags: object
     api_id: object
     device_model: object
@@ -126,8 +123,7 @@ class InvokeWithLayer(TLRequest):
     TL_ID: ClassVar[int] = -627372787
     TL_NAME: ClassVar[str] = "invokeWithLayer"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('layer', 'int'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('layer', 'int'), ('query', '!X'))
     layer: object
     query: object
 @dataclass(slots=True)
@@ -135,16 +131,14 @@ class InvokeWithoutUpdates(TLRequest):
     TL_ID: ClassVar[int] = -1080796745
     TL_NAME: ClassVar[str] = "invokeWithoutUpdates"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('query', '!X'),)
     query: object
 @dataclass(slots=True)
 class InvokeWithMessagesRange(TLRequest):
     TL_ID: ClassVar[int] = 911373810
     TL_NAME: ClassVar[str] = "invokeWithMessagesRange"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('range', 'MessageRange'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('range', 'MessageRange'), ('query', '!X'))
     range: object
     query: object
 @dataclass(slots=True)
@@ -152,8 +146,7 @@ class InvokeWithTakeout(TLRequest):
     TL_ID: ClassVar[int] = -1398145746
     TL_NAME: ClassVar[str] = "invokeWithTakeout"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('takeout_id', 'long'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('takeout_id', 'long'), ('query', '!X'))
     takeout_id: object
     query: object
 @dataclass(slots=True)
@@ -161,8 +154,7 @@ class InvokeWithBusinessConnection(TLRequest):
     TL_ID: ClassVar[int] = -584540274
     TL_NAME: ClassVar[str] = "invokeWithBusinessConnection"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('connection_id', 'string'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('connection_id', 'string'), ('query', '!X'))
     connection_id: object
     query: object
 @dataclass(slots=True)
@@ -170,8 +162,7 @@ class InvokeWithGooglePlayIntegrity(TLRequest):
     TL_ID: ClassVar[int] = 502868356
     TL_NAME: ClassVar[str] = "invokeWithGooglePlayIntegrity"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('nonce', 'string'), ('token', 'string'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('nonce', 'string'), ('token', 'string'), ('query', '!X'))
     nonce: object
     token: object
     query: object
@@ -180,8 +171,7 @@ class InvokeWithApnsSecret(TLRequest):
     TL_ID: ClassVar[int] = 229528824
     TL_NAME: ClassVar[str] = "invokeWithApnsSecret"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('nonce', 'string'), ('secret', 'string'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('nonce', 'string'), ('secret', 'string'), ('query', '!X'))
     nonce: object
     secret: object
     query: object
@@ -190,8 +180,7 @@ class InvokeWithReCaptcha(TLRequest):
     TL_ID: ClassVar[int] = -1380249708
     TL_NAME: ClassVar[str] = "invokeWithReCaptcha"
     TL_RESULT: ClassVar[str] = "X"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('x', 'Type'), ('token', 'string'), ('query', '!X'))
-    x: object
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('token', 'string'), ('query', '!X'))
     token: object
     query: object
 @dataclass(slots=True)

@@ -36,12 +36,14 @@ def _parse_constructor_id(token: str) -> tuple[str, int | None]:
 
 def _parse_param(token: str) -> TLParam:
     token = token.strip()
+    is_generic = False
     if token.startswith("{") and token.endswith("}"):
         token = token[1:-1].strip()
+        is_generic = True
     if ":" not in token:
         raise ValueError(f"Invalid param token: {token!r}")
     name, type_expr = token.split(":", 1)
-    return TLParam(name=name, type_ref=TLTypeRef(type_expr))
+    return TLParam(name=name, type_ref=TLTypeRef(type_expr), is_generic=is_generic)
 
 
 def _parse_combinator_line(line: str, section: str) -> TLConstructor | TLMethod:
