@@ -51,3 +51,23 @@ source apps/env.sh
 ./.venv/bin/python apps/run.py updates --network prod --dc 2
 ```
 
+#### Echo bot (framework demo)
+
+אחרי login:
+
+```bash
+./.venv/bin/python apps/echo_bot.py
+```
+
+מה אמור לקרות:
+- בקבוצות “רגילות” (basic group) זה יחזיר echo לאותו צ’אט.
+- ב־DM / ערוצים / סופרגרופ: זה יעבוד **אם** יש `access_hash` בזיכרון (ה־Dispatcher עושה priming דרך dialogs בתחילת ריצה).
+- אם אין מספיק מידע כדי לבנות peer (למשל DM ממש “חדש” שלא הופיע ב־dialogs), יש fallback ל־Saved Messages.
+
+#### Session / state קבצים (לא נכנסים לגיט)
+
+בתיקייה `.sessions/` נוצרים:
+- `prod_dcX.session.json`: auth_key + endpoint/framing + server_salt
+- `prod_dcX.updates.json`: updates state מינימלי (pts/qts/seq/date) כדי שהבוט יחזיק ריסטארטים יותר טוב
+- `prod.current`: pointer לסשן “הנוכחי”
+

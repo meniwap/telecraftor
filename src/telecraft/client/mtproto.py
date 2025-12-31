@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import types
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from telecraft.client.entities import EntityCache
 from telecraft.mtproto.auth.handshake import exchange_auth_key
@@ -19,6 +20,7 @@ from telecraft.mtproto.transport.base import Endpoint, Framing
 from telecraft.mtproto.transport.intermediate import IntermediateFraming
 from telecraft.mtproto.transport.tcp import TcpTransport
 from telecraft.mtproto.updates.engine import AppliedUpdates, UpdatesEngine
+from telecraft.mtproto.updates.state import UpdatesState
 from telecraft.schema.pinned_layer import LAYER
 from telecraft.tl.generated.functions import (
     AccountGetPassword,
@@ -140,6 +142,7 @@ class MtprotoClient:
         self._updates_engine: UpdatesEngine | None = None
         self._updates_task: asyncio.Task[None] | None = None
         self._updates_out: asyncio.Queue[Any] | None = None
+        self._updates_state_last_save: float = 0.0
 
         self.config: Any | None = None
         self.entities = EntityCache()
@@ -305,7 +308,8 @@ class MtprotoClient:
         self._updates_engine = UpdatesEngine(
             invoke_api=lambda req: self.invoke_api(req, timeout=timeout)
         )
-        await self._updates_engine.initialize()
+        initial_state = self._load_updates_state()
+        await self._updates_engine.initialize(initial_state=initial_state)
         self._updates_task = asyncio.create_task(self._updates_loop())
 
     async def stop_updates(self) -> None:
@@ -317,6 +321,7 @@ class MtprotoClient:
         except asyncio.CancelledError:
             pass
         self._updates_task = None
+        self._persist_updates_state(force=True)
 
     async def recv_update(self) -> Any:
         if self._updates_out is None:
@@ -347,6 +352,49 @@ class MtprotoClient:
                 except asyncio.QueueFull:
                     break
 
+            self._persist_updates_state()
+
+    def _updates_state_path(self) -> Path | None:
+        if self._session_path is None:
+            return None
+        p = self._session_path
+        # Keep "basename" stable:
+        #   prod_dc2.session.json -> prod_dc2.updates.json
+        if p.name.endswith(".session.json"):
+            name = p.name[: -len(".session.json")] + ".updates.json"
+            return p.with_name(name)
+        return p.with_name(p.name + ".updates.json")
+
+    def _load_updates_state(self) -> UpdatesState | None:
+        p = self._updates_state_path()
+        if p is None or not p.exists():
+            return None
+        try:
+            from telecraft.mtproto.updates.storage import load_updates_state_file
+
+            return load_updates_state_file(p)
+        except Exception:
+            # Best-effort: if storage is corrupted/missing fields, start from server getState.
+            return None
+
+    def _persist_updates_state(self, *, force: bool = False) -> None:
+        p = self._updates_state_path()
+        if p is None:
+            return
+        if self._updates_engine is None or self._updates_engine.state is None:
+            return
+        now = time.monotonic()
+        if not force and (now - self._updates_state_last_save) < 2.0:
+            return
+        self._updates_state_last_save = now
+        try:
+            from telecraft.mtproto.updates.storage import save_updates_state_file
+
+            save_updates_state_file(p, self._updates_engine.state)
+        except Exception:
+            # Best-effort persistence; never break the running client.
+            return
+
     async def get_me(self, *, timeout: float = 20.0) -> Any:
         """
         Fetch current user and update entity cache.
@@ -374,9 +422,25 @@ class MtprotoClient:
             InputPeerChat(chat_id=int(chat_id)), text, timeout=timeout
         )
 
+    async def send_message_user(self, user_id: int, text: str, *, timeout: float = 20.0) -> Any:
+        """
+        Send a message to a user (requires access_hash in the entity cache).
+        """
+        peer = self.entities.input_peer_user(int(user_id))
+        return await self.send_message_peer(peer, text, timeout=timeout)
+
+    async def send_message_channel(
+        self, channel_id: int, text: str, *, timeout: float = 20.0
+    ) -> Any:
+        """
+        Send a message to a channel/supergroup (requires access_hash in the entity cache).
+        """
+        peer = self.entities.input_peer_channel(int(channel_id))
+        return await self.send_message_peer(peer, text, timeout=timeout)
+
     async def send_message_peer(self, peer: Any, text: str, *, timeout: float = 20.0) -> Any:
         """
-        Low-level sendMessage wrapper for supported InputPeer*.
+        Low-level sendMessage wrapper for supported InputPeer* types.
         """
         from secrets import randbits
 
@@ -407,6 +471,43 @@ class MtprotoClient:
             ),
             timeout=timeout,
         )
+
+    async def prime_entities(self, *, limit: int = 100, timeout: float = 20.0) -> None:
+        """
+        Best-effort entity priming to populate access_hash cache.
+
+        Why:
+        - replies in private chats/channels require InputPeerUser/InputPeerChannel (access_hash)
+        - short updates often contain only IDs without access_hash
+
+        This method fetches a slice of dialogs, ingests users/chats into EntityCache.
+        """
+        from telecraft.tl.generated.functions import MessagesGetDialogs
+        from telecraft.tl.generated.types import (
+            InputPeerEmpty,
+            MessagesDialogs,
+            MessagesDialogsSlice,
+        )
+
+        res = await self.invoke_api(
+            MessagesGetDialogs(
+                flags=0,
+                exclude_pinned=False,
+                folder_id=None,
+                offset_date=0,
+                offset_id=0,
+                offset_peer=InputPeerEmpty(),
+                limit=int(limit),
+                hash=0,
+            ),
+            timeout=timeout,
+        )
+
+        if isinstance(res, (MessagesDialogs, MessagesDialogsSlice)):
+            users = cast(list[Any], getattr(res, "users", []))
+            chats = cast(list[Any], getattr(res, "chats", []))
+            self.entities.ingest_users(list(users))
+            self.entities.ingest_chats(list(chats))
 
     async def send_code(self, phone_number: str, *, timeout: float = 20.0) -> AuthSentCode:
         """

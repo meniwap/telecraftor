@@ -58,7 +58,16 @@ class UpdatesEngine:
         self._pts_total_limit = pts_total_limit
         self.state: UpdatesState | None = None
 
-    async def initialize(self) -> UpdatesState:
+    async def initialize(self, *, initial_state: UpdatesState | None = None) -> UpdatesState:
+        """
+        Initialize updates engine state.
+
+        - If initial_state is provided (e.g. loaded from disk), it will be used directly.
+        - Otherwise we fetch updates.getState from the server.
+        """
+        if initial_state is not None:
+            self.state = initial_state
+            return self.state
         res = await self._invoke_api(UpdatesGetState())
         self.state = UpdatesState.from_tl(res)
         return self.state

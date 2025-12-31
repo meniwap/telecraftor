@@ -40,8 +40,10 @@ async def main() -> None:
 
     @router.on_message(text())
     async def echo(e: MessageEvent) -> None:
-        # This echo works reliably in basic group chats (updateShortChatMessage),
-        # and falls back to Saved Messages otherwise.
+        # Best-effort echo:
+        # - basic groups: reply to chat_id
+        # - DMs/channels: reply if access_hash is available (Dispatcher primes dialogs)
+        # - fallback: Saved Messages
         if e.text:
             await e.reply("echo: " + e.text)
 
