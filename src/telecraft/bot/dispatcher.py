@@ -30,9 +30,10 @@ class Dispatcher:
 
     async def run(self) -> None:
         started_at = int(time.time())
-        # Dedupe messages by (peer_type, peer_id, msg_id) to avoid echoing the same message twice.
-        seen: set[tuple[str, int, int]] = set()
-        seen_order: deque[tuple[str, int, int]] = deque(maxlen=4096)
+        # Dedupe messages by (peer_type, peer_id, msg_id, kind) to avoid duplicates while
+        # still allowing edits to be processed.
+        seen: set[tuple[str, int, int, str]] = set()
+        seen_order: deque[tuple[str, int, int, str]] = deque(maxlen=4096)
 
         # Best-effort: populate access_hash cache (enables DM/channel replies).
         prime = getattr(self.client, "prime_entities", None)
@@ -76,7 +77,8 @@ class Dispatcher:
             peer_id = int(evt.peer_id) if evt.peer_id is not None else 0
 
             if evt.msg_id is not None:
-                key = (peer_type, peer_id, int(evt.msg_id))
+                # Include kind so we don't drop "edit" events for the same message id.
+                key = (peer_type, peer_id, int(evt.msg_id), str(getattr(evt, "kind", "new")))
                 if key in seen:
                     continue
                 if len(seen_order) == seen_order.maxlen:

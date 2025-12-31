@@ -4,12 +4,18 @@ from telecraft.bot import (
     channel,
     command,
     contains,
+    edited_message,
     from_user,
     group,
+    has_media,
     in_channel,
     in_chat,
+    incoming,
+    new_message,
+    outgoing,
     private,
     regex,
+    reply_to,
     startswith,
     text,
 )
@@ -62,5 +68,32 @@ def test_filter_command_uses_event_command_property() -> None:
     e = _e(text="/start 123")
     assert command("start")(e) is True
     assert command("help")(e) is False
+
+
+def test_filters_incoming_outgoing_kind() -> None:
+    e = _e(outgoing=False, kind="new")
+    assert incoming()(e) is True
+    assert outgoing()(e) is False
+    assert new_message()(e) is True
+    assert edited_message()(e) is False
+
+    e2 = _e(outgoing=True, kind="edit")
+    assert incoming()(e2) is False
+    assert outgoing()(e2) is True
+    assert new_message()(e2) is False
+    assert edited_message()(e2) is True
+
+
+def test_filters_reply_to_and_has_media() -> None:
+    class R:
+        reply_to_msg_id = 123
+
+    class Raw:
+        media = object()
+        reply_to = R()
+
+    e = _e(raw=Raw())
+    assert reply_to()(e) is True
+    assert has_media()(e) is True
 
 

@@ -87,6 +87,7 @@ class MessageEvent:
     date: int | None = None
     text: str | None = None
     outgoing: bool = False
+    kind: str = "new"  # "new" | "edit"
 
     async def reply(self, text: str) -> Any:
         """
@@ -114,6 +115,19 @@ class MessageEvent:
                 logger.info("send_message_user failed; falling back to self", exc_info=ex)
                 return await self.client.send_message_self(text)
         return await self.client.send_message_self(text)
+
+    @property
+    def has_media(self) -> bool:
+        media = getattr(self.raw, "media", None)
+        return media is not None
+
+    @property
+    def reply_to_msg_id(self) -> int | None:
+        rh = getattr(self.raw, "reply_to", None)
+        if rh is None:
+            return None
+        v = getattr(rh, "reply_to_msg_id", None)
+        return int(v) if isinstance(v, int) else None
 
     @property
     def is_private(self) -> bool:
@@ -152,9 +166,13 @@ class MessageEvent:
             "updateEditMessage",
             "updateEditChannelMessage",
         }:
+            kind = "edit" if name in {"updateEditMessage", "updateEditChannelMessage"} else "new"
             inner = getattr(update, "message", None)
             if inner is not None:
-                return cls.from_update(client=client, update=inner)
+                e = cls.from_update(client=client, update=inner)
+                if e is not None:
+                    e.kind = kind
+                return e
 
         if name == "updateShortChatMessage":
             outgoing = _flag_is_set(getattr(update, "flags", 0), 1)
@@ -173,6 +191,7 @@ class MessageEvent:
                     date=int(cast(int, update.date)),
                     text=_decode_text(getattr(update, "message", None)),
                     outgoing=outgoing,
+                    kind="new",
                 )
             )
 
@@ -195,6 +214,7 @@ class MessageEvent:
                     date=int(cast(int, update.date)),
                     text=_decode_text(getattr(update, "message", None)),
                     outgoing=outgoing,
+                    kind="new",
                 )
             )
 
@@ -244,6 +264,7 @@ class MessageEvent:
                     date=int(cast(int, getattr(update, "date"))),
                     text=_decode_text(getattr(update, "message", None)),
                     outgoing=outgoing,
+                    kind="new",
                 )
             )
 

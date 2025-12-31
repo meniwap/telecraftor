@@ -106,6 +106,40 @@ def regex(pattern: str, *, flags: int = 0) -> Filter:
     return _f
 
 
+def incoming() -> Filter:
+    return lambda e: not e.outgoing
+
+
+def outgoing() -> Filter:
+    return lambda e: e.outgoing
+
+
+def new_message() -> Filter:
+    return lambda e: getattr(e, "kind", "new") == "new"
+
+
+def edited_message() -> Filter:
+    return lambda e: getattr(e, "kind", "new") == "edit"
+
+
+def has_media() -> Filter:
+    def _f(e: MessageEvent) -> bool:
+        fn = getattr(e, "has_media", None)
+        if callable(fn):
+            try:
+                return bool(fn())
+            except Exception:  # noqa: BLE001
+                return False
+        media = getattr(getattr(e, "raw", None), "media", None)
+        return media is not None
+
+    return _f
+
+
+def reply_to() -> Filter:
+    return lambda e: getattr(e, "reply_to_msg_id", None) is not None
+
+
 @dataclass(frozen=True, slots=True)
 class And:
     a: Filter
