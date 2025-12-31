@@ -165,6 +165,16 @@ class MtprotoClient:
         if self.is_connected:
             return
 
+        # If we have a session file, treat it as authoritative for endpoint/framing.
+        # This avoids common "session mismatch" errors when a previous login migrated DCs.
+        sess: MtprotoSession | None = None
+        if self._session_path is not None and self._session_path.exists():
+            sess = load_session_file(self._session_path)
+            self._dc_id = int(sess.dc_id)
+            self._host = str(sess.host)
+            self._port = int(sess.port)
+            self._framing_name = str(sess.framing)
+
         host, port = self._endpoint()
         framing = _make_framing(self._framing_name)
         transport = TcpTransport(endpoint=Endpoint(host=host, port=port), framing=framing)
@@ -175,19 +185,7 @@ class MtprotoClient:
             auth_key: bytes
             server_salt: bytes
 
-            if self._session_path is not None and self._session_path.exists():
-                sess = load_session_file(self._session_path)
-                if (sess.dc_id, sess.host, sess.port, sess.framing) != (
-                    self._dc_id,
-                    host,
-                    port,
-                    self._framing_name,
-                ):
-                    raise MtprotoClientError(
-                        "Session mismatch (dc/host/port/framing). "
-                        f"Session={sess.dc_id, sess.host, sess.port, sess.framing} "
-                        f"Args={self._dc_id, host, port, self._framing_name}"
-                    )
+            if sess is not None:
                 auth_key = sess.auth_key
                 server_salt = sess.server_salt
             else:
