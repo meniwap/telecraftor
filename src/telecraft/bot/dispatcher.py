@@ -6,7 +6,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
-from telecraft.bot.events import MessageEvent
+from telecraft.bot.events import DeletedMessagesEvent, MessageEvent, ReactionEvent, parse_events
 from telecraft.bot.router import Router
 
 logger = logging.getLogger(__name__)
@@ -46,8 +46,8 @@ class Dispatcher:
         await self.client.start_updates()
         while True:
             upd = await self.client.recv_update()
-            evt = MessageEvent.from_update(client=self.client, update=upd)
-            if evt is None:
+            evts = parse_events(client=self.client, update=upd)
+            if not evts:
                 if self.debug:
                     logger.info(
                         "Skip: unmapped update %s",
@@ -55,37 +55,51 @@ class Dispatcher:
                     )
                 continue
 
-            # Never react to our own outgoing messages (prevents echo-loops).
-            if self.ignore_outgoing and evt.outgoing:
-                if self.debug:
-                    logger.info("Skip: outgoing message msg_id=%s", evt.msg_id)
-                continue
+            for evt in evts:
+                if isinstance(evt, MessageEvent):
+                    await self._handle_message(evt, started_at, seen, seen_order)
+                elif isinstance(evt, ReactionEvent):
+                    await self.router.dispatch_reaction(evt)
+                elif isinstance(evt, DeletedMessagesEvent):
+                    await self.router.dispatch_deleted_messages(evt)
 
-            # Skip backlog/old messages on startup (prevents "echo all history").
-            # Telegram dates are unix timestamps (seconds).
-            if (
-                self.ignore_before_start
-                and evt.date is not None
-                and evt.date < (started_at - int(self.backlog_grace_seconds))
-            ):
-                if self.debug:
-                    logger.info("Skip: old message date=%s started_at=%s", evt.date, started_at)
-                continue
+    async def _handle_message(
+        self,
+        evt: MessageEvent,
+        started_at: int,
+        seen: set[tuple[str, int, int, str]],
+        seen_order: deque[tuple[str, int, int, str]],
+    ) -> None:
+        # Never react to our own outgoing messages (prevents echo-loops).
+        if self.ignore_outgoing and evt.outgoing:
+            if self.debug:
+                logger.info("Skip: outgoing message msg_id=%s", evt.msg_id)
+            return
 
-            # Dedupe: sometimes the same message can arrive via different wrappers.
-            peer_type = evt.peer_type or "unknown"
-            peer_id = int(evt.peer_id) if evt.peer_id is not None else 0
+        # Skip backlog/old messages on startup (prevents "echo all history").
+        # Telegram dates are unix timestamps (seconds).
+        if (
+            self.ignore_before_start
+            and evt.date is not None
+            and evt.date < (started_at - int(self.backlog_grace_seconds))
+        ):
+            if self.debug:
+                logger.info("Skip: old message date=%s started_at=%s", evt.date, started_at)
+            return
 
-            if evt.msg_id is not None:
-                # Include kind so we don't drop "edit" events for the same message id.
-                key = (peer_type, peer_id, int(evt.msg_id), str(getattr(evt, "kind", "new")))
-                if key in seen:
-                    continue
-                if len(seen_order) == seen_order.maxlen:
-                    old = seen_order.popleft()
-                    seen.discard(old)
-                seen_order.append(key)
-                seen.add(key)
+        # Dedupe: sometimes the same message can arrive via different wrappers.
+        peer_type = evt.peer_type or "unknown"
+        peer_id = int(evt.peer_id) if evt.peer_id is not None else 0
 
-            await self.router.dispatch_message(evt)
+        if evt.msg_id is not None:
+            key = (peer_type, peer_id, int(evt.msg_id), str(getattr(evt, "kind", "new")))
+            if key in seen:
+                return
+            if len(seen_order) == seen_order.maxlen:
+                old = seen_order.popleft()
+                seen.discard(old)
+            seen_order.append(key)
+            seen.add(key)
+
+        await self.router.dispatch_message(evt)
 

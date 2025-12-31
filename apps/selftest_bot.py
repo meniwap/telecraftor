@@ -6,8 +6,10 @@ import os
 from pathlib import Path
 
 from telecraft.bot import (
+    DeletedMessagesEvent,
     Dispatcher,
     MessageEvent,
+    ReactionEvent,
     Router,
     edited_message,
     has_media,
@@ -83,6 +85,11 @@ async def main() -> None:
     print("- Send a photo in DM -> should trigger HAS_MEDIA handler")
     print("- Reply to a message in DM -> should trigger REPLY_TO handler")
     print("- Edit a message you sent in DM -> should trigger EDIT handler (kind='edit')")
+    print("- Add a reaction (❤️) to a message -> should print a [REACTION] line")
+    print(
+        "- Delete a message you sent -> should print a [DELETED] line "
+        "(peer may be unknown for non-channel)"
+    )
     print("")
 
     router = Router()
@@ -112,6 +119,17 @@ async def main() -> None:
     @router.on_message(reply_to())
     async def on_reply(e: MessageEvent) -> None:
         await e.reply(f"selftest: reply_to OK (reply_to_msg_id={e.reply_to_msg_id})")
+
+    @router.on_reaction()
+    async def on_reaction(e: ReactionEvent) -> None:
+        print(
+            f"[REACTION] peer={e.peer_type}:{e.peer_id} msg_id={e.msg_id} "
+            f"reactions={type(e.reactions).__name__}"
+        )
+
+    @router.on_deleted_messages()
+    async def on_deleted(e: DeletedMessagesEvent) -> None:
+        print(f"[DELETED] peer={e.peer_type}:{e.peer_id} msg_ids={e.msg_ids}")
 
     @router.on_message(private())
     async def on_private(e: MessageEvent) -> None:

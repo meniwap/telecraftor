@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from .dispatcher import Dispatcher
-from .events import MessageEvent
+from .events import DeletedMessagesEvent, MessageEvent, ReactionEvent
+from .exceptions import StopPropagation
 from .filters import (
     Filter,
     all_,
@@ -27,10 +28,13 @@ from .filters import (
 from .router import Router
 
 __all__ = [
+    "DeletedMessagesEvent",
     "Dispatcher",
     "Filter",
     "MessageEvent",
+    "ReactionEvent",
     "Router",
+    "StopPropagation",
     "all_",
     "channel",
     "command",

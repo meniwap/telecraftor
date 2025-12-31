@@ -6,6 +6,19 @@ from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
+def _peer_type_and_id(peer: object) -> tuple[str | None, int | None]:
+    name = getattr(peer, "TL_NAME", None)
+    if name == "peerUser":
+        v = getattr(peer, "user_id", None)
+        return ("user", int(v)) if isinstance(v, int) else (None, None)
+    if name == "peerChat":
+        v = getattr(peer, "chat_id", None)
+        return ("chat", int(v)) if isinstance(v, int) else (None, None)
+    if name == "peerChannel":
+        v = getattr(peer, "channel_id", None)
+        return ("channel", int(v)) if isinstance(v, int) else (None, None)
+    return None, None
+
 def _flag_is_set(flags: object, bit: int) -> bool:
     try:
         return (int(cast(int, flags)) & (1 << bit)) != 0
@@ -270,4 +283,89 @@ class MessageEvent:
 
         # Many other update types exist; we'll extend later.
         return None
+
+
+@dataclass(slots=True)
+class ReactionEvent:
+    client: Any
+    raw: Any
+    peer_type: str | None
+    peer_id: int | None
+    msg_id: int
+    reactions: Any
+
+    @classmethod
+    def from_update(cls, *, client: Any, update: Any) -> ReactionEvent | None:
+        if getattr(update, "TL_NAME", None) != "updateMessageReactions":
+            return None
+        peer = getattr(update, "peer", None)
+        peer_type, peer_id = _peer_type_and_id(peer)
+        msg_id = getattr(update, "msg_id", None)
+        if not isinstance(msg_id, int):
+            return None
+        return cls(
+            client=client,
+            raw=update,
+            peer_type=peer_type,
+            peer_id=peer_id,
+            msg_id=int(msg_id),
+            reactions=getattr(update, "reactions", None),
+        )
+
+
+@dataclass(slots=True)
+class DeletedMessagesEvent:
+    client: Any
+    raw: Any
+    peer_type: str | None
+    peer_id: int | None
+    msg_ids: list[int]
+
+    @classmethod
+    def from_update(cls, *, client: Any, update: Any) -> DeletedMessagesEvent | None:
+        name = getattr(update, "TL_NAME", None)
+        if name == "updateDeleteChannelMessages":
+            cid = getattr(update, "channel_id", None)
+            msgs = getattr(update, "messages", None)
+            if not isinstance(cid, int) or not isinstance(msgs, list):
+                return None
+            ids = [int(x) for x in msgs if isinstance(x, int)]
+            return cls(
+                client=client,
+                raw=update,
+                peer_type="channel",
+                peer_id=int(cid),
+                msg_ids=ids,
+            )
+        if name == "updateDeleteMessages":
+            msgs = getattr(update, "messages", None)
+            if not isinstance(msgs, list):
+                return None
+            ids = [int(x) for x in msgs if isinstance(x, int)]
+            # No peer info in this update type.
+            return cls(client=client, raw=update, peer_type=None, peer_id=None, msg_ids=ids)
+        return None
+
+
+BotEvent = MessageEvent | ReactionEvent | DeletedMessagesEvent
+
+
+def parse_events(*, client: Any, update: Any) -> list[BotEvent]:
+    """
+    Convert a raw TL update/message object into 0..N bot events.
+    """
+    out: list[BotEvent] = []
+    m = MessageEvent.from_update(client=client, update=update)
+    if m is not None:
+        out.append(m)
+        return out
+    r = ReactionEvent.from_update(client=client, update=update)
+    if r is not None:
+        out.append(r)
+        return out
+    d = DeletedMessagesEvent.from_update(client=client, update=update)
+    if d is not None:
+        out.append(d)
+        return out
+    return out
 
