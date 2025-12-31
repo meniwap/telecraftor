@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import time
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,6 +25,11 @@ class Dispatcher:
     router: Router
 
     async def run(self) -> None:
+        started_at = int(time.time())
+        # Dedupe messages by (peer_type, peer_id, msg_id) to avoid echoing the same message twice.
+        seen: set[tuple[str, int, int]] = set()
+        seen_order: deque[tuple[str, int, int]] = deque(maxlen=4096)
+
         # Best-effort: populate access_hash cache (enables DM/channel replies).
         prime = getattr(self.client, "prime_entities", None)
         if callable(prime):
@@ -37,5 +44,37 @@ class Dispatcher:
             evt = MessageEvent.from_update(client=self.client, update=upd)
             if evt is None:
                 continue
+
+            # Never react to our own outgoing messages (prevents echo-loops).
+            if evt.outgoing:
+                continue
+
+            # Skip backlog/old messages on startup (prevents "echo all history").
+            # Telegram dates are unix timestamps (seconds).
+            if evt.date is not None and evt.date < (started_at - 10):
+                continue
+
+            # Dedupe: sometimes the same message can arrive via different wrappers.
+            peer_type: str
+            peer_id: int
+            if evt.chat_id is not None:
+                peer_type, peer_id = "chat", int(evt.chat_id)
+            elif evt.channel_id is not None:
+                peer_type, peer_id = "channel", int(evt.channel_id)
+            elif evt.user_id is not None:
+                peer_type, peer_id = "user", int(evt.user_id)
+            else:
+                peer_type, peer_id = "unknown", 0
+
+            if evt.msg_id is not None:
+                key = (peer_type, peer_id, int(evt.msg_id))
+                if key in seen:
+                    continue
+                if len(seen_order) == seen_order.maxlen:
+                    old = seen_order.popleft()
+                    seen.discard(old)
+                seen_order.append(key)
+                seen.add(key)
+
             await self.router.dispatch_message(evt)
 

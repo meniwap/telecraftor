@@ -33,6 +33,7 @@ class MessageEvent:
     msg_id: int | None = None
     date: int | None = None
     text: str | None = None
+    outgoing: bool = False
 
     async def reply(self, text: str) -> Any:
         """
@@ -74,6 +75,7 @@ class MessageEvent:
                 msg_id=int(cast(int, update.id)),
                 date=int(cast(int, update.date)),
                 text=_decode_text(getattr(update, "message", None)),
+                outgoing=bool(getattr(update, "out", False)),
             )
 
         if name == "updateShortMessage":
@@ -85,6 +87,7 @@ class MessageEvent:
                 msg_id=int(cast(int, update.id)),
                 date=int(cast(int, update.date)),
                 text=_decode_text(getattr(update, "message", None)),
+                outgoing=bool(getattr(update, "out", False)),
             )
 
         # Message objects (often arrive via getDifference.new_messages).
@@ -121,6 +124,7 @@ class MessageEvent:
                 msg_id=int(cast(int, getattr(update, "id"))),
                 date=int(cast(int, getattr(update, "date"))),
                 text=_decode_text(getattr(update, "message", None)),
+                outgoing=bool(getattr(update, "out", False)),
             )
 
         # Many other update types exist; we'll extend later.
