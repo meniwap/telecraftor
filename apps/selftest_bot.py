@@ -151,7 +151,14 @@ async def main() -> None:
         if e.command:
             await e.reply(f"selftest: command={e.command!r} args={e.command_args!r}")
 
-    disp = Dispatcher(client=client, router=router, debug=False)
+    # Bigger grace window reduces "burst replies" when reconnecting and receiving backlog
+    # via getDifference.
+    disp = Dispatcher(
+        client=client,
+        router=router,
+        debug=False,
+        backlog_grace_seconds=600,
+    )
     try:
         await disp.run()
     finally:

@@ -143,6 +143,11 @@ class MessageEvent:
         return int(v) if isinstance(v, int) else None
 
     @property
+    def edit_date(self) -> int | None:
+        v = getattr(self.raw, "edit_date", None)
+        return int(v) if isinstance(v, int) else None
+
+    @property
     def is_private(self) -> bool:
         return self.peer_type == "user" and self.peer_id is not None
 
@@ -381,11 +386,22 @@ def parse_events(*, client: Any, update: Any) -> list[BotEvent]:
     Convert a raw TL update/message object into 0..N bot events.
     """
     out: list[BotEvent] = []
+    # Prefer ReactionEvent over MessageEvent(kind="edit") when the edit seems to be
+    # "reaction-only" (Telegram sometimes represents reaction changes as updateEditMessage).
+    r = ReactionEvent.from_update(client=client, update=update)
     m = MessageEvent.from_update(client=client, update=update)
     if m is not None:
-        out.append(m)
-
-    r = ReactionEvent.from_update(client=client, update=update)
+        if (
+            r is not None
+            and getattr(update, "TL_NAME", None)
+            in {"updateEditMessage", "updateEditChannelMessage"}
+            and getattr(m, "kind", "new") == "edit"
+            and m.edit_date is None
+        ):
+            # Suppress edit events that are likely just reaction updates.
+            pass
+        else:
+            out.append(m)
     if r is not None:
         out.append(r)
 
