@@ -8,7 +8,33 @@ from telecraft.bot import Dispatcher, MessageEvent, Router, text
 from telecraft.client.mtproto import ClientInit, MtprotoClient
 
 
+def _try_load_env_file(path: str) -> None:
+    """
+    Best-effort loader for apps/env.sh so users can run:
+      ./.venv/bin/python apps/echo_bot.py
+    without needing to `source apps/env.sh` first.
+    """
+    p = Path(path)
+    if not p.exists():
+        return
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+        if "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        k = k.strip()
+        v = v.strip().strip("'").strip('"')
+        if k and k not in os.environ:
+            os.environ[k] = v
+
+
 def _need(name: str) -> str:
+    if name not in os.environ:
+        _try_load_env_file("apps/env.sh")
     v = os.environ.get(name)
     if not v:
         raise SystemExit(f"Missing {name}. Run: source apps/env.sh")
@@ -47,13 +73,18 @@ async def main() -> None:
         # - DMs/channels: reply if access_hash is available (Dispatcher primes dialogs)
         # - fallback: Saved Messages
         if e.text:
+            # Prevent echo-loops if we also process outgoing messages.
+            if e.text.startswith("echo: "):
+                return
             print(
                 f"IN: chat_id={e.chat_id} channel_id={e.channel_id} "
                 f"user_id={e.user_id} text={e.text!r}"
             )
             await e.reply("echo: " + e.text)
 
-    disp = Dispatcher(client=client, router=router)
+    # For easier local testing, allow processing outgoing messages too.
+    # The handler above prevents loops by ignoring messages that already start with "echo: ".
+    disp = Dispatcher(client=client, router=router, ignore_outgoing=False, debug=True)
     try:
         await disp.run()
     finally:
