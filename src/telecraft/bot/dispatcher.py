@@ -34,6 +34,8 @@ class Dispatcher:
         # still allowing edits to be processed.
         seen: set[tuple[str, int, int, str]] = set()
         seen_order: deque[tuple[str, int, int, str]] = deque(maxlen=4096)
+        seen_other: set[tuple[str, str, int, int]] = set()
+        seen_other_order: deque[tuple[str, str, int, int]] = deque(maxlen=4096)
 
         # Best-effort: populate access_hash cache (enables DM/channel replies).
         prime = getattr(self.client, "prime_entities", None)
@@ -59,9 +61,44 @@ class Dispatcher:
                 if isinstance(evt, MessageEvent):
                     await self._handle_message(evt, started_at, seen, seen_order)
                 elif isinstance(evt, ReactionEvent):
-                    await self.router.dispatch_reaction(evt)
+                    if self._dedupe_other(
+                        seen_other,
+                        seen_other_order,
+                        (
+                            "reaction",
+                            evt.peer_type or "unknown",
+                            int(evt.peer_id or 0),
+                            int(evt.msg_id),
+                        ),
+                    ):
+                        await self.router.dispatch_reaction(evt)
                 elif isinstance(evt, DeletedMessagesEvent):
-                    await self.router.dispatch_deleted_messages(evt)
+                    # Dedupe per message id, because a delete update can include many ids.
+                    should_dispatch = False
+                    for mid in evt.msg_ids:
+                        if self._dedupe_other(
+                            seen_other,
+                            seen_other_order,
+                            ("delete", evt.peer_type or "unknown", int(evt.peer_id or 0), int(mid)),
+                        ):
+                            should_dispatch = True
+                    if should_dispatch:
+                        await self.router.dispatch_deleted_messages(evt)
+
+    def _dedupe_other(
+        self,
+        seen: set[tuple[str, str, int, int]],
+        order: deque[tuple[str, str, int, int]],
+        key: tuple[str, str, int, int],
+    ) -> bool:
+        if key in seen:
+            return False
+        if len(order) == order.maxlen:
+            old = order.popleft()
+            seen.discard(old)
+        order.append(key)
+        seen.add(key)
+        return True
 
     async def _handle_message(
         self,

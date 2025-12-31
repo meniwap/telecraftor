@@ -114,23 +114,24 @@ async def main() -> None:
             f"sender={e.sender_id} msg_id={e.msg_id} text={e.text!r}"
         )
 
-    @router.on_message(new_message())
-    async def on_new(e: MessageEvent) -> None:
-        # New messages only (incl. backlog, but dispatcher filters old messages by default).
-        if e.text:
-            await e.reply("selftest: new message OK")
+    # Use stop=True so a single message doesn't trigger multiple replies.
+    @router.on_message(reply_to(), stop=True)
+    async def on_reply(e: MessageEvent) -> None:
+        await e.reply(f"selftest: reply_to OK (reply_to_msg_id={e.reply_to_msg_id})")
 
-    @router.on_message(edited_message())
-    async def on_edit(e: MessageEvent) -> None:
-        await e.reply("selftest: edit OK")
-
-    @router.on_message(has_media())
+    @router.on_message(has_media(), stop=True)
     async def on_media(e: MessageEvent) -> None:
         await e.reply("selftest: media OK")
 
-    @router.on_message(reply_to())
-    async def on_reply(e: MessageEvent) -> None:
-        await e.reply(f"selftest: reply_to OK (reply_to_msg_id={e.reply_to_msg_id})")
+    @router.on_message(edited_message(), stop=True)
+    async def on_edit(e: MessageEvent) -> None:
+        await e.reply("selftest: edit OK")
+
+    @router.on_message(new_message(), stop=True)
+    async def on_new(e: MessageEvent) -> None:
+        # New messages only (dispatcher should ignore backlog before start).
+        if e.text:
+            await e.reply("selftest: new message OK")
 
     @router.on_reaction()
     async def on_reaction(e: ReactionEvent) -> None:
@@ -151,13 +152,12 @@ async def main() -> None:
         if e.command:
             await e.reply(f"selftest: command={e.command!r} args={e.command_args!r}")
 
-    # Bigger grace window reduces "burst replies" when reconnecting and receiving backlog
-    # via getDifference.
+    # Keep grace small so we don't respond to backlog when the process restarts.
     disp = Dispatcher(
         client=client,
         router=router,
         debug=False,
-        backlog_grace_seconds=600,
+        backlog_grace_seconds=2,
     )
     try:
         await disp.run()

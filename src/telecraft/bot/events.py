@@ -386,19 +386,20 @@ def parse_events(*, client: Any, update: Any) -> list[BotEvent]:
     Convert a raw TL update/message object into 0..N bot events.
     """
     out: list[BotEvent] = []
-    # Prefer ReactionEvent over MessageEvent(kind="edit") when the edit seems to be
-    # "reaction-only" (Telegram sometimes represents reaction changes as updateEditMessage).
+    # Prefer ReactionEvent over MessageEvent(kind="edit") when Telegram represents reaction
+    # changes as updateEditMessage/updateEditChannelMessage.
     r = ReactionEvent.from_update(client=client, update=update)
     m = MessageEvent.from_update(client=client, update=update)
     if m is not None:
-        if (
-            r is not None
-            and getattr(update, "TL_NAME", None)
-            in {"updateEditMessage", "updateEditChannelMessage"}
-            and getattr(m, "kind", "new") == "edit"
-            and m.edit_date is None
-        ):
-            # Suppress edit events that are likely just reaction updates.
+        if r is not None and getattr(update, "TL_NAME", None) in {
+            "updateEditMessage",
+            "updateEditChannelMessage",
+        }:
+            # If we can emit a ReactionEvent from an edit-wrapper, treat it as a reaction update
+            # and do not also emit an "edit" message event. This avoids double-triggering.
+            #
+            # Note: this can hide "real" edits on messages that also have reactions, but keeps
+            # the common case (reaction updates) intuitive. We can add a more granular model later.
             pass
         else:
             out.append(m)
