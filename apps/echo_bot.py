@@ -29,12 +29,14 @@ async def main() -> None:
     api_hash = _need("TELEGRAM_API_HASH")
 
     session = _current_session_path("prod")
+    print(f"Using session: {session}")
     client = MtprotoClient(
         network="prod",
         session_path=session,
         init=ClientInit(api_id=api_id, api_hash=api_hash),
     )
     await client.connect()
+    print("Echo bot started. Send me a message (DM/basic group/channel). Ctrl+C to stop.")
 
     router = Router()
 
@@ -45,6 +47,10 @@ async def main() -> None:
         # - DMs/channels: reply if access_hash is available (Dispatcher primes dialogs)
         # - fallback: Saved Messages
         if e.text:
+            print(
+                f"IN: chat_id={e.chat_id} channel_id={e.channel_id} "
+                f"user_id={e.user_id} text={e.text!r}"
+            )
             await e.reply("echo: " + e.text)
 
     disp = Dispatcher(client=client, router=router)
