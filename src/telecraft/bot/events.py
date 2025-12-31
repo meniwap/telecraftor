@@ -6,6 +6,12 @@ from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
+def _flag_is_set(flags: object, bit: int) -> bool:
+    try:
+        return (int(cast(int, flags)) & (1 << bit)) != 0
+    except Exception:  # noqa: BLE001
+        return False
+
 
 def _decode_text(v: object) -> str | None:
     if v is None:
@@ -78,6 +84,7 @@ class MessageEvent:
                 return cls.from_update(client=client, update=inner)
 
         if name == "updateShortChatMessage":
+            outgoing = _flag_is_set(getattr(update, "flags", 0), 1)
             return cls(
                 client=client,
                 raw=update,
@@ -86,10 +93,11 @@ class MessageEvent:
                 msg_id=int(cast(int, update.id)),
                 date=int(cast(int, update.date)),
                 text=_decode_text(getattr(update, "message", None)),
-                outgoing=bool(getattr(update, "out", False)),
+                outgoing=outgoing,
             )
 
         if name == "updateShortMessage":
+            outgoing = _flag_is_set(getattr(update, "flags", 0), 1)
             return cls(
                 client=client,
                 raw=update,
@@ -98,11 +106,12 @@ class MessageEvent:
                 msg_id=int(cast(int, update.id)),
                 date=int(cast(int, update.date)),
                 text=_decode_text(getattr(update, "message", None)),
-                outgoing=bool(getattr(update, "out", False)),
+                outgoing=outgoing,
             )
 
         # Message objects (often arrive via getDifference.new_messages).
         if name in {"message", "messageService"}:
+            outgoing = _flag_is_set(getattr(update, "flags", 0), 1)
             peer = getattr(update, "peer_id", None)
             peer_name = getattr(peer, "TL_NAME", None)
 
@@ -135,7 +144,7 @@ class MessageEvent:
                 msg_id=int(cast(int, getattr(update, "id"))),
                 date=int(cast(int, getattr(update, "date"))),
                 text=_decode_text(getattr(update, "message", None)),
-                outgoing=bool(getattr(update, "out", False)),
+                outgoing=outgoing,
             )
 
         # Many other update types exist; we'll extend later.
