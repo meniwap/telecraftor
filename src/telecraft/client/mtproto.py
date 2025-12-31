@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from telecraft.client.entities import EntityCache
+from telecraft.client.entities import EntityCache, load_entity_cache_file, save_entity_cache_file
 from telecraft.mtproto.auth.handshake import exchange_auth_key
 from telecraft.mtproto.auth.server_keys import DEFAULT_SERVER_KEYRING
 from telecraft.mtproto.auth.srp import SrpError, make_input_check_password_srp
@@ -143,6 +143,7 @@ class MtprotoClient:
         self._updates_task: asyncio.Task[None] | None = None
         self._updates_out: asyncio.Queue[Any] | None = None
         self._updates_state_last_save: float = 0.0
+        self._entities_last_save: float = 0.0
 
         self.config: Any | None = None
         self.entities = EntityCache()
@@ -219,6 +220,9 @@ class MtprotoClient:
             self._msg_id_gen = msg_id_gen
             self._incoming = incoming
 
+            # Restore entity cache (enables DM/channel replies after restarts).
+            self._load_entities_cache()
+
             # Bootstrap as a "real" API client.
             if self._init is not None:
                 self.config = await self.invoke_with_layer(HelpGetConfig(), timeout=timeout)
@@ -235,6 +239,7 @@ class MtprotoClient:
         if not self.is_connected:
             return
         await self._persist_session()
+        self._persist_entities_cache(force=True)
 
         assert self._sender is not None
         assert self._transport is not None
@@ -339,6 +344,7 @@ class MtprotoClient:
 
             self.entities.ingest_users(applied.users)
             self.entities.ingest_chats(applied.chats)
+            self._persist_entities_cache()
 
             # Emit updates and messages separately for now (higher-level mapping later).
             for u in applied.new_messages:
@@ -395,6 +401,41 @@ class MtprotoClient:
             # Best-effort persistence; never break the running client.
             return
 
+    def _entities_path(self) -> Path | None:
+        if self._session_path is None:
+            return None
+        p = self._session_path
+        # Keep "basename" stable:
+        #   prod_dc2.session.json -> prod_dc2.entities.json
+        if p.name.endswith(".session.json"):
+            name = p.name[: -len(".session.json")] + ".entities.json"
+            return p.with_name(name)
+        return p.with_name(p.name + ".entities.json")
+
+    def _load_entities_cache(self) -> None:
+        p = self._entities_path()
+        if p is None or not p.exists():
+            return
+        try:
+            self.entities = load_entity_cache_file(p)
+        except Exception:
+            # Best-effort; corrupted cache should not break connect.
+            return
+
+    def _persist_entities_cache(self, *, force: bool = False) -> None:
+        p = self._entities_path()
+        if p is None:
+            return
+        now = time.monotonic()
+        if not force and (now - self._entities_last_save) < 2.0:
+            return
+        self._entities_last_save = now
+        try:
+            save_entity_cache_file(p, self.entities)
+        except Exception:
+            # Best-effort persistence; never break the running client.
+            return
+
     async def get_me(self, *, timeout: float = 20.0) -> Any:
         """
         Fetch current user and update entity cache.
@@ -402,6 +443,7 @@ class MtprotoClient:
         res = await self.invoke_api(UsersGetUsers(id=[InputUserSelf()]), timeout=timeout)
         users = res if isinstance(res, list) else []
         self.entities.ingest_users(users)
+        self._persist_entities_cache()
         return users[0] if users else None
 
     async def send_message_self(self, text: str, *, timeout: float = 20.0) -> Any:
@@ -508,6 +550,7 @@ class MtprotoClient:
             chats = cast(list[Any], getattr(res, "chats", []))
             self.entities.ingest_users(list(users))
             self.entities.ingest_chats(list(chats))
+            self._persist_entities_cache(force=True)
 
     async def send_code(self, phone_number: str, *, timeout: float = 20.0) -> AuthSentCode:
         """

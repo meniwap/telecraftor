@@ -69,5 +69,6 @@ source apps/env.sh
 בתיקייה `.sessions/` נוצרים:
 - `prod_dcX.session.json`: auth_key + endpoint/framing + server_salt
 - `prod_dcX.updates.json`: updates state מינימלי (pts/qts/seq/date) כדי שהבוט יחזיק ריסטארטים יותר טוב
+- `prod_dcX.entities.json`: entity cache מינימלי (user/channel access_hash) כדי ש־reply ב־DM/ערוצים יעבוד גם אחרי ריסטארט
 - `prod.current`: pointer לסשן “הנוכחי”
 
