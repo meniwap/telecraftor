@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from pathlib import Path
 
@@ -51,6 +52,11 @@ def _current_session_path(network: str) -> str:
 
 
 async def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
     api_id = int(_need("TELEGRAM_API_ID"))
     api_hash = _need("TELEGRAM_API_HASH")
 
@@ -82,9 +88,22 @@ async def main() -> None:
             )
             await e.reply("echo: " + e.text)
 
-    # For easier local testing, allow processing outgoing messages too.
-    # The handler above prevents loops by ignoring messages that already start with "echo: ".
-    disp = Dispatcher(client=client, router=router, ignore_outgoing=False, debug=True)
+    # Defaults:
+    # - ignore_outgoing=True: behave like a "real bot" (react only to incoming messages)
+    # - allow overriding for testing via TELECRAFT_ECHO_ALLOW_OUTGOING=1
+    allow_outgoing = os.environ.get("TELECRAFT_ECHO_ALLOW_OUTGOING", "").strip() in {
+        "1",
+        "true",
+        "yes",
+    }
+    disp = Dispatcher(
+        client=client,
+        router=router,
+        ignore_outgoing=not allow_outgoing,
+        ignore_before_start=True,
+        backlog_grace_seconds=600,
+        debug=True,
+    )
     try:
         await disp.run()
     finally:
