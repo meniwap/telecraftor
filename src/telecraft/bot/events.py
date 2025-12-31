@@ -66,6 +66,17 @@ class MessageEvent:
     def from_update(cls, *, client: Any, update: Any) -> MessageEvent | None:
         name = getattr(update, "TL_NAME", None)
 
+        # Common update wrappers that carry a Message/MessageService in `.message`.
+        if name in {
+            "updateNewMessage",
+            "updateNewChannelMessage",
+            "updateEditMessage",
+            "updateEditChannelMessage",
+        }:
+            inner = getattr(update, "message", None)
+            if inner is not None:
+                return cls.from_update(client=client, update=inner)
+
         if name == "updateShortChatMessage":
             return cls(
                 client=client,
