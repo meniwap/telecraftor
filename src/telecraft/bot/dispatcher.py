@@ -72,16 +72,8 @@ class Dispatcher:
                 continue
 
             # Dedupe: sometimes the same message can arrive via different wrappers.
-            peer_type: str
-            peer_id: int
-            if evt.chat_id is not None:
-                peer_type, peer_id = "chat", int(evt.chat_id)
-            elif evt.channel_id is not None:
-                peer_type, peer_id = "channel", int(evt.channel_id)
-            elif evt.user_id is not None:
-                peer_type, peer_id = "user", int(evt.user_id)
-            else:
-                peer_type, peer_id = "unknown", 0
+            peer_type = evt.peer_type or "unknown"
+            peer_id = int(evt.peer_id) if evt.peer_id is not None else 0
 
             if evt.msg_id is not None:
                 key = (peer_type, peer_id, int(evt.msg_id))

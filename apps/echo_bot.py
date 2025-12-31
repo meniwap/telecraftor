@@ -72,6 +72,9 @@ async def main() -> None:
 
     router = Router()
 
+    # Example:
+    #   @router.on_message(text())
+    #   async def echo(e): ...
     @router.on_message(text())
     async def echo(e: MessageEvent) -> None:
         # Best-effort echo:

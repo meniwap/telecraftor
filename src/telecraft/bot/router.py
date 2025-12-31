@@ -27,6 +27,11 @@ class Router:
         Decorator:
           @router.on_message(filters.text())
           async def handler(e): ...
+
+        Tips:
+        - Use richer event fields: e.sender_id / e.peer_type / e.peer_id
+        - Useful filters live in telecraft.bot (or telecraft.bot.filters), e.g.:
+            private(), group(), channel(), from_user(...), in_chat(...), regex(...)
         """
 
         f = filt or all_()
