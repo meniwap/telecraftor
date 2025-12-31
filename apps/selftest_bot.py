@@ -94,6 +94,18 @@ async def main() -> None:
 
     router = Router()
 
+    async def notify_peer(peer_type: str | None, peer_id: int | None, text: str) -> None:
+        if peer_type == "chat" and peer_id is not None:
+            await client.send_message_chat(int(peer_id), text)
+            return
+        if peer_type == "channel" and peer_id is not None:
+            await client.send_message_channel(int(peer_id), text)
+            return
+        if peer_type == "user" and peer_id is not None:
+            await client.send_message_user(int(peer_id), text)
+            return
+        await client.send_message_self(text)
+
     @router.on_message(incoming())
     async def any_incoming(e: MessageEvent) -> None:
         # This runs first for every incoming message we map.
@@ -126,10 +138,12 @@ async def main() -> None:
             f"[REACTION] peer={e.peer_type}:{e.peer_id} msg_id={e.msg_id} "
             f"reactions={type(e.reactions).__name__}"
         )
+        await notify_peer(e.peer_type, e.peer_id, f"selftest: reaction OK (msg_id={e.msg_id})")
 
     @router.on_deleted_messages()
     async def on_deleted(e: DeletedMessagesEvent) -> None:
         print(f"[DELETED] peer={e.peer_type}:{e.peer_id} msg_ids={e.msg_ids}")
+        await notify_peer(e.peer_type, e.peer_id, f"selftest: delete OK (ids={e.msg_ids})")
 
     @router.on_message(private())
     async def on_private(e: MessageEvent) -> None:

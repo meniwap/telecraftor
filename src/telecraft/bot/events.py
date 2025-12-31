@@ -296,21 +296,47 @@ class ReactionEvent:
 
     @classmethod
     def from_update(cls, *, client: Any, update: Any) -> ReactionEvent | None:
-        if getattr(update, "TL_NAME", None) != "updateMessageReactions":
-            return None
-        peer = getattr(update, "peer", None)
-        peer_type, peer_id = _peer_type_and_id(peer)
-        msg_id = getattr(update, "msg_id", None)
-        if not isinstance(msg_id, int):
-            return None
-        return cls(
-            client=client,
-            raw=update,
-            peer_type=peer_type,
-            peer_id=peer_id,
-            msg_id=int(msg_id),
-            reactions=getattr(update, "reactions", None),
-        )
+        name = getattr(update, "TL_NAME", None)
+
+        # Primary reaction update type.
+        if name == "updateMessageReactions":
+            peer = getattr(update, "peer", None)
+            peer_type, peer_id = _peer_type_and_id(peer)
+            msg_id = getattr(update, "msg_id", None)
+            if not isinstance(msg_id, int):
+                return None
+            return cls(
+                client=client,
+                raw=update,
+                peer_type=peer_type,
+                peer_id=peer_id,
+                msg_id=int(msg_id),
+                reactions=getattr(update, "reactions", None),
+            )
+
+        # Some clients receive reactions as message edits (message.reactions changes).
+        if name in {"updateEditMessage", "updateEditChannelMessage"}:
+            inner = getattr(update, "message", None)
+            if inner is None:
+                return None
+            reactions = getattr(inner, "reactions", None)
+            if reactions is None:
+                return None
+            peer = getattr(inner, "peer_id", None)
+            peer_type, peer_id = _peer_type_and_id(peer)
+            msg_id = getattr(inner, "id", None)
+            if not isinstance(msg_id, int):
+                return None
+            return cls(
+                client=client,
+                raw=update,
+                peer_type=peer_type,
+                peer_id=peer_id,
+                msg_id=int(msg_id),
+                reactions=reactions,
+            )
+
+        return None
 
 
 @dataclass(slots=True)
@@ -358,14 +384,14 @@ def parse_events(*, client: Any, update: Any) -> list[BotEvent]:
     m = MessageEvent.from_update(client=client, update=update)
     if m is not None:
         out.append(m)
-        return out
+
     r = ReactionEvent.from_update(client=client, update=update)
     if r is not None:
         out.append(r)
-        return out
+
     d = DeletedMessagesEvent.from_update(client=client, update=update)
     if d is not None:
         out.append(d)
-        return out
+
     return out
 
