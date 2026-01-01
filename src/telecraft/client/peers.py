@@ -37,9 +37,49 @@ PeerRef: TypeAlias = Peer | tuple[PeerType, int] | str | int
 
 def normalize_username(username: str) -> str:
     u = username.strip()
+    if not u:
+        return ""
     if u.startswith("@"):
         u = u[1:]
+    # Support common link forms:
+    # - https://t.me/<username>
+    # - t.me/<username>
+    # - telegram.me/<username>
+    for host in ("https://t.me/", "http://t.me/", "t.me/", "https://telegram.me/", "http://telegram.me/", "telegram.me/"):
+        if u.startswith(host):
+            u = u[len(host) :]
+            break
+    # Trim path/query/fragment
+    u = u.split("?", 1)[0].split("#", 1)[0].split("/", 1)[0]
     return u.strip().lower()
+
+
+def parse_peer_ref(s: str) -> PeerRef:
+    """
+    Parse common peer reference strings.
+
+    Accepted:
+    - "@username" / "t.me/username" / "https://t.me/username"
+    - "+1555..." or "phone:+1555..."
+    - "user:123" / "chat:123" / "channel:123"
+    """
+    raw = s.strip()
+    if not raw:
+        raise ValueError("empty peer ref")
+    for prefix in ("user:", "chat:", "channel:"):
+        if raw.startswith(prefix):
+            pt = prefix[:-1]
+            rest = raw[len(prefix) :].strip()
+            return (pt, int(rest))  # type: ignore[return-value]
+    if raw.startswith("phone:"):
+        return normalize_phone(raw[len("phone:") :])
+    if raw.startswith("+"):
+        return normalize_phone(raw)
+    # treat as username-ish
+    u = normalize_username(raw)
+    if u:
+        return "@" + u
+    return raw
 
 
 def normalize_phone(phone: str) -> str:

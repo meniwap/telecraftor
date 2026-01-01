@@ -13,6 +13,7 @@ from telecraft.client.peers import (
     PeerRef,
     normalize_phone,
     normalize_username,
+    parse_peer_ref,
     peer_from_tl_peer,
 )
 from telecraft.mtproto.auth.handshake import exchange_auth_key
@@ -530,11 +531,28 @@ class MtprotoClient:
             s = ref.strip()
             if not s:
                 raise MtprotoClientError("resolve_peer: empty string")
-            if s.startswith("@") or s.isidentifier():
-                return await self.resolve_username(s, timeout=timeout)
-            if s.startswith("+") or s.replace(" ", "").replace("-", "").isdigit():
-                return await self.resolve_phone(s, timeout=timeout)
-            # If user passed something else (e.g. t.me link), make it explicit.
+            # Support 'user:123'/'chat:123'/'channel:123' and t.me links.
+            try:
+                parsed = parse_peer_ref(s)
+            except Exception:
+                parsed = s
+            if isinstance(parsed, tuple):
+                return Peer(peer_type=parsed[0], peer_id=int(parsed[1]))
+            if isinstance(parsed, str):
+                if parsed.startswith("@"):
+                    return await self.resolve_username(parsed, timeout=timeout)
+                if parsed.startswith("+"):
+                    return await self.resolve_phone(parsed, timeout=timeout)
+                # digits-only strings are ambiguous: treat as id only if cache knows it.
+                if parsed.isdigit():
+                    n = int(parsed)
+                    if n in self.entities.user_access_hash:
+                        return Peer.user(n)
+                    if n in self.entities.channel_access_hash:
+                        return Peer.channel(n)
+                    raise MtprotoClientError(
+                        f"resolve_peer: unknown id {n}; use user:{n}/chat:{n}/channel:{n} or @username"
+                    )
             raise MtprotoClientError(f"resolve_peer: unsupported string ref: {ref!r}")
         if isinstance(ref, int):
             # Conservative: only accept ints we can classify from cache.

@@ -67,6 +67,12 @@ source apps/env.sh
 ./.venv/bin/python apps/echo_bot.py
 ```
 
+#### Command bot (demo: /ping, /send @username ...)
+
+```bash
+./.venv/bin/python apps/command_bot.py
+```
+
 מה אמור לקרות:
 - בקבוצות “רגילות” (basic group) זה יחזיר echo לאותו צ’אט.
 - ב־DM / ערוצים / סופרגרופ: זה יעבוד **אם** יש `access_hash` בזיכרון (ה־Dispatcher עושה priming דרך dialogs בתחילת ריצה).
