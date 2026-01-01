@@ -342,7 +342,8 @@ class TLReader:
                 except ValueError:
                     bit = None
                 if bit is None or (flags_values.get(flags_name, 0) & (1 << bit)) == 0:
-                    kwargs[field] = True if inner == "true" else None
+                    # flags.N?true: bit not set => field is False (not True)
+                    kwargs[field] = False if inner == "true" else None
                     continue
                 if inner == "true":
                     kwargs[field] = True
