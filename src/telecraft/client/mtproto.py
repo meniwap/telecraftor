@@ -8,6 +8,13 @@ from pathlib import Path
 from typing import Any, cast
 
 from telecraft.client.entities import EntityCache, load_entity_cache_file, save_entity_cache_file
+from telecraft.client.peers import (
+    Peer,
+    PeerRef,
+    normalize_phone,
+    normalize_username,
+    peer_from_tl_peer,
+)
 from telecraft.mtproto.auth.handshake import exchange_auth_key
 from telecraft.mtproto.auth.server_keys import DEFAULT_SERVER_KEYRING
 from telecraft.mtproto.auth.srp import SrpError, make_input_check_password_srp
@@ -28,6 +35,8 @@ from telecraft.tl.generated.functions import (
     AuthSendCode,
     AuthSignIn,
     AuthSignUp,
+    ContactsResolvePhone,
+    ContactsResolveUsername,
     HelpGetConfig,
     InitConnection,
     InvokeWithLayer,
@@ -42,6 +51,7 @@ from telecraft.tl.generated.types import (
     AuthSentCodePaymentRequired,
     AuthSentCodeSuccess,
     CodeSettings,
+    ContactsResolvedPeer,
     InputUserSelf,
 )
 
@@ -445,6 +455,98 @@ class MtprotoClient:
         self._persist_entities_cache()
         return users[0] if users else None
 
+    async def resolve_username(self, username: str, *, timeout: float = 20.0) -> Peer:
+        """
+        Resolve @username -> Peer and populate EntityCache (users/chats + username map).
+        """
+        u = normalize_username(username)
+        if not u:
+            raise MtprotoClientError("resolve_username: empty username")
+
+        cached = self.entities.peer_from_username(u)
+        if cached is not None:
+            return cached
+
+        res = await self.invoke_api(
+            ContactsResolveUsername(flags=0, username=u, referer=None),
+            timeout=timeout,
+        )
+        if not isinstance(res, ContactsResolvedPeer):
+            raise MtprotoClientError(
+                f"Unexpected contacts.resolveUsername result: {type(res).__name__}"
+            )
+        users = cast(list[Any], getattr(res, "users", []))
+        chats = cast(list[Any], getattr(res, "chats", []))
+        self.entities.ingest_users(list(users))
+        self.entities.ingest_chats(list(chats))
+
+        p = peer_from_tl_peer(getattr(res, "peer", None))
+        if p is None:
+            raise MtprotoClientError("contacts.resolveUsername returned invalid peer")
+        # Record the mapping (helps for future resolves without network).
+        self.entities.username_to_peer[u] = (p.peer_type, int(p.peer_id))
+        self._persist_entities_cache()
+        return p
+
+    async def resolve_phone(self, phone: str, *, timeout: float = 20.0) -> Peer:
+        """
+        Resolve +phone -> Peer(user) and populate EntityCache.
+        """
+        ph = normalize_phone(phone)
+        if not ph:
+            raise MtprotoClientError("resolve_phone: empty phone")
+
+        cached = self.entities.peer_from_phone(ph)
+        if cached is not None:
+            return cached
+
+        res = await self.invoke_api(ContactsResolvePhone(phone=ph), timeout=timeout)
+        if not isinstance(res, ContactsResolvedPeer):
+            raise MtprotoClientError(
+                f"Unexpected contacts.resolvePhone result: {type(res).__name__}"
+            )
+        users = cast(list[Any], getattr(res, "users", []))
+        chats = cast(list[Any], getattr(res, "chats", []))
+        self.entities.ingest_users(list(users))
+        self.entities.ingest_chats(list(chats))
+        p = peer_from_tl_peer(getattr(res, "peer", None))
+        if p is None:
+            raise MtprotoClientError("contacts.resolvePhone returned invalid peer")
+        if p.peer_type != "user":
+            raise MtprotoClientError(f"contacts.resolvePhone returned non-user peer: {p.peer_type}")
+        self.entities.phone_to_user_id[ph] = int(p.peer_id)
+        self._persist_entities_cache()
+        return p
+
+    async def resolve_peer(self, ref: PeerRef, *, timeout: float = 20.0) -> Peer:
+        """
+        Resolve a high-level peer reference into a Peer.
+        """
+        if isinstance(ref, Peer):
+            return ref
+        if isinstance(ref, tuple) and len(ref) == 2 and ref[0] in {"user", "chat", "channel"}:
+            return Peer(peer_type=ref[0], peer_id=int(ref[1]))
+        if isinstance(ref, str):
+            s = ref.strip()
+            if not s:
+                raise MtprotoClientError("resolve_peer: empty string")
+            if s.startswith("@") or s.isidentifier():
+                return await self.resolve_username(s, timeout=timeout)
+            if s.startswith("+") or s.replace(" ", "").replace("-", "").isdigit():
+                return await self.resolve_phone(s, timeout=timeout)
+            # If user passed something else (e.g. t.me link), make it explicit.
+            raise MtprotoClientError(f"resolve_peer: unsupported string ref: {ref!r}")
+        if isinstance(ref, int):
+            # Conservative: only accept ints we can classify from cache.
+            if int(ref) in self.entities.user_access_hash:
+                return Peer.user(int(ref))
+            if int(ref) in self.entities.channel_access_hash:
+                return Peer.channel(int(ref))
+            raise MtprotoClientError(
+                f"resolve_peer: unknown id {ref}; pass Peer('chat'|...) or '@username' to resolve"
+            )
+        raise MtprotoClientError(f"resolve_peer: unsupported ref type: {type(ref).__name__}")
+
     async def send_message_self(self, text: str, *, timeout: float = 20.0) -> Any:
         """
         Minimal send message to self (no entity resolution needed).
@@ -512,6 +614,16 @@ class MtprotoClient:
             ),
             timeout=timeout,
         )
+
+    async def send_message(self, peer: PeerRef, text: str, *, timeout: float = 20.0) -> Any:
+        """
+        High-level send message:
+        - accepts Peer / ('user'|'chat'|'channel', id) / '@username' / '+phone' / cached int id
+        - resolves to InputPeer and calls messages.sendMessage
+        """
+        p = await self.resolve_peer(peer, timeout=timeout)
+        input_peer = self.entities.input_peer(p)
+        return await self.send_message_peer(input_peer, text, timeout=timeout)
 
     async def prime_entities(self, *, limit: int = 100, timeout: float = 20.0) -> None:
         """

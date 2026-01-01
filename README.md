@@ -21,6 +21,23 @@ python -m ruff check src tests tools
 python -m mypy src
 ```
 
+## Client: peer resolution (userbot-friendly)
+
+`telecraft` is MTProto-first and async-only. For userbots you typically want to target peers by:
+- `@username` (resolve on-demand)
+- `+phone` (resolve on-demand)
+- cached numeric IDs (after priming / past interactions)
+
+High-level helpers:
+
+```python
+from telecraft.client import MtprotoClient, Peer
+
+# ...
+# await client.send_message("@username", "hi")
+# await client.send_message(Peer.channel(123456), "hi")
+```
+
 Smoke-test auth key exchange (test DCs):
 
 ```bash
