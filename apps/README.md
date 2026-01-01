@@ -45,6 +45,14 @@ source apps/env.sh
 ./.venv/bin/python apps/run.py send-self "hi" --network prod --dc 2
 ```
 
+- לשלוח הודעה ל־peer דרך resolve (username/phone)
+
+```bash
+./.venv/bin/python apps/run.py send "@username" "hi from telecraft" --network prod
+./.venv/bin/python apps/run.py send "+15551234567" "hi" --network prod
+./.venv/bin/python apps/run.py send "channel:123456789" "hi" --network prod
+```
+
 - להקשיב ל־updates (תשלח לעצמך הודעה בזמן שזה רץ)
 
 ```bash

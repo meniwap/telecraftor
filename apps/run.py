@@ -278,6 +278,51 @@ async def _cmd_send_self(args: argparse.Namespace) -> int:
     finally:
         await client.close()
 
+def _parse_peer_arg(raw: str) -> object:
+    """
+    CLI helper:
+      - "@username" / "+1555..." => resolve via network
+      - "user:123" / "chat:123" / "channel:123" => explicit peer type
+    """
+    s = str(raw).strip()
+    for prefix in ("user:", "chat:", "channel:"):
+        if s.startswith(prefix):
+            pt = prefix[:-1]
+            rest = s[len(prefix) :].strip()
+            return (pt, int(rest))
+    return s
+
+
+async def _cmd_send(args: argparse.Namespace) -> int:
+    from telecraft.client.mtproto import ClientInit, MtprotoClient
+
+    api_id = _need_env_int("TELEGRAM_API_ID")
+    api_hash = _need_env("TELEGRAM_API_HASH")
+
+    session = args.session or _pick_existing_session(args.network, args.dc)
+    if not Path(session).exists():
+        raise SystemExit(f"No session found. Run login first. Expected: {session}")
+    dc, host, port, framing = _session_client_args(session)
+    client = MtprotoClient(
+        network=args.network,
+        dc_id=dc,
+        host=host,
+        port=port,
+        framing=framing,
+        session_path=session,
+        init=ClientInit(api_id=api_id, api_hash=api_hash),
+    )
+    await client.connect(timeout=args.timeout)
+    try:
+        peer_ref = _parse_peer_arg(args.peer)
+        peer = await client.resolve_peer(peer_ref, timeout=args.timeout)
+        print(f"Resolved peer: {peer.peer_type}:{peer.peer_id}")
+        res = await client.send_message(peer_ref, args.text, timeout=args.timeout)
+        print(repr(res))
+        return 0
+    finally:
+        await client.close()
+
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Telecraft simple runner")
@@ -306,6 +351,15 @@ def main() -> int:
     add_common(s)
     s.add_argument("text", type=str)
 
+    send = sub.add_parser("send", help="Send a message to a peer (resolve @username/+phone)")
+    add_common(send)
+    send.add_argument(
+        "peer",
+        type=str,
+        help="Target: @username | +phone | user:ID | chat:ID | channel:ID",
+    )
+    send.add_argument("text", type=str)
+
     upd = sub.add_parser("updates", help="Print incoming updates")
     add_common(upd)
 
@@ -318,6 +372,8 @@ def main() -> int:
             return asyncio.run(_cmd_me(args))
         if args.cmd == "send-self":
             return asyncio.run(_cmd_send_self(args))
+        if args.cmd == "send":
+            return asyncio.run(_cmd_send(args))
         if args.cmd == "updates":
             return asyncio.run(_cmd_updates(args))
         raise SystemExit("unknown command")
