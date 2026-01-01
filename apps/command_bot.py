@@ -5,7 +5,7 @@ import logging
 import os
 from pathlib import Path
 
-from telecraft.bot import MessageEvent, ReconnectPolicy, Router, command, outgoing, run_userbot, text
+from telecraft.bot import MessageEvent, ReconnectPolicy, Router, and_, command, outgoing, run_userbot, text
 from telecraft.client.mtproto import ClientInit, MtprotoClient
 
 
@@ -74,13 +74,11 @@ async def main() -> None:
             print(f"[{direction}] peer={e.peer_type}:{e.peer_id} sender={e.sender_id} text={e.text!r}")
 
     # Userbot-style commands: trigger on outgoing messages you type yourself.
-    @router.on_message(outgoing(), stop=False)
-    @router.on_message(command("ping"), stop=True)
+    @router.on_message(and_(outgoing(), command("ping")), stop=True)
     async def on_ping(e: MessageEvent) -> None:
         await e.reply("pong")
 
-    @router.on_message(outgoing(), stop=False)
-    @router.on_message(command("send"), stop=True)
+    @router.on_message(and_(outgoing(), command("send")), stop=True)
     async def on_send(e: MessageEvent) -> None:
         # Usage: /send @username hello there
         args = (e.command_args or "").strip()
@@ -97,8 +95,7 @@ async def main() -> None:
         await client.send_message(target, msg)
         await e.reply("sent")
 
-    @router.on_message(outgoing(), stop=False)
-    @router.on_message(command("add"), stop=True)
+    @router.on_message(and_(outgoing(), command("add")), stop=True)
     async def on_add(e: MessageEvent) -> None:
         # Usage:
         #   /add @username
@@ -128,7 +125,8 @@ async def main() -> None:
             ignore_outgoing=False,
             ignore_before_start=True,
             backlog_grace_seconds=5,
-            backlog_policy="process_no_reply",
+            # Avoid replaying old outgoing commands after reconnect/startup.
+            backlog_policy="ignore",
             debug=True,
         )
 
