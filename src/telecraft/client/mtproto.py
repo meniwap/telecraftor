@@ -309,7 +309,8 @@ class MtprotoClient:
 
         self._updates_out = asyncio.Queue(maxsize=4096)
         self._updates_engine = UpdatesEngine(
-            invoke_api=lambda req: self.invoke_api(req, timeout=timeout)
+            invoke_api=lambda req: self.invoke_api(req, timeout=timeout),
+            resolve_input_channel=lambda channel_id: self.entities.input_channel(int(channel_id)),
         )
         initial_state = self._load_updates_state()
         await self._updates_engine.initialize(initial_state=initial_state)

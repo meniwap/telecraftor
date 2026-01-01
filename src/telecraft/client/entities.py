@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from telecraft.tl.generated.types import (
+    InputChannel,
     InputPeerChannel,
     InputPeerChat,
     InputPeerSelf,
@@ -67,6 +68,15 @@ class EntityCache:
         if ah is None:
             raise EntityCacheError(f"Unknown channel access_hash for channel_id={channel_id}")
         return InputPeerChannel(channel_id=int(channel_id), access_hash=int(ah))
+
+    def input_channel(self, channel_id: int) -> InputChannel:
+        """
+        Build InputChannel (used for updates.getChannelDifference and some channels.* methods).
+        """
+        ah = self.channel_access_hash.get(int(channel_id))
+        if ah is None:
+            raise EntityCacheError(f"Unknown channel access_hash for channel_id={channel_id}")
+        return InputChannel(channel_id=int(channel_id), access_hash=int(ah))
 
     def input_peer_chat(self, chat_id: int) -> InputPeerChat:
         return InputPeerChat(chat_id=int(chat_id))

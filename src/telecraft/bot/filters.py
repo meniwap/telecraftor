@@ -4,9 +4,12 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from telecraft.bot.events import MessageEvent
+from telecraft.bot.events import ChatActionEvent, MemberUpdateEvent, MessageEvent, ReactionEvent
 
 Filter = Callable[[MessageEvent], bool]
+ActionFilter = Callable[[ChatActionEvent], bool]
+MemberFilter = Callable[[MemberUpdateEvent], bool]
+ReactionFilter = Callable[[ReactionEvent], bool]
 
 
 def all_() -> Filter:
@@ -138,6 +141,195 @@ def has_media() -> Filter:
 
 def reply_to() -> Filter:
     return lambda e: getattr(e, "reply_to_msg_id", None) is not None
+
+
+def action_in_peer(peer_type: str, *peer_ids: int) -> ActionFilter:
+    want = {int(x) for x in peer_ids}
+
+    def _f(e: ChatActionEvent) -> bool:
+        if e.peer_type != peer_type:
+            return False
+        if e.peer_id is None:
+            return False
+        return int(e.peer_id) in want
+
+    return _f
+
+
+def action_in_chat(*chat_ids: int) -> ActionFilter:
+    return action_in_peer("chat", *chat_ids)
+
+
+def action_in_channel(*channel_ids: int) -> ActionFilter:
+    return action_in_peer("channel", *channel_ids)
+
+
+def action_from_user(*user_ids: int) -> ActionFilter:
+    want = {int(x) for x in user_ids}
+
+    def _f(e: ChatActionEvent) -> bool:
+        if e.sender_id is None:
+            return False
+        return int(e.sender_id) in want
+
+    return _f
+
+
+def action_inviter(*user_ids: int) -> ActionFilter:
+    want = {int(x) for x in user_ids}
+
+    def _f(e: ChatActionEvent) -> bool:
+        if e.inviter_id is None:
+            return False
+        return int(e.inviter_id) in want
+
+    return _f
+
+
+def action_pinned_msg(*msg_ids: int) -> ActionFilter:
+    want = {int(x) for x in msg_ids}
+
+    def _f(e: ChatActionEvent) -> bool:
+        if e.pinned_msg_id is None:
+            return False
+        return int(e.pinned_msg_id) in want
+
+    return _f
+
+
+def action_title_contains(substr: str, *, case_sensitive: bool = False) -> ActionFilter:
+    q = substr if case_sensitive else substr.lower()
+
+    def _f(e: ChatActionEvent) -> bool:
+        t = e.new_title
+        if not t:
+            return False
+        s = t if case_sensitive else t.lower()
+        return q in s
+
+    return _f
+
+
+def member_kind(*kinds: str) -> MemberFilter:
+    want = {str(x) for x in kinds}
+
+    def _f(e: MemberUpdateEvent) -> bool:
+        return str(getattr(e, "kind", "update")) in want
+
+    return _f
+
+
+def member_joined() -> MemberFilter:
+    return member_kind("join", "invite")
+
+
+def member_left() -> MemberFilter:
+    return member_kind("leave", "kick")
+
+
+def member_banned() -> MemberFilter:
+    return member_kind("ban")
+
+
+def member_promoted() -> MemberFilter:
+    return member_kind("promote")
+
+
+def member_in_peer(peer_type: str, *peer_ids: int) -> MemberFilter:
+    want = {int(x) for x in peer_ids}
+
+    def _f(e: MemberUpdateEvent) -> bool:
+        if e.peer_type != peer_type:
+            return False
+        if e.peer_id is None:
+            return False
+        return int(e.peer_id) in want
+
+    return _f
+
+
+def member_in_chat(*chat_ids: int) -> MemberFilter:
+    return member_in_peer("chat", *chat_ids)
+
+
+def member_in_channel(*channel_ids: int) -> MemberFilter:
+    return member_in_peer("channel", *channel_ids)
+
+
+def member_actor(*actor_ids: int) -> MemberFilter:
+    want = {int(x) for x in actor_ids}
+
+    def _f(e: MemberUpdateEvent) -> bool:
+        if e.actor_id is None:
+            return False
+        return int(e.actor_id) in want
+
+    return _f
+
+
+def member_user(*user_ids: int) -> MemberFilter:
+    want = {int(x) for x in user_ids}
+
+    def _f(e: MemberUpdateEvent) -> bool:
+        if e.user_id is None:
+            return False
+        return int(e.user_id) in want
+
+    return _f
+
+
+def action_kind(*kinds: str) -> ActionFilter:
+    want = {str(x) for x in kinds}
+
+    def _f(e: ChatActionEvent) -> bool:
+        return str(getattr(e, "kind", "other")) in want
+
+    return _f
+
+
+def reaction_contains(reaction_key: str) -> ReactionFilter:
+    def _f(e: ReactionEvent) -> bool:
+        try:
+            return reaction_key in getattr(e, "counts", {})
+        except Exception:  # noqa: BLE001
+            return False
+
+    return _f
+
+
+def reaction_count_gte(reaction_key: str, n: int) -> ReactionFilter:
+    want = int(n)
+
+    def _f(e: ReactionEvent) -> bool:
+        try:
+            fn = getattr(e, "count", None)
+            if callable(fn):
+                return int(fn(reaction_key)) >= want
+            return int(getattr(e, "counts", {}).get(reaction_key, 0)) >= want
+        except Exception:  # noqa: BLE001
+            return False
+
+    return _f
+
+
+def action_join() -> ActionFilter:
+    return action_kind("join")
+
+
+def action_leave() -> ActionFilter:
+    return action_kind("leave")
+
+
+def action_pin() -> ActionFilter:
+    return action_kind("pin")
+
+
+def action_title() -> ActionFilter:
+    return action_kind("title")
+
+
+def action_photo() -> ActionFilter:
+    return action_kind("photo")
 
 
 @dataclass(frozen=True, slots=True)

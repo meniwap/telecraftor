@@ -1,6 +1,14 @@
 from __future__ import annotations
 
 from telecraft.bot import (
+    ChatActionEvent,
+    ReactionEvent,
+    action_from_user,
+    action_in_chat,
+    action_inviter,
+    action_join,
+    action_pinned_msg,
+    action_title_contains,
     channel,
     command,
     contains,
@@ -14,6 +22,8 @@ from telecraft.bot import (
     new_message,
     outgoing,
     private,
+    reaction_contains,
+    reaction_count_gte,
     regex,
     reply_to,
     startswith,
@@ -24,6 +34,36 @@ from telecraft.bot.events import MessageEvent
 
 def _e(**kw):
     base = MessageEvent(client=object(), raw=object())
+    for k, v in kw.items():
+        setattr(base, k, v)
+    return base
+
+
+def _a(**kw):
+    base = ChatActionEvent(
+        client=object(),
+        raw=object(),
+        peer_type=None,
+        peer_id=None,
+        msg_id=None,
+        date=None,
+        sender_id=None,
+        outgoing=False,
+    )
+    for k, v in kw.items():
+        setattr(base, k, v)
+    return base
+
+
+def _r(**kw):
+    base = ReactionEvent(
+        client=object(),
+        raw=object(),
+        peer_type=None,
+        peer_id=None,
+        msg_id=1,
+        reactions=None,
+    )
     for k, v in kw.items():
         setattr(base, k, v)
     return base
@@ -95,5 +135,43 @@ def test_filters_reply_to_and_has_media() -> None:
     e = _e(raw=Raw())
     assert reply_to()(e) is True
     assert has_media()(e) is True
+
+
+def test_action_filters_basic() -> None:
+    a = _a(kind="join", peer_type="chat", peer_id=10, sender_id=5, inviter_id=7)
+    assert action_join()(a) is True
+    assert action_in_chat(10)(a) is True
+    assert action_from_user(5)(a) is True
+    assert action_inviter(7)(a) is True
+
+    pin = _a(kind="pin", peer_type="chat", peer_id=10, pinned_msg_id=99)
+    assert action_pinned_msg(99)(pin) is True
+
+    title = _a(kind="title", peer_type="chat", peer_id=10, new_title="Hello World")
+    assert action_title_contains("world")(title) is True
+
+
+def test_reaction_filters_basic() -> None:
+    class ReactionEmoji:
+        TL_NAME = "reactionEmoji"
+
+        def __init__(self, emoticon: str) -> None:
+            self.emoticon = emoticon
+
+    class ReactionCount:
+        def __init__(self, reaction: object, count: int) -> None:
+            self.reaction = reaction
+            self.count = count
+
+    class MessageReactions:
+        def __init__(self) -> None:
+            self.results = [
+                ReactionCount(reaction=ReactionEmoji("❤️"), count=3),
+            ]
+
+    e = _r(reactions=MessageReactions())
+    assert reaction_contains("❤️")(e) is True
+    assert reaction_count_gte("❤️", 2)(e) is True
+    assert reaction_count_gte("❤️", 5)(e) is False
 
 

@@ -6,14 +6,24 @@ import os
 from pathlib import Path
 
 from telecraft.bot import (
+    ChatActionEvent,
     DeletedMessagesEvent,
     Dispatcher,
+    MemberUpdateEvent,
     MessageEvent,
     ReactionEvent,
     Router,
+    action_join,
+    action_leave,
+    action_pin,
+    action_title,
     edited_message,
     has_media,
     incoming,
+    member_banned,
+    member_joined,
+    member_left,
+    member_promoted,
     new_message,
     private,
     reply_to,
@@ -57,6 +67,21 @@ def _current_session_path(network: str) -> str:
             return s
     raise SystemExit("No session found. Run: ./.venv/bin/python apps/run.py login")
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    v = os.environ.get(name)
+    if v is None:
+        return default
+    return v.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+def _env_int(name: str, default: int) -> int:
+    v = os.environ.get(name)
+    if v is None or not v.strip():
+        return default
+    try:
+        return int(v.strip())
+    except ValueError:
+        return default
+
 
 async def main() -> None:
     logging.basicConfig(
@@ -90,6 +115,16 @@ async def main() -> None:
         "- Delete a message you sent -> should print a [DELETED] line "
         "(peer may be unknown for non-channel)"
     )
+    print("")
+    print("### Group/service actions (manual, in a group/supergroup):")
+    print("- Add this account to a group / someone joins -> should print [ACTION] kind=join")
+    print("- Remove a member / someone leaves -> should print [ACTION] kind=leave")
+    print("- Pin a message -> should print [ACTION] kind=pin")
+    print("- Change group title -> should print [ACTION] kind=title")
+    print("")
+    print("### Member updates (manual, in a group/supergroup):")
+    print("- Promote someone to admin -> should print [MEMBER] kind=promote")
+    print("- Ban/kick someone (supergroup/channel) -> should print [MEMBER] kind=ban/kick")
     print("")
 
     router = Router()
@@ -137,14 +172,88 @@ async def main() -> None:
     async def on_reaction(e: ReactionEvent) -> None:
         print(
             f"[REACTION] peer={e.peer_type}:{e.peer_id} msg_id={e.msg_id} "
-            f"reactions={type(e.reactions).__name__}"
+            f"reactions={type(e.reactions).__name__} "
+            f"counts={getattr(e, 'counts', {})} my={getattr(e, 'my_reactions', [])}"
         )
-        await notify_peer(e.peer_type, e.peer_id, f"selftest: reaction OK (msg_id={e.msg_id})")
+        if not getattr(e, "is_backlog", False):
+            await notify_peer(e.peer_type, e.peer_id, f"selftest: reaction OK (msg_id={e.msg_id})")
 
     @router.on_deleted_messages()
     async def on_deleted(e: DeletedMessagesEvent) -> None:
         print(f"[DELETED] peer={e.peer_type}:{e.peer_id} msg_ids={e.msg_ids}")
-        await notify_peer(e.peer_type, e.peer_id, f"selftest: delete OK (ids={e.msg_ids})")
+        if not getattr(e, "is_backlog", False):
+            await notify_peer(e.peer_type, e.peer_id, f"selftest: delete OK (ids={e.msg_ids})")
+
+    @router.on_member_update(member_joined())
+    async def on_member_joined(e: MemberUpdateEvent) -> None:
+        print(
+            f"[MEMBER] kind={e.kind} peer={e.peer_type}:{e.peer_id} actor={e.actor_id} "
+            f"user={e.user_id} qts={e.qts}"
+        )
+
+    @router.on_member_update(member_left())
+    async def on_member_left(e: MemberUpdateEvent) -> None:
+        print(
+            f"[MEMBER] kind={e.kind} peer={e.peer_type}:{e.peer_id} actor={e.actor_id} "
+            f"user={e.user_id} qts={e.qts}"
+        )
+
+    @router.on_member_update(member_promoted())
+    async def on_member_promoted(e: MemberUpdateEvent) -> None:
+        print(
+            f"[MEMBER] kind={e.kind} peer={e.peer_type}:{e.peer_id} actor={e.actor_id} "
+            f"user={e.user_id} qts={e.qts}"
+        )
+
+    @router.on_member_update(member_banned())
+    async def on_member_banned(e: MemberUpdateEvent) -> None:
+        print(
+            f"[MEMBER] kind={e.kind} peer={e.peer_type}:{e.peer_id} actor={e.actor_id} "
+            f"user={e.user_id} qts={e.qts}"
+        )
+
+    # Catch-all: helps diagnose why specific member kinds don't fire.
+    @router.on_member_update()
+    async def on_member_any(e: MemberUpdateEvent) -> None:
+        prev = getattr(getattr(e, "prev_participant", None), "TL_NAME", None)
+        new = getattr(getattr(e, "new_participant", None), "TL_NAME", None)
+        raw = getattr(getattr(e, "raw", None), "TL_NAME", None)
+        print(
+            f"[MEMBER*] raw={raw} kind={e.kind} peer={e.peer_type}:{e.peer_id} "
+            f"actor={e.actor_id} user={e.user_id} prev={prev} new={new} qts={e.qts}"
+        )
+
+    @router.on_action(action_join(), stop=True)
+    async def on_join(e: ChatActionEvent) -> None:
+        print(
+            f"[ACTION] msg_id={e.msg_id} kind={e.kind} peer={e.peer_type}:{e.peer_id} "
+            f"sender={e.sender_id} inviter_id={e.inviter_id} added={e.added_user_ids}"
+        )
+        await e.reply("selftest: action join OK")
+
+    @router.on_action(action_leave(), stop=True)
+    async def on_leave(e: ChatActionEvent) -> None:
+        print(
+            f"[ACTION] msg_id={e.msg_id} kind={e.kind} peer={e.peer_type}:{e.peer_id} "
+            f"sender={e.sender_id} removed={e.removed_user_id}"
+        )
+        await e.reply("selftest: action leave OK")
+
+    @router.on_action(action_pin(), stop=True)
+    async def on_pin(e: ChatActionEvent) -> None:
+        print(
+            f"[ACTION] msg_id={e.msg_id} kind={e.kind} peer={e.peer_type}:{e.peer_id} "
+            f"sender={e.sender_id} pinned_msg_id={e.pinned_msg_id}"
+        )
+        await e.reply("selftest: action pin OK")
+
+    @router.on_action(action_title(), stop=True)
+    async def on_title(e: ChatActionEvent) -> None:
+        print(
+            f"[ACTION] msg_id={e.msg_id} kind={e.kind} peer={e.peer_type}:{e.peer_id} "
+            f"sender={e.sender_id} title={e.new_title!r}"
+        )
+        await e.reply("selftest: action title OK")
 
     @router.on_message(private())
     async def on_private(e: MessageEvent) -> None:
@@ -153,11 +262,28 @@ async def main() -> None:
             await e.reply(f"selftest: command={e.command!r} args={e.command_args!r}")
 
     # Keep grace small so we don't respond to backlog when the process restarts.
+    trace = _env_bool("SELFTEST_TRACE", False)
     disp = Dispatcher(
         client=client,
         router=router,
-        debug=False,
+        debug=_env_bool("SELFTEST_DEBUG", False) or trace,
+        ignore_outgoing=_env_bool("SELFTEST_IGNORE_OUTGOING", True) if not trace else False,
         backlog_grace_seconds=2,
+        backlog_policy="process_no_reply",
+        throttle_peer_per_minute=_env_int("SELFTEST_THROTTLE_PEER_PER_MIN", 20),
+        throttle_global_per_minute=_env_int("SELFTEST_THROTTLE_GLOBAL_PER_MIN", 120),
+        throttle_burst=10,
+        trace_all_updates=_env_bool("SELFTEST_TRACE_ALL", False),
+        trace_update_substrings=("Participant",) if trace else (),
+        trace_update_names=(
+            "updateChatParticipant",
+            "updateChannelParticipant",
+            "updateChatParticipantAdd",
+            "updateChatParticipantDelete",
+            "updateChatParticipantAdmin",
+        )
+        if trace
+        else (),
     )
     try:
         await disp.run()

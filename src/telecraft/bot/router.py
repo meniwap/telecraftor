@@ -4,11 +4,19 @@ import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from telecraft.bot.events import DeletedMessagesEvent, MessageEvent, ReactionEvent
+from telecraft.bot.events import (
+    ChatActionEvent,
+    DeletedMessagesEvent,
+    MemberUpdateEvent,
+    MessageEvent,
+    ReactionEvent,
+)
 from telecraft.bot.exceptions import StopPropagation
-from telecraft.bot.filters import Filter, all_
+from telecraft.bot.filters import ActionFilter, Filter, MemberFilter, all_
 
 Handler = Callable[[MessageEvent], Awaitable[None]]
+ActionHandler = Callable[[ChatActionEvent], Awaitable[None]]
+MemberHandler = Callable[[MemberUpdateEvent], Awaitable[None]]
 ReactionHandler = Callable[[ReactionEvent], Awaitable[None]]
 DeletedHandler = Callable[[DeletedMessagesEvent], Awaitable[None]]
 
@@ -19,6 +27,20 @@ logger = logging.getLogger(__name__)
 class _MessageHandler:
     filt: Filter
     fn: Handler
+    stop: bool = False
+
+
+@dataclass(slots=True)
+class _ActionHandler:
+    filt: ActionFilter
+    fn: ActionHandler
+    stop: bool = False
+
+
+@dataclass(slots=True)
+class _MemberHandler:
+    filt: MemberFilter
+    fn: MemberHandler
     stop: bool = False
 
 
@@ -39,6 +61,8 @@ class _DeletedHandler:
 class Router:
     def __init__(self) -> None:
         self._message_handlers: list[_MessageHandler] = []
+        self._action_handlers: list[_ActionHandler] = []
+        self._member_handlers: list[_MemberHandler] = []
         self._reaction_handlers: list[_ReactionHandler] = []
         self._deleted_handlers: list[_DeletedHandler] = []
 
@@ -66,6 +90,54 @@ class Router:
 
     async def dispatch_message(self, e: MessageEvent) -> None:
         for h in self._message_handlers:
+            try:
+                if not h.filt(e):
+                    continue
+                await h.fn(e)
+                if h.stop:
+                    break
+            except StopPropagation:
+                break
+            except Exception as ex:  # noqa: BLE001
+                logger.exception("Handler crashed", exc_info=ex)
+
+    def on_action(
+        self, filt: ActionFilter | None = None, *, stop: bool = False
+    ) -> Callable[[ActionHandler], ActionHandler]:
+        f = filt or (lambda _e: True)
+
+        def _decorator(fn: ActionHandler) -> ActionHandler:
+            self._action_handlers.append(_ActionHandler(filt=f, fn=fn, stop=stop))
+            return fn
+
+        return _decorator
+
+    async def dispatch_action(self, e: ChatActionEvent) -> None:
+        for h in self._action_handlers:
+            try:
+                if not h.filt(e):
+                    continue
+                await h.fn(e)
+                if h.stop:
+                    break
+            except StopPropagation:
+                break
+            except Exception as ex:  # noqa: BLE001
+                logger.exception("Handler crashed", exc_info=ex)
+
+    def on_member_update(
+        self, filt: MemberFilter | None = None, *, stop: bool = False
+    ) -> Callable[[MemberHandler], MemberHandler]:
+        f = filt or (lambda _e: True)
+
+        def _decorator(fn: MemberHandler) -> MemberHandler:
+            self._member_handlers.append(_MemberHandler(filt=f, fn=fn, stop=stop))
+            return fn
+
+        return _decorator
+
+    async def dispatch_member_update(self, e: MemberUpdateEvent) -> None:
+        for h in self._member_handlers:
             try:
                 if not h.filt(e):
                     continue
