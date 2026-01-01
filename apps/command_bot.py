@@ -5,7 +5,7 @@ import logging
 import os
 from pathlib import Path
 
-from telecraft.bot import MessageEvent, ReconnectPolicy, Router, command, incoming, run_userbot
+from telecraft.bot import MessageEvent, ReconnectPolicy, Router, command, outgoing, run_userbot, text
 from telecraft.client.mtproto import ClientInit, MtprotoClient
 
 
@@ -67,15 +67,19 @@ async def main() -> None:
 
     router = Router()
 
-    @router.on_message(incoming(), stop=False)
-    async def trace_incoming(e: MessageEvent) -> None:
+    @router.on_message(text(), stop=False)
+    async def trace_messages(e: MessageEvent) -> None:
         if e.text:
-            print(f"[IN] peer={e.peer_type}:{e.peer_id} sender={e.sender_id} text={e.text!r}")
+            direction = "OUT" if e.outgoing else "IN"
+            print(f"[{direction}] peer={e.peer_type}:{e.peer_id} sender={e.sender_id} text={e.text!r}")
 
+    # Userbot-style commands: trigger on outgoing messages you type yourself.
+    @router.on_message(outgoing(), stop=False)
     @router.on_message(command("ping"), stop=True)
     async def on_ping(e: MessageEvent) -> None:
         await e.reply("pong")
 
+    @router.on_message(outgoing(), stop=False)
     @router.on_message(command("send"), stop=True)
     async def on_send(e: MessageEvent) -> None:
         # Usage: /send @username hello there
@@ -93,6 +97,7 @@ async def main() -> None:
         await client.send_message(target, msg)
         await e.reply("sent")
 
+    @router.on_message(outgoing(), stop=False)
     @router.on_message(command("add"), stop=True)
     async def on_add(e: MessageEvent) -> None:
         # Usage:
@@ -119,7 +124,8 @@ async def main() -> None:
         return Dispatcher(
             client=c,
             router=r,
-            ignore_outgoing=True,
+            # We want to process outgoing commands typed by the user (userbot UX).
+            ignore_outgoing=False,
             ignore_before_start=True,
             backlog_grace_seconds=5,
             backlog_policy="process_no_reply",
