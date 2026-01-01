@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .app import ReconnectPolicy, run_forever, run_userbot
 from .dispatcher import Dispatcher
 from .events import (
     ChatActionEvent,
@@ -72,6 +73,7 @@ __all__ = [
     "MessageEvent",
     "ReactionEvent",
     "ReactionFilter",
+    "ReconnectPolicy",
     "Router",
     "StopPropagation",
     "all_",
@@ -100,6 +102,8 @@ __all__ = [
     "member_user",
     "reaction_contains",
     "reaction_count_gte",
+    "run_forever",
+    "run_userbot",
     "channel",
     "command",
     "contains",

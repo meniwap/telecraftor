@@ -38,6 +38,10 @@ from telecraft.client import MtprotoClient, Peer
 # await client.send_message(Peer.channel(123456), "hi")
 ```
 
+## Bot runner (stable userbots)
+
+Use `telecraft.bot.run_userbot()` to run a Router/Dispatcher with reconnect/backoff.
+
 Smoke-test auth key exchange (test DCs):
 
 ```bash

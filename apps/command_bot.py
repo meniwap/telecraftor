@@ -5,7 +5,7 @@ import logging
 import os
 from pathlib import Path
 
-from telecraft.bot import Dispatcher, MessageEvent, Router, command, incoming
+from telecraft.bot import MessageEvent, ReconnectPolicy, Router, command, incoming, run_userbot
 from telecraft.client.mtproto import ClientInit, MtprotoClient
 
 
@@ -93,19 +93,26 @@ async def main() -> None:
         await client.send_message(target, msg)
         await e.reply("sent")
 
-    disp = Dispatcher(
+    def make_disp(c: MtprotoClient, r: Router):
+        # Local import to keep types simple for examples.
+        from telecraft.bot import Dispatcher
+
+        return Dispatcher(
+            client=c,
+            router=r,
+            ignore_outgoing=True,
+            ignore_before_start=True,
+            backlog_grace_seconds=5,
+            backlog_policy="process_no_reply",
+            debug=True,
+        )
+
+    await run_userbot(
         client=client,
         router=router,
-        ignore_outgoing=True,
-        ignore_before_start=True,
-        backlog_grace_seconds=5,
-        backlog_policy="process_no_reply",
-        debug=True,
+        make_dispatcher=make_disp,
+        reconnect=ReconnectPolicy(enabled=True, initial_delay_seconds=1.0, max_delay_seconds=30.0),
     )
-    try:
-        await disp.run()
-    finally:
-        await client.close()
 
 
 if __name__ == "__main__":

@@ -73,6 +73,8 @@ source apps/env.sh
 ./.venv/bin/python apps/command_bot.py
 ```
 
+הבוט הזה משתמש ב-`telecraft.bot.run_userbot()` כדי לקבל ריצה יציבה (reconnect/backoff).
+
 מה אמור לקרות:
 - בקבוצות “רגילות” (basic group) זה יחזיר echo לאותו צ’אט.
 - ב־DM / ערוצים / סופרגרופ: זה יעבוד **אם** יש `access_hash` בזיכרון (ה־Dispatcher עושה priming דרך dialogs בתחילת ריצה).
