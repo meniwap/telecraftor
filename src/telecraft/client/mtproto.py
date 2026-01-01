@@ -966,7 +966,8 @@ class MtprotoClient:
             self._prime_last_attempt = now2
 
             # Small, then bigger if we still can't build the peer.
-            await self.prime_entities(limit=int(limit), timeout=timeout)
+            # Note: archived chats live under folder_id=1 and won't be returned by default.
+            await self.prime_entities(limit=int(limit), folder_id=None, timeout=timeout)
             if want is None:
                 return
             try:
@@ -974,8 +975,22 @@ class MtprotoClient:
                 return
             except EntityCacheError:
                 pass
+            # Try archived folder (folder_id=1) before increasing limits.
+            if want.peer_type == "channel":
+                await self.prime_entities(limit=int(limit), folder_id=1, timeout=timeout)
+                try:
+                    _ = self.entities.input_peer(want)
+                    return
+                except EntityCacheError:
+                    pass
             if int(limit) < 300:
-                await self.prime_entities(limit=300, timeout=timeout)
+                await self.prime_entities(limit=300, folder_id=None, timeout=timeout)
+                if want.peer_type == "channel":
+                    try:
+                        _ = self.entities.input_peer(want)
+                        return
+                    except EntityCacheError:
+                        await self.prime_entities(limit=300, folder_id=1, timeout=timeout)
             return
 
     async def _client_for_dc(self, dc_id: int, *, timeout: float = 20.0) -> MtprotoClient:
@@ -1046,7 +1061,13 @@ class MtprotoClient:
         out_path.write_bytes(data)
         return out_path
 
-    async def prime_entities(self, *, limit: int = 100, timeout: float = 20.0) -> None:
+    async def prime_entities(
+        self,
+        *,
+        limit: int = 100,
+        folder_id: int | None = None,
+        timeout: float = 20.0,
+    ) -> None:
         """
         Best-effort entity priming to populate access_hash cache.
 
@@ -1067,7 +1088,7 @@ class MtprotoClient:
             MessagesGetDialogs(
                 flags=0,
                 exclude_pinned=False,
-                folder_id=None,
+                folder_id=int(folder_id) if folder_id is not None else None,
                 offset_date=0,
                 offset_id=0,
                 offset_peer=InputPeerEmpty(),

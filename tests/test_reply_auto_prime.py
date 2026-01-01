@@ -21,7 +21,9 @@ def test_mtproto_client_send_message_user_primes_and_retries() -> None:
 
     called: dict[str, int] = {"prime": 0, "send": 0}
 
-    async def prime_entities(*, limit: int = 100, timeout: float = 20.0) -> None:
+    async def prime_entities(
+        *, limit: int = 100, folder_id: int | None = None, timeout: float = 20.0
+    ) -> None:
         called["prime"] += 1
         # Populate the missing access_hash.
         client.entities.user_access_hash[123] = 999
