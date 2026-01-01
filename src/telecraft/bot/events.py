@@ -818,20 +818,41 @@ class ReactionEvent:
     @property
     def my_reactions(self) -> list[str]:
         """
-        Best-effort list of reactions that are marked as "my" (if server includes them).
+        Best-effort list of reactions that are "mine".
+
+        Telegram can represent "my" reactions in (at least) two ways:
+        - messageReactions.recent_reactions: MessagePeerReaction items with `my=true`
+        - messageReactions.results: ReactionCount items with `chosen_order` set (after sendReaction)
         """
-        out: list[str] = []
         mr = self.reactions
+
+        # Preferred: recent_reactions with explicit my=true.
+        out: list[str] = []
         recent = getattr(mr, "recent_reactions", None)
-        if not isinstance(recent, list):
-            return out
-        for pr in recent:
-            if getattr(pr, "my", False) is not True:
+        if isinstance(recent, list):
+            for pr in recent:
+                if getattr(pr, "my", False) is not True:
+                    continue
+                key = self._reaction_key(getattr(pr, "reaction", None))
+                if key:
+                    out.append(key)
+            if out:
+                return out
+
+        # Fallback: chosen_order on ReactionCount, which is set for user's reactions.
+        results = getattr(mr, "results", None)
+        if not isinstance(results, list):
+            return []
+        chosen: list[tuple[int, str]] = []
+        for rc in results:
+            co = getattr(rc, "chosen_order", None)
+            if not isinstance(co, int):
                 continue
-            key = self._reaction_key(getattr(pr, "reaction", None))
+            key = self._reaction_key(getattr(rc, "reaction", None))
             if key:
-                out.append(key)
-        return out
+                chosen.append((int(co), key))
+        chosen.sort(key=lambda x: x[0])
+        return [k for _co, k in chosen]
 
     def has(self, reaction_key: str) -> bool:
         return reaction_key in self.counts
