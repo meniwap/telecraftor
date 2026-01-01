@@ -131,14 +131,23 @@ class MessageEvent:
             try:
                 return await self.client.send_message_channel(self.channel_id, text)
             except Exception as ex:  # noqa: BLE001
-                logger.info("send_message_channel failed; falling back to self", exc_info=ex)
-                return await self.client.send_message_self(text)
+                # Best-effort: missing access_hash is common after restarts/short updates.
+                try:
+                    await self.client.prime_entities()
+                    return await self.client.send_message_channel(self.channel_id, text)
+                except Exception as ex2:  # noqa: BLE001
+                    logger.info("send_message_channel failed; falling back to self", exc_info=ex2)
+                    return await self.client.send_message_self(text)
         if self.user_id is not None:
             try:
                 return await self.client.send_message_user(self.user_id, text)
             except Exception as ex:  # noqa: BLE001
-                logger.info("send_message_user failed; falling back to self", exc_info=ex)
-                return await self.client.send_message_self(text)
+                try:
+                    await self.client.prime_entities()
+                    return await self.client.send_message_user(self.user_id, text)
+                except Exception as ex2:  # noqa: BLE001
+                    logger.info("send_message_user failed; falling back to self", exc_info=ex2)
+                    return await self.client.send_message_self(text)
         return await self.client.send_message_self(text)
 
     @property
@@ -374,14 +383,22 @@ class ChatActionEvent:
             try:
                 return await self.client.send_message_channel(int(self.peer_id), text)
             except Exception as ex:  # noqa: BLE001
-                logger.info("send_message_channel failed; falling back to self", exc_info=ex)
-                return await self.client.send_message_self(text)
+                try:
+                    await self.client.prime_entities()
+                    return await self.client.send_message_channel(int(self.peer_id), text)
+                except Exception as ex2:  # noqa: BLE001
+                    logger.info("send_message_channel failed; falling back to self", exc_info=ex2)
+                    return await self.client.send_message_self(text)
         if self.peer_type == "user" and self.peer_id is not None:
             try:
                 return await self.client.send_message_user(int(self.peer_id), text)
             except Exception as ex:  # noqa: BLE001
-                logger.info("send_message_user failed; falling back to self", exc_info=ex)
-                return await self.client.send_message_self(text)
+                try:
+                    await self.client.prime_entities()
+                    return await self.client.send_message_user(int(self.peer_id), text)
+                except Exception as ex2:  # noqa: BLE001
+                    logger.info("send_message_user failed; falling back to self", exc_info=ex2)
+                    return await self.client.send_message_self(text)
         return await self.client.send_message_self(text)
 
     @classmethod

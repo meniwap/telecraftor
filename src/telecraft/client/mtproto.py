@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from telecraft.client.entities import EntityCache, load_entity_cache_file, save_entity_cache_file
+from telecraft.client.entities import (
+    EntityCache,
+    EntityCacheError,
+    load_entity_cache_file,
+    save_entity_cache_file,
+)
 from telecraft.client.peers import (
     Peer,
     PeerRef,
@@ -33,6 +38,8 @@ from telecraft.schema.pinned_layer import LAYER
 from telecraft.tl.generated.functions import (
     AccountGetPassword,
     AuthCheckPassword,
+    AuthExportAuthorization,
+    AuthImportAuthorization,
     AuthSendCode,
     AuthSignIn,
     AuthSignUp,
@@ -41,9 +48,13 @@ from telecraft.tl.generated.functions import (
     HelpGetConfig,
     InitConnection,
     InvokeWithLayer,
+    MessagesSendMedia,
     MessagesSendMessage,
+    MessagesGetHistory,
     Ping,
     UsersGetUsers,
+    ChannelsEditAdmin,
+    ChannelsEditBanned,
 )
 from telecraft.tl.generated.types import (
     AuthAuthorization,
@@ -53,6 +64,9 @@ from telecraft.tl.generated.types import (
     AuthSentCodeSuccess,
     CodeSettings,
     ContactsResolvedPeer,
+    ChatAdminRights,
+    ChatBannedRights,
+    InputUser,
     InputUserSelf,
 )
 
@@ -158,6 +172,11 @@ class MtprotoClient:
 
         self.config: Any | None = None
         self.entities = EntityCache()
+        # Cross-DC helpers for media downloads (lazy).
+        self._media_clients: dict[int, MtprotoClient] = {}
+        # Entity priming guardrails (avoid spamming dialogs on repeated short updates).
+        self._prime_lock = asyncio.Lock()
+        self._prime_last_attempt: float = 0.0
 
     @property
     def is_connected(self) -> bool:
@@ -252,6 +271,14 @@ class MtprotoClient:
 
         assert self._sender is not None
         assert self._transport is not None
+        # Close any auxiliary DC clients (best-effort).
+        if self._media_clients:
+            for _dc, c in list(self._media_clients.items()):
+                try:
+                    await c.close()
+                except Exception:
+                    pass
+            self._media_clients.clear()
         await self.stop_updates()
         await self._sender.close()
         await self._transport.close()
@@ -588,7 +615,11 @@ class MtprotoClient:
         """
         Send a message to a user (requires access_hash in the entity cache).
         """
-        peer = self.entities.input_peer_user(int(user_id))
+        try:
+            peer = self.entities.input_peer_user(int(user_id))
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=Peer.user(int(user_id)), timeout=timeout)
+            peer = self.entities.input_peer_user(int(user_id))
         return await self.send_message_peer(peer, text, timeout=timeout)
 
     async def send_message_channel(
@@ -597,7 +628,11 @@ class MtprotoClient:
         """
         Send a message to a channel/supergroup (requires access_hash in the entity cache).
         """
-        peer = self.entities.input_peer_channel(int(channel_id))
+        try:
+            peer = self.entities.input_peer_channel(int(channel_id))
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=Peer.channel(int(channel_id)), timeout=timeout)
+            peer = self.entities.input_peer_channel(int(channel_id))
         return await self.send_message_peer(peer, text, timeout=timeout)
 
     async def send_message_peer(self, peer: Any, text: str, *, timeout: float = 20.0) -> Any:
@@ -606,7 +641,7 @@ class MtprotoClient:
         """
         from secrets import randbits
 
-        return await self.invoke_api(
+        res = await self.invoke_api(
             MessagesSendMessage(
                 flags=0,
                 no_webpage=False,
@@ -633,6 +668,8 @@ class MtprotoClient:
             ),
             timeout=timeout,
         )
+        self._ingest_from_updates_result(res)
+        return res
 
     async def send_message(self, peer: PeerRef, text: str, *, timeout: float = 20.0) -> Any:
         """
@@ -641,8 +678,319 @@ class MtprotoClient:
         - resolves to InputPeer and calls messages.sendMessage
         """
         p = await self.resolve_peer(peer, timeout=timeout)
-        input_peer = self.entities.input_peer(p)
+        try:
+            input_peer = self.entities.input_peer(p)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p, timeout=timeout)
+            input_peer = self.entities.input_peer(p)
         return await self.send_message_peer(input_peer, text, timeout=timeout)
+
+    async def send_file(
+        self,
+        peer: PeerRef,
+        path: str | Path,
+        *,
+        caption: str | None = None,
+        as_photo: bool | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Media MVP: upload a local file and send it as photo/document.
+        """
+        from secrets import randbits
+
+        from telecraft.client.media import default_as_photo, guess_mime_type, upload_file
+        from telecraft.tl.generated.types import (
+            DocumentAttributeFilename,
+            InputMediaUploadedDocument,
+            InputMediaUploadedPhoto,
+        )
+
+        if not self.is_connected:
+            raise MtprotoClientError("Not connected")
+
+        p = Path(path)
+        if not p.exists() or not p.is_file():
+            raise MtprotoClientError(f"send_file: not a file: {p}")
+
+        if as_photo is None:
+            as_photo = default_as_photo(p)
+
+        input_file = await upload_file(
+            p,
+            invoke_api=self.invoke_api,
+            timeout=timeout,
+        )
+
+        if as_photo:
+            media = InputMediaUploadedPhoto(
+                flags=0,
+                spoiler=False,
+                file=input_file,
+                stickers=None,
+                ttl_seconds=None,
+            )
+        else:
+            mime = guess_mime_type(p)
+            attrs = [DocumentAttributeFilename(file_name=p.name)]
+            media = InputMediaUploadedDocument(
+                flags=0,
+                nosound_video=False,
+                force_file=True,
+                spoiler=False,
+                file=input_file,
+                thumb=None,
+                mime_type=mime,
+                attributes=attrs,
+                stickers=None,
+                video_cover=None,
+                video_timestamp=None,
+                ttl_seconds=None,
+            )
+
+        p2 = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p2)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p2, timeout=timeout)
+            input_peer = self.entities.input_peer(p2)
+        res = await self.invoke_api(
+            MessagesSendMedia(
+                flags=0,
+                silent=False,
+                background=False,
+                clear_draft=False,
+                noforwards=False,
+                update_stickersets_order=False,
+                invert_media=False,
+                allow_paid_floodskip=False,
+                peer=input_peer,
+                reply_to=None,
+                media=media,
+                message=caption or "",
+                random_id=randbits(63),
+                reply_markup=None,
+                entities=None,
+                schedule_date=None,
+                schedule_repeat_period=None,
+                send_as=None,
+                quick_reply_shortcut=None,
+                effect=None,
+                allow_paid_stars=None,
+                suggested_post=None,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    async def edit_admin(
+        self,
+        channel: PeerRef,
+        user: PeerRef,
+        *,
+        admin_rights: ChatAdminRights,
+        rank: str = "",
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Admin actions MVP: channels.editAdmin.
+
+        Notes:
+        - channel must resolve to a channel/supergroup (InputChannel)
+        - user must resolve to a user (InputUser)
+        """
+        ch = await self.resolve_peer(channel, timeout=timeout)
+        if ch.peer_type != "channel":
+            raise MtprotoClientError(f"edit_admin: channel must be a channel, got {ch.peer_type}")
+        try:
+            input_channel = self.entities.input_channel(int(ch.peer_id))
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=Peer.channel(int(ch.peer_id)), timeout=timeout)
+            input_channel = self.entities.input_channel(int(ch.peer_id))
+
+        u = await self.resolve_peer(user, timeout=timeout)
+        if u.peer_type != "user":
+            raise MtprotoClientError(f"edit_admin: user must be a user, got {u.peer_type}")
+        try:
+            input_user: InputUser = self.entities.input_user(int(u.peer_id))
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=Peer.user(int(u.peer_id)), timeout=timeout)
+            input_user = self.entities.input_user(int(u.peer_id))
+
+        res = await self.invoke_api(
+            ChannelsEditAdmin(
+                channel=input_channel,
+                user_id=input_user,
+                admin_rights=admin_rights,
+                rank=rank or "",
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    async def edit_banned(
+        self,
+        channel: PeerRef,
+        participant: PeerRef,
+        *,
+        banned_rights: ChatBannedRights,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Admin actions MVP: channels.editBanned.
+        """
+        ch = await self.resolve_peer(channel, timeout=timeout)
+        if ch.peer_type != "channel":
+            raise MtprotoClientError(
+                f"edit_banned: channel must be a channel, got {ch.peer_type}"
+            )
+        try:
+            input_channel = self.entities.input_channel(int(ch.peer_id))
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=Peer.channel(int(ch.peer_id)), timeout=timeout)
+            input_channel = self.entities.input_channel(int(ch.peer_id))
+
+        p = await self.resolve_peer(participant, timeout=timeout)
+        try:
+            input_participant = self.entities.input_peer(p)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p, timeout=timeout)
+            input_participant = self.entities.input_peer(p)
+
+        res = await self.invoke_api(
+            ChannelsEditBanned(
+                channel=input_channel,
+                participant=input_participant,
+                banned_rights=banned_rights,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    def _ingest_from_updates_result(self, obj: Any) -> None:
+        """
+        Best-effort: many API methods (sendMessage/sendMedia, etc.) return Updates-like objects
+        that carry `users`/`chats`. Ingest them to keep access_hash cache fresh.
+        """
+        try:
+            users = cast(list[Any], getattr(obj, "users", []))
+            chats = cast(list[Any], getattr(obj, "chats", []))
+            if users:
+                self.entities.ingest_users(list(users))
+            if chats:
+                self.entities.ingest_chats(list(chats))
+            if users or chats:
+                self._persist_entities_cache()
+        except Exception:
+            return
+
+    async def _prime_entities_for_reply(
+        self,
+        *,
+        want: Peer | None = None,
+        limit: int = 100,
+        timeout: float = 20.0,
+    ) -> None:
+        """
+        Best-effort priming used by reply/send guardrails.
+
+        - rate-limited by a small cooldown
+        - serialized by a lock to avoid concurrent dialog fetches
+        - optionally stops early if the wanted peer becomes resolvable
+        """
+        # Cooldown: avoid spamming dialogs under bursty short updates.
+        now = time.monotonic()
+        if (now - self._prime_last_attempt) < 3.0:
+            return
+        async with self._prime_lock:
+            now2 = time.monotonic()
+            if (now2 - self._prime_last_attempt) < 3.0:
+                return
+            self._prime_last_attempt = now2
+
+            # Small, then bigger if we still can't build the peer.
+            await self.prime_entities(limit=int(limit), timeout=timeout)
+            if want is None:
+                return
+            try:
+                _ = self.entities.input_peer(want)
+                return
+            except EntityCacheError:
+                pass
+            if int(limit) < 300:
+                await self.prime_entities(limit=300, timeout=timeout)
+            return
+
+    async def _client_for_dc(self, dc_id: int, *, timeout: float = 20.0) -> MtprotoClient:
+        """
+        Best-effort cross-DC helper for media downloads:
+        - connect to dc_id
+        - import authorization using auth.exportAuthorization/auth.importAuthorization
+        """
+        if int(dc_id) == int(self._dc_id):
+            return self
+        existing = self._media_clients.get(int(dc_id))
+        if existing is not None and existing.is_connected:
+            return existing
+
+        if self._init is None:
+            raise MtprotoClientError("ClientInit(api_id=...) is required for cross-DC operations")
+
+        c = MtprotoClient(network=self._network, dc_id=int(dc_id), init=self._init, session_path=None)
+        await c.connect(timeout=timeout)
+        exported = await self.invoke_api(AuthExportAuthorization(dc_id=int(dc_id)), timeout=timeout)
+        exp_id = getattr(exported, "id", None)
+        exp_bytes = getattr(exported, "bytes", None)
+        if not isinstance(exp_id, int) or not isinstance(exp_bytes, (bytes, bytearray)):
+            raise MtprotoClientError(
+                f"Unexpected auth.exportAuthorization result: {type(exported).__name__}"
+            )
+        await c.invoke_api(AuthImportAuthorization(id=int(exp_id), bytes=bytes(exp_bytes)), timeout=timeout)
+        self._media_clients[int(dc_id)] = c
+        return c
+
+    async def download_media(
+        self,
+        message_or_event: Any,
+        *,
+        dest: str | Path | None = None,
+        timeout: float = 20.0,
+    ) -> Path | bytes | None:
+        """
+        Media MVP: download photo/document from a TL message or MessageEvent.
+        """
+        from telecraft.client.media import (
+            MediaError,
+            download_via_get_file,
+            ensure_dest_path,
+            extract_media,
+        )
+
+        m = extract_media(message_or_event)
+        if m is None:
+            return None
+
+        try:
+            c = await self._client_for_dc(int(m.dc_id), timeout=timeout)
+            data = await download_via_get_file(
+                invoke_api=c.invoke_api,
+                location=m.location,
+                timeout=timeout,
+                expected_size=m.size,
+            )
+        except MediaError as e:
+            raise MtprotoClientError(str(e)) from e
+
+        if dest is None:
+            return data
+
+        out_path = ensure_dest_path(dest, file_name=m.file_name)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(data)
+        return out_path
 
     async def prime_entities(self, *, limit: int = 100, timeout: float = 20.0) -> None:
         """
@@ -681,6 +1029,45 @@ class MtprotoClient:
             self.entities.ingest_users(list(users))
             self.entities.ingest_chats(list(chats))
             self._persist_entities_cache(force=True)
+
+    async def get_history(
+        self,
+        peer: PeerRef,
+        *,
+        limit: int = 50,
+        timeout: float = 20.0,
+    ) -> list[Any]:
+        """
+        Best-effort wrapper around messages.getHistory that also ingests users/chats into EntityCache.
+        """
+        from telecraft.tl.generated.types import MessagesMessages, MessagesMessagesSlice
+
+        p = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p, timeout=timeout)
+            input_peer = self.entities.input_peer(p)
+
+        res = await self.invoke_api(
+            MessagesGetHistory(
+                peer=input_peer,
+                offset_id=0,
+                offset_date=0,
+                add_offset=0,
+                limit=int(limit),
+                max_id=0,
+                min_id=0,
+                hash=0,
+            ),
+            timeout=timeout,
+        )
+        # messages.Messages also carries users/chats.
+        self._ingest_from_updates_result(res)
+        if isinstance(res, (MessagesMessages, MessagesMessagesSlice)):
+            msgs = getattr(res, "messages", None)
+            return list(msgs) if isinstance(msgs, list) else []
+        return []
 
     async def send_code(self, phone_number: str, *, timeout: float = 20.0) -> AuthSentCode:
         """

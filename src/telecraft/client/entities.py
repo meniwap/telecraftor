@@ -13,6 +13,7 @@ from telecraft.tl.generated.types import (
     InputPeerChat,
     InputPeerSelf,
     InputPeerUser,
+    InputUser,
 )
 
 
@@ -111,6 +112,15 @@ class EntityCache:
         if ah is None:
             raise EntityCacheError(f"Unknown user access_hash for user_id={user_id}")
         return InputPeerUser(user_id=int(user_id), access_hash=int(ah))
+
+    def input_user(self, user_id: int) -> InputUser:
+        """
+        Build InputUser (used by some methods like channels.editAdmin).
+        """
+        ah = self.user_access_hash.get(int(user_id))
+        if ah is None:
+            raise EntityCacheError(f"Unknown user access_hash for user_id={user_id}")
+        return InputUser(user_id=int(user_id), access_hash=int(ah))
 
     def input_peer_channel(self, channel_id: int) -> InputPeerChannel:
         ah = self.channel_access_hash.get(int(channel_id))
