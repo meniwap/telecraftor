@@ -150,6 +150,21 @@ class MessageEvent:
                     return await self.client.send_message_self(text)
         return await self.client.send_message_self(text)
 
+    async def add_user(self, user: object, *, fwd_limit: int = 10) -> Any:
+        """
+        Add a user to the current group/chat where possible.
+
+        - In basic groups: uses messages.addChatUser
+        - In channels/supergroups: uses channels.inviteToChannel
+
+        This is a thin convenience wrapper around `MtprotoClient.add_user_to_group(...)`.
+        """
+        if self.peer_type is None or self.peer_id is None:
+            raise ValueError("add_user: missing peer context")
+        if self.peer_type not in {"chat", "channel"}:
+            raise ValueError(f"add_user: unsupported peer_type={self.peer_type!r}")
+        return await self.client.add_user_to_group((self.peer_type, int(self.peer_id)), user, fwd_limit=int(fwd_limit))
+
     @property
     def has_media(self) -> bool:
         media = getattr(self.raw, "media", None)

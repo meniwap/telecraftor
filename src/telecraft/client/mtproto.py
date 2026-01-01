@@ -43,18 +43,20 @@ from telecraft.tl.generated.functions import (
     AuthSendCode,
     AuthSignIn,
     AuthSignUp,
+    ChannelsEditAdmin,
+    ChannelsEditBanned,
+    ChannelsInviteToChannel,
     ContactsResolvePhone,
     ContactsResolveUsername,
     HelpGetConfig,
     InitConnection,
     InvokeWithLayer,
+    MessagesAddChatUser,
     MessagesSendMedia,
     MessagesSendMessage,
     MessagesGetHistory,
     Ping,
     UsersGetUsers,
-    ChannelsEditAdmin,
-    ChannelsEditBanned,
 )
 from telecraft.tl.generated.types import (
     AuthAuthorization,
@@ -869,6 +871,58 @@ class MtprotoClient:
         )
         self._ingest_from_updates_result(res)
         return res
+
+    async def add_user_to_group(
+        self,
+        group: PeerRef,
+        user: PeerRef,
+        *,
+        fwd_limit: int = 10,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Add a user to a group.
+
+        - basic groups (peer_type='chat'): messages.addChatUser(chat_id, user_id, fwd_limit)
+        - supergroups/channels (peer_type='channel'): channels.inviteToChannel(channel, users=[user])
+        """
+        g = await self.resolve_peer(group, timeout=timeout)
+        u = await self.resolve_peer(user, timeout=timeout)
+        if u.peer_type != "user":
+            raise MtprotoClientError(f"add_user_to_group: user must be a user, got {u.peer_type}")
+
+        try:
+            input_user = self.entities.input_user(int(u.peer_id))
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=Peer.user(int(u.peer_id)), timeout=timeout)
+            input_user = self.entities.input_user(int(u.peer_id))
+
+        if g.peer_type == "chat":
+            res = await self.invoke_api(
+                MessagesAddChatUser(
+                    chat_id=int(g.peer_id),
+                    user_id=input_user,
+                    fwd_limit=int(fwd_limit),
+                ),
+                timeout=timeout,
+            )
+            self._ingest_from_updates_result(res)
+            return res
+
+        if g.peer_type == "channel":
+            try:
+                input_channel = self.entities.input_channel(int(g.peer_id))
+            except EntityCacheError:
+                await self._prime_entities_for_reply(want=Peer.channel(int(g.peer_id)), timeout=timeout)
+                input_channel = self.entities.input_channel(int(g.peer_id))
+            res = await self.invoke_api(
+                ChannelsInviteToChannel(channel=input_channel, users=[input_user]),
+                timeout=timeout,
+            )
+            self._ingest_from_updates_result(res)
+            return res
+
+        raise MtprotoClientError(f"add_user_to_group: unsupported peer_type={g.peer_type!r}")
 
     def _ingest_from_updates_result(self, obj: Any) -> None:
         """

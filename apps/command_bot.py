@@ -93,6 +93,25 @@ async def main() -> None:
         await client.send_message(target, msg)
         await e.reply("sent")
 
+    @router.on_message(command("add"), stop=True)
+    async def on_add(e: MessageEvent) -> None:
+        # Usage:
+        #   /add @username
+        # Adds a user to the current chat/channel (requires admin rights + user privacy permitting).
+        args = (e.command_args or "").strip()
+        if not args:
+            await e.reply("Usage: /add @username")
+            return
+        target = args.split(" ", 1)[0].strip()
+        if not target:
+            await e.reply("Usage: /add @username")
+            return
+        try:
+            await e.add_user(target)
+            await e.reply("added")
+        except Exception as ex:  # noqa: BLE001
+            await e.reply(f"add failed: {type(ex).__name__}: {ex}")
+
     def make_disp(c: MtprotoClient, r: Router):
         # Local import to keep types simple for examples.
         from telecraft.bot import Dispatcher
