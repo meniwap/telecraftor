@@ -9,7 +9,7 @@ from telecraft.bot.events import ReactionEvent
 class FakeReactionEmoji:
     TL_NAME = "reactionEmoji"
 
-    emoticon: str
+    emoticon: str | bytes
 
 
 @dataclass
@@ -51,6 +51,27 @@ def test_reaction_event_counts_and_my_reactions() -> None:
     )
     assert e.counts == {"❤️": 2, "👍": 1}
     assert e.total_count == 3
+    assert e.my_reactions == ["❤️"]
+
+
+def test_reaction_event_decodes_bytes_emoticon_from_codec() -> None:
+    mr = FakeMessageReactions(
+        results=[
+            FakeReactionCount(reaction=FakeReactionEmoji("❤️".encode()), count=2),
+        ],
+        recent_reactions=[
+            FakePeerReaction(my=True, reaction=FakeReactionEmoji("❤️".encode())),
+        ],
+    )
+    e = ReactionEvent(
+        client=object(),
+        raw=object(),
+        peer_type="chat",
+        peer_id=1,
+        msg_id=1,
+        reactions=mr,
+    )
+    assert e.counts == {"❤️": 2}
     assert e.my_reactions == ["❤️"]
 
 

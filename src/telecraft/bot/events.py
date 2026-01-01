@@ -773,6 +773,12 @@ class ReactionEvent:
         name = getattr(reaction, "TL_NAME", None)
         if name == "reactionEmoji":
             v = getattr(reaction, "emoticon", None)
+            # TL "string" is decoded as bytes by our codec; decode best-effort for emoji keys.
+            if isinstance(v, bytes):
+                try:
+                    return v.decode("utf-8")
+                except Exception:
+                    return None
             return str(v) if isinstance(v, str) else None
         if name == "reactionCustomEmoji":
             v2 = getattr(reaction, "document_id", None)
