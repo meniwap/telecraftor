@@ -27,7 +27,6 @@ _ReactionDedupeKey = tuple[
     int,  # peer_id
     int,  # msg_id
     tuple[tuple[str, int], ...],  # sorted counts snapshot
-    tuple[str, ...],  # sorted my_reactions snapshot
 ]
 
 
@@ -96,7 +95,7 @@ class Dispatcher:
         seen_order: deque[tuple[str, int, int, str]] = deque(maxlen=4096)
         seen_other: set[tuple[str, str, int, int]] = set()
         seen_other_order: deque[tuple[str, str, int, int]] = deque(maxlen=4096)
-        # Dedupe reactions by (peer, msg_id, counts snapshot, my_reactions snapshot).
+        # Dedupe reactions by (peer, msg_id, counts snapshot).
         # This avoids dropping legit reaction changes on the same message while still
         # filtering duplicates caused by wrappers/replays.
         seen_reaction: set[_ReactionDedupeKey] = set()
@@ -401,10 +400,13 @@ class Dispatcher:
         peer_type = evt.peer_type or "unknown"
         peer_id = int(evt.peer_id) if evt.peer_id is not None else 0
 
-        # Allow repeated reaction updates for the same message as long as the snapshot differs.
+        # Allow repeated reaction updates for the same message as long as counts differs.
+        #
+        # Note: we intentionally do NOT include `my_reactions` in the dedupe key. Telegram can
+        # deliver two updates for the same reaction change (updateMessageReactions + edit-wrapper)
+        # where only one includes "recent_reactions"/"my" info. Including it causes double-dispatch.
         counts_sig = tuple(sorted(evt.counts.items()))
-        my_sig = tuple(sorted(evt.my_reactions))
-        key: _ReactionDedupeKey = (peer_type, peer_id, int(evt.msg_id), counts_sig, my_sig)
+        key: _ReactionDedupeKey = (peer_type, peer_id, int(evt.msg_id), counts_sig)
         if key in seen_reaction:
             return
         if len(seen_reaction_order) == seen_reaction_order.maxlen:
