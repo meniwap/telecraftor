@@ -551,10 +551,8 @@ class MtprotoClient:
                     if n in self.entities.channel_access_hash:
                         return Peer.channel(n)
                     raise MtprotoClientError(
-                        (
-                            f"resolve_peer: unknown id {n}; "
-                            f"use user:{n}/chat:{n}/channel:{n} or @username"
-                        )
+                        f"resolve_peer: unknown id {n}; "
+                        f"use user:{n}/chat:{n}/channel:{n} or @username"
                     )
             raise MtprotoClientError(f"resolve_peer: unsupported string ref: {ref!r}")
         if isinstance(ref, int):
