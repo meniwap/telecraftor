@@ -45,7 +45,14 @@ def normalize_username(username: str) -> str:
     # - https://t.me/<username>
     # - t.me/<username>
     # - telegram.me/<username>
-    for host in ("https://t.me/", "http://t.me/", "t.me/", "https://telegram.me/", "http://telegram.me/", "telegram.me/"):
+    for host in (
+        "https://t.me/",
+        "http://t.me/",
+        "t.me/",
+        "https://telegram.me/",
+        "http://telegram.me/",
+        "telegram.me/",
+    ):
         if u.startswith(host):
             u = u[len(host) :]
             break

@@ -5,7 +5,7 @@ import logging
 import os
 from pathlib import Path
 
-from telecraft.bot import Dispatcher, MessageEvent, Router, command, incoming, text
+from telecraft.bot import Dispatcher, MessageEvent, Router, command, incoming
 from telecraft.client.mtproto import ClientInit, MtprotoClient
 
 
