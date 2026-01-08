@@ -82,4 +82,3 @@ def test_encrypt_raw_roundtrips_and_has_sha1_prefix() -> None:
     assert padded[:20] == sha1(data)
     assert padded[20 : 20 + len(data)] == data
 
-

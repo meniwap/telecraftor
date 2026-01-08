@@ -18,4 +18,6 @@ session.json
 .env
 apps/env.sh
 
-
+# Temporary test files
+_temp_*.py
+apps/_temp_*.py
