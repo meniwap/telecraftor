@@ -3206,6 +3206,188 @@ class MtprotoClient:
         self._ingest_from_updates_result(res)
         return res
 
+    # ========================== Dice & Games ==========================
+
+    async def send_dice(
+        self,
+        peer: PeerRef,
+        emoji: str = "🎲",
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Send a dice/game message with animated random result.
+
+        Supported emoji:
+        - 🎲 (dice) - values 1-6
+        - 🎯 (darts) - values 1-6 (6 = bullseye)
+        - 🏀 (basketball) - values 1-5 (4-5 = score)
+        - ⚽ (football/soccer) - values 1-5 (4-5 = goal)
+        - 🎳 (bowling) - values 1-6 (6 = strike)
+        - 🎰 (slot machine) - values 1-64 (64 = jackpot 777)
+
+        Args:
+            peer: Target chat/user
+            emoji: One of the supported game emoji
+            reply_to_msg_id: Message ID to reply to
+            silent: Send without notification
+            timeout: Request timeout
+
+        Returns:
+            Updates with the sent message. The dice value is in
+            message.media.value after the animation completes.
+        """
+        from telecraft.tl.generated.types import (
+            InputMediaDice,
+            InputReplyToMessage,
+        )
+
+        SUPPORTED_DICE = {"🎲", "🎯", "🏀", "⚽", "🎳", "🎰"}
+        if emoji not in SUPPORTED_DICE:
+            raise MtprotoClientError(
+                f"send_dice: unsupported emoji '{emoji}'. "
+                f"Supported: {', '.join(SUPPORTED_DICE)}"
+            )
+
+        p = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p, timeout=timeout)
+            input_peer = self.entities.input_peer(p)
+
+        media = InputMediaDice(emoticon=emoji)
+
+        msg_flags = 0
+        if silent:
+            msg_flags |= 32
+        if reply_to_msg_id is not None:
+            msg_flags |= 1
+
+        reply_to = None
+        if reply_to_msg_id is not None:
+            reply_to = InputReplyToMessage(
+                flags=0,
+                reply_to_msg_id=reply_to_msg_id,
+                top_msg_id=None,
+                reply_to_peer_id=None,
+                quote_text=None,
+                quote_entities=None,
+                quote_offset=None,
+            )
+
+        import random
+
+        res = await self.invoke_api(
+            MessagesSendMedia(
+                flags=msg_flags,
+                silent=silent if silent else None,
+                background=None,
+                clear_draft=None,
+                noforwards=None,
+                update_stickersets_order=None,
+                invert_media=None,
+                allow_paid_floodskip=None,
+                peer=input_peer,
+                reply_to=reply_to,
+                media=media,
+                message="",
+                random_id=random.randint(1, 2**63 - 1),
+                reply_markup=None,
+                entities=None,
+                schedule_date=None,
+                schedule_repeat_period=None,
+                send_as=None,
+                quick_reply_shortcut=None,
+                effect=None,
+                allow_paid_stars=None,
+                suggested_post=None,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    async def roll_dice(
+        self,
+        peer: PeerRef,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """Shortcut for send_dice with 🎲 emoji."""
+        return await self.send_dice(
+            peer, "🎲", reply_to_msg_id=reply_to_msg_id, silent=silent, timeout=timeout
+        )
+
+    async def throw_darts(
+        self,
+        peer: PeerRef,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """Shortcut for send_dice with 🎯 emoji (darts)."""
+        return await self.send_dice(
+            peer, "🎯", reply_to_msg_id=reply_to_msg_id, silent=silent, timeout=timeout
+        )
+
+    async def shoot_basketball(
+        self,
+        peer: PeerRef,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """Shortcut for send_dice with 🏀 emoji (basketball)."""
+        return await self.send_dice(
+            peer, "🏀", reply_to_msg_id=reply_to_msg_id, silent=silent, timeout=timeout
+        )
+
+    async def kick_football(
+        self,
+        peer: PeerRef,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """Shortcut for send_dice with ⚽ emoji (football/soccer)."""
+        return await self.send_dice(
+            peer, "⚽", reply_to_msg_id=reply_to_msg_id, silent=silent, timeout=timeout
+        )
+
+    async def roll_bowling(
+        self,
+        peer: PeerRef,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """Shortcut for send_dice with 🎳 emoji (bowling)."""
+        return await self.send_dice(
+            peer, "🎳", reply_to_msg_id=reply_to_msg_id, silent=silent, timeout=timeout
+        )
+
+    async def spin_slot_machine(
+        self,
+        peer: PeerRef,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """Shortcut for send_dice with 🎰 emoji (slot machine)."""
+        return await self.send_dice(
+            peer, "🎰", reply_to_msg_id=reply_to_msg_id, silent=silent, timeout=timeout
+        )
+
     # ========================== Voice & Video Notes ==========================
 
     async def send_voice(
