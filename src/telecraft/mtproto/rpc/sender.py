@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import struct
 from dataclasses import dataclass, field
 from typing import Any, Protocol, cast
@@ -21,6 +22,9 @@ from telecraft.tl.generated.types import (
 
 logger = logging.getLogger(__name__)
 
+# Pattern to extract wait time from FLOOD_WAIT_X, SLOWMODE_WAIT_X, etc.
+_WAIT_PATTERN = re.compile(r"(?:FLOOD_WAIT|SLOWMODE_WAIT|FLOOD_PREMIUM_WAIT)_(\d+)")
+
 
 class PacketTransport(Protocol):
     async def send(self, payload: bytes) -> None: ...
@@ -31,11 +35,32 @@ class RpcSenderError(Exception):
     pass
 
 
+class FloodWaitError(RpcSenderError):
+    """Raised when Telegram returns a FLOOD_WAIT or SLOWMODE_WAIT error."""
+
+    def __init__(self, *, code: int, message: str, wait_seconds: int) -> None:
+        super().__init__(f"FLOOD_WAIT {wait_seconds}s: {message}")
+        self.code = code
+        self.message = message
+        self.wait_seconds = wait_seconds
+
+
 class RpcErrorException(RpcSenderError):
     def __init__(self, *, code: int, message: str) -> None:
         super().__init__(f"RPC_ERROR {code}: {message}")
         self.code = code
         self.message = message
+
+
+def parse_flood_wait_seconds(message: str) -> int | None:
+    """
+    Parse FLOOD_WAIT_X / SLOWMODE_WAIT_X / FLOOD_PREMIUM_WAIT_X messages.
+    Returns the wait time in seconds, or None if not a flood wait error.
+    """
+    m = _WAIT_PATTERN.search(message)
+    if m:
+        return int(m.group(1))
+    return None
 
 
 @dataclass(slots=True)
@@ -71,6 +96,15 @@ class _PendingCall:
     attempts: int = 0
 
 
+@dataclass(slots=True)
+class FloodWaitConfig:
+    """Configuration for automatic FloodWait retry."""
+
+    enabled: bool = True
+    max_wait_seconds: int = 60  # Don't auto-wait more than this
+    max_retries: int = 3  # Max number of flood wait retries per call
+
+
 class MtprotoEncryptedSender:
     """
     Encrypted MTProto sender with basic RPC request/response mapping.
@@ -80,6 +114,7 @@ class MtprotoEncryptedSender:
     - Sends `msgs_ack` for received messages.
     - Retries once on `bad_server_salt` (updates `server_salt`).
     - Responds to `msg_resend_req` for in-flight requests.
+    - Auto-retries on FLOOD_WAIT_X errors (configurable).
     """
 
     def __init__(
@@ -89,6 +124,7 @@ class MtprotoEncryptedSender:
         state: MtprotoState,
         msg_id_gen: MsgIdGenerator,
         incoming_queue: asyncio.Queue[ReceivedMessage] | None = None,
+        flood_wait_config: FloodWaitConfig | None = None,
     ) -> None:
         self._transport = transport
         self._state = state
@@ -99,6 +135,7 @@ class MtprotoEncryptedSender:
         self._sent: dict[int, tuple[int, bytes]] = {}  # msg_id -> (seqno, body)
         self._closed = False
         self._incoming_queue = incoming_queue
+        self._flood_wait_config = flood_wait_config or FloodWaitConfig()
 
     async def close(self) -> None:
         self._closed = True
@@ -114,9 +151,17 @@ class MtprotoEncryptedSender:
         if self._recv_task is None:
             self._recv_task = asyncio.create_task(self._recv_loop())
 
-    async def invoke_tl(self, req_obj: Any, *, timeout: float = 20.0) -> Any:
+    async def invoke_tl(
+        self,
+        req_obj: Any,
+        *,
+        timeout: float = 20.0,
+        flood_wait_config: FloodWaitConfig | None = None,
+    ) -> Any:
         """
         Send a TLRequest-like object (serialized via telecraft.tl.codec.dumps) and return result.
+
+        Automatically handles FLOOD_WAIT_X errors by sleeping and retrying (configurable).
         """
 
         from telecraft.tl.codec import dumps
@@ -126,7 +171,59 @@ class MtprotoEncryptedSender:
 
         self._ensure_recv_task()
 
-        req_bytes = dumps(req_obj)
+        fw_config = flood_wait_config or self._flood_wait_config
+        flood_retries = 0
+
+        while True:
+            result = await self._invoke_tl_once(
+                req_obj, dumps_fn=dumps, timeout=timeout
+            )
+
+            # Check if this is a FloodWaitError that we should auto-handle
+            if isinstance(result, FloodWaitError):
+                wait_secs = result.wait_seconds
+
+                if not fw_config.enabled:
+                    raise result
+
+                if flood_retries >= fw_config.max_retries:
+                    logger.warning(
+                        "FloodWait: max retries (%d) reached; raising error",
+                        fw_config.max_retries,
+                    )
+                    raise result
+
+                if wait_secs > fw_config.max_wait_seconds:
+                    logger.warning(
+                        "FloodWait: wait time (%ds) exceeds max (%ds); raising error",
+                        wait_secs,
+                        fw_config.max_wait_seconds,
+                    )
+                    raise result
+
+                flood_retries += 1
+                logger.info(
+                    "FloodWait: sleeping %ds before retry %d/%d",
+                    wait_secs,
+                    flood_retries,
+                    fw_config.max_retries,
+                )
+                await asyncio.sleep(wait_secs)
+                continue
+
+            return result
+
+    async def _invoke_tl_once(
+        self,
+        req_obj: Any,
+        *,
+        dumps_fn: Any,
+        timeout: float,
+    ) -> Any:
+        """
+        Internal: single invoke attempt. Returns result or FloodWaitError.
+        """
+        req_bytes = dumps_fn(req_obj)
         loop = asyncio.get_running_loop()
         fut: asyncio.Future[Any] = loop.create_future()
         call = _PendingCall(req_bytes=req_bytes, future=fut)
@@ -148,12 +245,19 @@ class MtprotoEncryptedSender:
                     raise RpcSenderError(
                         f"Timed out waiting for response (timeout={timeout}s)"
                     ) from e
+                except FloodWaitError:
+                    # Return FloodWaitError for handling by invoke_tl
+                    self._cleanup_call(call)
+                    raise
                 else:
                     self._cleanup_call(call)
                     return result
 
             self._cleanup_call(call)
             raise RpcSenderError("Too many retries")
+        except FloodWaitError as e:
+            # Return error for outer loop to handle
+            return e
         except asyncio.CancelledError:
             if not fut.done():
                 fut.cancel()
@@ -245,9 +349,19 @@ class MtprotoEncryptedSender:
                 else:
                     message = str(raw_msg)
                 code = int(cast(int, result.error_code))
-                call.future.set_exception(
-                    RpcErrorException(code=code, message=message)
-                )
+
+                # Check for FloodWait-type errors
+                wait_seconds = parse_flood_wait_seconds(message)
+                if wait_seconds is not None:
+                    call.future.set_exception(
+                        FloodWaitError(
+                            code=code, message=message, wait_seconds=wait_seconds
+                        )
+                    )
+                else:
+                    call.future.set_exception(
+                        RpcErrorException(code=code, message=message)
+                    )
             else:
                 call.future.set_result(result)
             return

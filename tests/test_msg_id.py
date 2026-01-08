@@ -20,4 +20,3 @@ def test_msg_id_observe_bumps_past_remote_ids() -> None:
     assert nxt % 4 == 0
     assert nxt > first + 1_000_000_001
 
-

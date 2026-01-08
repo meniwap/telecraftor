@@ -105,9 +105,13 @@ class MessageEvent:
     is_backlog: bool = False
     allow_reply: bool = True
 
-    async def reply(self, text: str) -> Any:
+    async def reply(self, text: str, *, quote: bool = False) -> Any:
         """
-        Reply to the same basic chat if possible.
+        Reply to the same chat if possible.
+
+        Args:
+            text: Message text to send
+            quote: If True, reply as a quote to the original message (using reply_to_msg_id)
 
         Best-effort reply:
         - basic groups: send_message_chat(chat_id)
@@ -125,6 +129,23 @@ class MessageEvent:
             )
             return None
 
+        # Determine reply_to_msg_id for quoting
+        reply_to_msg_id = self.msg_id if quote else None
+
+        # Use the high-level send_message with peer_type/peer_id if available
+        send_message = getattr(self.client, "send_message", None)
+        if callable(send_message) and self.peer_type and self.peer_id is not None:
+            try:
+                return await send_message(
+                    (self.peer_type, int(self.peer_id)),
+                    text,
+                    reply_to_msg_id=reply_to_msg_id,
+                )
+            except Exception:  # noqa: BLE001
+                # Fall through to legacy behavior
+                pass
+
+        # Legacy behavior for backwards compatibility
         if self.chat_id is not None:
             return await self.client.send_message_chat(self.chat_id, text)
         if self.channel_id is not None:
@@ -138,6 +159,20 @@ class MessageEvent:
                 except Exception as ex2:  # noqa: BLE001
                     logger.info("send_message_channel failed; falling back to self", exc_info=ex2)
                     return await self.client.send_message_self(text)
+        # Saved Messages: prefer send_message_self() to avoid needing access_hash for our own user id.
+        try:
+            me_id_obj = getattr(self.client, "self_user_id", None)
+            me_id = int(me_id_obj) if isinstance(me_id_obj, int) else None
+        except Exception:  # noqa: BLE001
+            me_id = None
+        if (
+            me_id is not None
+            and self.peer_type == "user"
+            and self.peer_id is not None
+            and int(self.peer_id) == int(me_id)
+        ):
+            return await self.client.send_message_self(text)
+
         if self.user_id is not None:
             try:
                 return await self.client.send_message_user(self.user_id, text)
@@ -212,6 +247,8 @@ class MessageEvent:
     @classmethod
     def from_update(cls, *, client: Any, update: Any) -> MessageEvent | None:
         name = getattr(update, "TL_NAME", None)
+        me_id_obj = getattr(client, "self_user_id", None)
+        me_id: int | None = int(me_id_obj) if isinstance(me_id_obj, int) else None
 
         # Common update wrappers that carry a Message/MessageService in `.message`.
         if name in {
@@ -232,6 +269,9 @@ class MessageEvent:
             outgoing = _flag_is_set(getattr(update, "flags", 0), 1)
             chat_id_val = int(cast(int, update.chat_id))
             sender_id_val = int(cast(int, update.from_id))
+            # Some self-authored messages can arrive with missing/out-of-sync flags; prefer me_id.
+            if me_id is not None and int(sender_id_val) == int(me_id):
+                outgoing = True
             return _fill_peer_fields(
                 cls(
                     client=client,
@@ -252,8 +292,13 @@ class MessageEvent:
         if name == "updateShortMessage":
             outgoing = _flag_is_set(getattr(update, "flags", 0), 1)
             peer_user_id = int(cast(int, update.user_id))
-            # NOTE: for outgoing short messages, user_id may represent the other party,
-            # but we don't have "self id" here. Keep sender_id=None in that case.
+            # For Saved Messages, Telegram may deliver self-authored messages as "incoming"
+            # (out flag unset) even though they were typed by the user. If we know me_id and
+            # the peer is our own user id, treat it as outgoing so userbot commands work.
+            if not outgoing and me_id is not None and int(peer_user_id) == int(me_id):
+                outgoing = True
+            # NOTE: for outgoing short messages, user_id may represent the other party.
+            # Keep sender_id=None for outgoing to avoid lying without explicit self id in update.
             sender_id_val2: int | None = peer_user_id if not outgoing else None
             return _fill_peer_fields(
                 cls(
@@ -300,6 +345,20 @@ class MessageEvent:
             sender_user_id: int | None = None
             if from_name == "peerUser":
                 sender_user_id = int(cast(int, getattr(from_peer, "user_id")))
+
+            # Heuristic: if Telegram omits from_id in a private message object, it is almost
+            # always a self-authored/outgoing message (common for Saved Messages + some short updates).
+            if sender_user_id is None and peer_name == "peerUser" and outgoing is False:
+                outgoing = True
+
+            # Prefer "me" identity when available:
+            # - If sender is me, it's outgoing (even if out flag is unset).
+            # - If this is Saved Messages (peer is me) and sender is absent, treat as outgoing.
+            if me_id is not None:
+                if sender_user_id is not None and int(sender_user_id) == int(me_id):
+                    outgoing = True
+                elif peer_type == "user" and peer_id is not None and int(peer_id) == int(me_id):
+                    outgoing = True
 
             compat_user_id = sender_user_id if sender_user_id is not None else user_peer_id
             return _fill_peer_fields(

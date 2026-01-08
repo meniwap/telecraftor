@@ -93,47 +93,115 @@ def _unwrap_message_like(obj: Any) -> Any:
     return obj
 
 
-def _pick_best_photo_size_type(photo: Any) -> str | None:
+@dataclass(slots=True)
+class PhotoSizeInfo:
+    """Information about a photo size for download."""
+
+    type: str  # The size type string (e.g. "y", "x", "m", "s")
+    width: int | None
+    height: int | None
+    size: int | None
+    cached_bytes: bytes | None  # For photoCachedSize, we have the bytes directly
+
+
+def _get_photo_sizes_info(photo: Any) -> list[PhotoSizeInfo]:
+    """
+    Extract all downloadable photo size information.
+
+    Handles:
+    - photoSize: has type, w, h, size
+    - photoCachedSize: has type, w, h, bytes (inline data!)
+    - photoSizeProgressive: has type, w, h, sizes (list of progressive sizes)
+    """
     sizes = getattr(photo, "sizes", None)
     if not isinstance(sizes, list) or not sizes:
-        return None
+        return []
 
-    best_type: str | None = None
-    best_score = -1
+    result: list[PhotoSizeInfo] = []
 
     for s in sizes:
         t = _decode_text(getattr(s, "type", None))
         if not t:
             continue
-        # Skip non-downloadable pseudo sizes.
-        if t in {"i"}:
-            continue
+
         name = getattr(s, "TL_NAME", None)
+
+        # Skip non-downloadable pseudo sizes
+        if t in {"i"}:  # Inline stripped preview
+            continue
         if name in {"photoStrippedSize", "photoPathSize"}:
             continue
 
         w = getattr(s, "w", None)
         h = getattr(s, "h", None)
-        if isinstance(w, int) and isinstance(h, int):
-            score = int(w) * int(h)
-        else:
-            # Fallback to declared size / cached bytes length / progressive last size.
-            sz = getattr(s, "size", None)
-            if isinstance(sz, int):
-                score = int(sz)
+        width = int(w) if isinstance(w, int) else None
+        height = int(h) if isinstance(h, int) else None
+
+        # Check for cached bytes (photoCachedSize)
+        cached_b = getattr(s, "bytes", None)
+        cached_bytes = bytes(cached_b) if isinstance(cached_b, (bytes, bytearray)) else None
+
+        # Determine size
+        if name == "photoCachedSize" and cached_bytes:
+            size = len(cached_bytes)
+        elif name == "photoSizeProgressive":
+            # Progressive sizes are stored in .sizes list
+            prog_sizes = getattr(s, "sizes", None)
+            if isinstance(prog_sizes, list) and prog_sizes:
+                size = int(prog_sizes[-1])  # Last (largest) size
             else:
-                prog = getattr(s, "sizes", None)
-                if isinstance(prog, list) and prog and all(isinstance(x, int) for x in prog):
-                    score = int(prog[-1])
-                else:
-                    b = getattr(s, "bytes", None)
-                    score = len(b) if isinstance(b, (bytes, bytearray)) else 0
+                size = None
+        else:
+            sz = getattr(s, "size", None)
+            size = int(sz) if isinstance(sz, int) else None
 
-        if score > best_score:
-            best_score = score
-            best_type = t
+        result.append(PhotoSizeInfo(
+            type=t,
+            width=width,
+            height=height,
+            size=size,
+            cached_bytes=cached_bytes,
+        ))
 
-    return best_type
+    return result
+
+
+def _pick_best_photo_size(photo: Any) -> PhotoSizeInfo | None:
+    """
+    Pick the best (largest) photo size for download.
+
+    Returns PhotoSizeInfo with type and optional cached_bytes.
+    """
+    sizes = _get_photo_sizes_info(photo)
+    if not sizes:
+        return None
+
+    # Score by area (w*h) or size in bytes
+    def score(s: PhotoSizeInfo) -> int:
+        if s.width and s.height:
+            return s.width * s.height
+        if s.size:
+            return s.size
+        return 0
+
+    return max(sizes, key=score)
+
+
+def _pick_best_photo_size_type(photo: Any) -> str | None:
+    """
+    Pick the best photo size type string for InputPhotoFileLocation.thumb_size.
+
+    This is a convenience wrapper for backward compatibility.
+    """
+    best = _pick_best_photo_size(photo)
+    return best.type if best else None
+
+
+@dataclass(slots=True)
+class ExtractedMediaWithCache(ExtractedMedia):
+    """ExtractedMedia that may include cached bytes for small photos."""
+
+    cached_bytes: bytes | None = None
 
 
 def extract_media(message_or_event: Any) -> ExtractedMedia | None:
@@ -156,18 +224,36 @@ def extract_media(message_or_event: Any) -> ExtractedMedia | None:
         if not isinstance(dc_id, int):
             return None
 
-        thumb_type = _pick_best_photo_size_type(photo)
-        if not thumb_type:
+        best_size = _pick_best_photo_size(photo)
+        if not best_size:
             return None
 
         loc = InputPhotoFileLocation(
             id=int(getattr(photo, "id")),
             access_hash=int(getattr(photo, "access_hash")),
             file_reference=bytes(getattr(photo, "file_reference", b"") or b""),
-            thumb_size=thumb_type,
+            thumb_size=best_size.type,
         )
         fname = f"photo_{int(getattr(photo, 'id'))}.jpg"
-        return ExtractedMedia(kind="photo", dc_id=int(dc_id), location=loc, file_name=fname)
+
+        # For cached photos, include the bytes directly
+        if best_size.cached_bytes:
+            return ExtractedMediaWithCache(
+                kind="photo",
+                dc_id=int(dc_id),
+                location=loc,
+                file_name=fname,
+                size=len(best_size.cached_bytes),
+                cached_bytes=best_size.cached_bytes,
+            )
+
+        return ExtractedMedia(
+            kind="photo",
+            dc_id=int(dc_id),
+            location=loc,
+            file_name=fname,
+            size=best_size.size,
+        )
 
     if mname == "messageMediaDocument":
         doc = getattr(media, "document", None)

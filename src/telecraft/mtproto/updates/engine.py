@@ -416,4 +416,3 @@ class UpdatesEngine:
             raise UpdatesEngineError(
                 f"Unexpected updates.getChannelDifference result: {type(diff).__name__}"
             )
-

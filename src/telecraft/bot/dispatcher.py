@@ -127,6 +127,14 @@ class Dispatcher:
             if r2 > 0:
                 peer_rate_per_sec = r2
 
+        # Best-effort: identify "me" (helps classify self-authored messages in Saved Messages).
+        get_me = getattr(self.client, "get_me", None)
+        if callable(get_me):
+            try:
+                await get_me()
+            except Exception as ex:  # noqa: BLE001
+                logger.info("get_me failed; continuing without self identity", exc_info=ex)
+
         # Best-effort: populate access_hash cache (enables DM/channel replies).
         prime = getattr(self.client, "prime_entities", None)
         if callable(prime):

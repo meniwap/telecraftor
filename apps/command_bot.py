@@ -63,6 +63,12 @@ async def main() -> None:
         init=ClientInit(api_id=api_id, api_hash=api_hash),
     )
     await client.connect()
+    try:
+        me = await client.get_me()
+        mid = getattr(me, "id", None)
+        print(f"Me: id={mid} self_user_id={client.self_user_id}")
+    except Exception as ex:  # noqa: BLE001
+        print(f"Warning: get_me failed: {type(ex).__name__}: {ex}")
     print("Command bot started. Try sending: /ping  or  /send @username hi")
 
     router = Router()
