@@ -2699,6 +2699,777 @@ class MtprotoClient:
             timeout=timeout,
         )
 
+    # ========================== Location ==========================
+
+    async def send_location(
+        self,
+        peer: PeerRef,
+        latitude: float,
+        longitude: float,
+        *,
+        accuracy_radius: int | None = None,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Send a static location.
+
+        Args:
+            peer: Target chat/user
+            latitude: Latitude in degrees (-90 to 90)
+            longitude: Longitude in degrees (-180 to 180)
+            accuracy_radius: Accuracy radius in meters (optional)
+            reply_to_msg_id: Message ID to reply to
+            silent: Send without notification
+            timeout: Request timeout
+        """
+        from telecraft.tl.generated.types import (
+            InputGeoPoint,
+            InputMediaGeoPoint,
+            InputReplyToMessage,
+        )
+
+        p = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p, timeout=timeout)
+            input_peer = self.entities.input_peer(p)
+
+        # Build geo point
+        geo_flags = 0
+        if accuracy_radius is not None:
+            geo_flags |= 1
+
+        geo_point = InputGeoPoint(
+            flags=geo_flags,
+            lat=latitude,
+            long=longitude,
+            accuracy_radius=accuracy_radius,
+        )
+
+        media = InputMediaGeoPoint(geo_point=geo_point)
+
+        # Build message flags
+        msg_flags = 0
+        if silent:
+            msg_flags |= 32
+        if reply_to_msg_id is not None:
+            msg_flags |= 1
+
+        reply_to = None
+        if reply_to_msg_id is not None:
+            reply_to = InputReplyToMessage(
+                flags=0,
+                reply_to_msg_id=reply_to_msg_id,
+                top_msg_id=None,
+                reply_to_peer_id=None,
+                quote_text=None,
+                quote_entities=None,
+                quote_offset=None,
+            )
+
+        import random
+
+        res = await self.invoke_api(
+            MessagesSendMedia(
+                flags=msg_flags,
+                silent=silent if silent else None,
+                background=None,
+                clear_draft=None,
+                noforwards=None,
+                update_stickersets_order=None,
+                invert_media=None,
+                allow_paid_floodskip=None,
+                peer=input_peer,
+                reply_to=reply_to,
+                media=media,
+                message="",
+                random_id=random.randint(1, 2**63 - 1),
+                reply_markup=None,
+                entities=None,
+                schedule_date=None,
+                schedule_repeat_period=None,
+                send_as=None,
+                quick_reply_shortcut=None,
+                effect=None,
+                allow_paid_stars=None,
+                suggested_post=None,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    async def send_live_location(
+        self,
+        peer: PeerRef,
+        latitude: float,
+        longitude: float,
+        *,
+        period: int = 900,
+        heading: int | None = None,
+        proximity_notification_radius: int | None = None,
+        accuracy_radius: int | None = None,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Send a live location that updates in real-time.
+
+        Args:
+            peer: Target chat/user
+            latitude: Initial latitude
+            longitude: Initial longitude
+            period: Validity period in seconds (60-86400, default 900 = 15 min)
+            heading: Direction heading (0-360 degrees)
+            proximity_notification_radius: Distance for proximity alerts (meters)
+            accuracy_radius: Accuracy radius in meters
+            reply_to_msg_id: Message ID to reply to
+            silent: Send without notification
+        """
+        from telecraft.tl.generated.types import (
+            InputGeoPoint,
+            InputMediaGeoLive,
+            InputReplyToMessage,
+        )
+
+        p = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p, timeout=timeout)
+            input_peer = self.entities.input_peer(p)
+
+        # Build geo point
+        geo_flags = 0
+        if accuracy_radius is not None:
+            geo_flags |= 1
+
+        geo_point = InputGeoPoint(
+            flags=geo_flags,
+            lat=latitude,
+            long=longitude,
+            accuracy_radius=accuracy_radius,
+        )
+
+        # Build live location media
+        live_flags = 0
+        if period is not None:
+            live_flags |= 2
+        if heading is not None:
+            live_flags |= 4
+        if proximity_notification_radius is not None:
+            live_flags |= 8
+
+        media = InputMediaGeoLive(
+            flags=live_flags,
+            stopped=None,
+            geo_point=geo_point,
+            heading=heading,
+            period=period,
+            proximity_notification_radius=proximity_notification_radius,
+        )
+
+        msg_flags = 0
+        if silent:
+            msg_flags |= 32
+        if reply_to_msg_id is not None:
+            msg_flags |= 1
+
+        reply_to = None
+        if reply_to_msg_id is not None:
+            reply_to = InputReplyToMessage(
+                flags=0,
+                reply_to_msg_id=reply_to_msg_id,
+                top_msg_id=None,
+                reply_to_peer_id=None,
+                quote_text=None,
+                quote_entities=None,
+                quote_offset=None,
+            )
+
+        import random
+
+        res = await self.invoke_api(
+            MessagesSendMedia(
+                flags=msg_flags,
+                silent=silent if silent else None,
+                background=None,
+                clear_draft=None,
+                noforwards=None,
+                update_stickersets_order=None,
+                invert_media=None,
+                allow_paid_floodskip=None,
+                peer=input_peer,
+                reply_to=reply_to,
+                media=media,
+                message="",
+                random_id=random.randint(1, 2**63 - 1),
+                reply_markup=None,
+                entities=None,
+                schedule_date=None,
+                schedule_repeat_period=None,
+                send_as=None,
+                quick_reply_shortcut=None,
+                effect=None,
+                allow_paid_stars=None,
+                suggested_post=None,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    async def stop_live_location(
+        self,
+        peer: PeerRef,
+        msg_id: int,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Stop a live location by editing the message.
+
+        Args:
+            peer: Chat where the live location was sent
+            msg_id: Message ID of the live location
+        """
+        from telecraft.tl.generated.types import (
+            InputGeoPointEmpty,
+            InputMediaGeoLive,
+        )
+
+        p = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p, timeout=timeout)
+            input_peer = self.entities.input_peer(p)
+
+        # Create stopped live location media
+        media = InputMediaGeoLive(
+            flags=1,  # stopped flag
+            stopped=True,
+            geo_point=InputGeoPointEmpty(),
+            heading=None,
+            period=None,
+            proximity_notification_radius=None,
+        )
+
+        res = await self.invoke_api(
+            MessagesEditMessage(
+                flags=16384,  # media flag
+                no_webpage=None,
+                invert_media=None,
+                peer=input_peer,
+                id=msg_id,
+                message=None,
+                media=media,
+                reply_markup=None,
+                entities=None,
+                schedule_date=None,
+                schedule_repeat_period=None,
+                quick_reply_shortcut_id=None,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    # ========================== Contacts ==========================
+
+    async def send_contact(
+        self,
+        peer: PeerRef,
+        phone_number: str,
+        first_name: str,
+        last_name: str = "",
+        vcard: str = "",
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Send a contact to a chat.
+
+        Args:
+            peer: Target chat/user
+            phone_number: Contact's phone number
+            first_name: Contact's first name
+            last_name: Contact's last name
+            vcard: vCard data (optional)
+            reply_to_msg_id: Message to reply to
+            silent: Send without notification
+        """
+        from telecraft.tl.generated.types import (
+            InputMediaContact,
+            InputReplyToMessage,
+        )
+
+        p = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p, timeout=timeout)
+            input_peer = self.entities.input_peer(p)
+
+        media = InputMediaContact(
+            phone_number=phone_number,
+            first_name=first_name,
+            last_name=last_name,
+            vcard=vcard,
+        )
+
+        msg_flags = 0
+        if silent:
+            msg_flags |= 32
+        if reply_to_msg_id is not None:
+            msg_flags |= 1
+
+        reply_to = None
+        if reply_to_msg_id is not None:
+            reply_to = InputReplyToMessage(
+                flags=0,
+                reply_to_msg_id=reply_to_msg_id,
+                top_msg_id=None,
+                reply_to_peer_id=None,
+                quote_text=None,
+                quote_entities=None,
+                quote_offset=None,
+            )
+
+        import random
+
+        res = await self.invoke_api(
+            MessagesSendMedia(
+                flags=msg_flags,
+                silent=silent if silent else None,
+                background=None,
+                clear_draft=None,
+                noforwards=None,
+                update_stickersets_order=None,
+                invert_media=None,
+                allow_paid_floodskip=None,
+                peer=input_peer,
+                reply_to=reply_to,
+                media=media,
+                message="",
+                random_id=random.randint(1, 2**63 - 1),
+                reply_markup=None,
+                entities=None,
+                schedule_date=None,
+                schedule_repeat_period=None,
+                send_as=None,
+                quick_reply_shortcut=None,
+                effect=None,
+                allow_paid_stars=None,
+                suggested_post=None,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    # ========================== Stickers ==========================
+
+    async def get_sticker_set(
+        self,
+        short_name: str,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Get a sticker set by short name.
+
+        Args:
+            short_name: The short name of the sticker set (e.g., "Animals")
+
+        Returns:
+            messages.StickerSet with stickers and documents
+        """
+        from telecraft.tl.generated.types import InputStickerSetShortName
+        from telecraft.tl.generated.functions import MessagesGetStickerSet
+
+        sticker_set = InputStickerSetShortName(short_name=short_name)
+
+        return await self.invoke_api(
+            MessagesGetStickerSet(stickerset=sticker_set, hash=0),
+            timeout=timeout,
+        )
+
+    async def send_sticker(
+        self,
+        peer: PeerRef,
+        sticker_id: int,
+        sticker_access_hash: int,
+        sticker_file_reference: bytes,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Send a sticker from an existing sticker set.
+
+        To get sticker info, use get_sticker_set() first, then extract
+        document.id, document.access_hash, document.file_reference from
+        the documents in the result.
+
+        Args:
+            peer: Target chat/user
+            sticker_id: Document ID of the sticker
+            sticker_access_hash: Access hash of the sticker
+            sticker_file_reference: File reference of the sticker
+            reply_to_msg_id: Message to reply to
+            silent: Send without notification
+        """
+        from telecraft.tl.generated.types import (
+            InputDocument,
+            InputMediaDocument,
+            InputReplyToMessage,
+        )
+
+        p = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p, timeout=timeout)
+            input_peer = self.entities.input_peer(p)
+
+        input_doc = InputDocument(
+            id=sticker_id,
+            access_hash=sticker_access_hash,
+            file_reference=sticker_file_reference,
+        )
+
+        media = InputMediaDocument(
+            flags=0,
+            spoiler=None,
+            id=input_doc,
+            video_cover=None,
+            video_timestamp=None,
+            ttl_seconds=None,
+            query=None,
+        )
+
+        msg_flags = 0
+        if silent:
+            msg_flags |= 32
+        if reply_to_msg_id is not None:
+            msg_flags |= 1
+
+        reply_to = None
+        if reply_to_msg_id is not None:
+            reply_to = InputReplyToMessage(
+                flags=0,
+                reply_to_msg_id=reply_to_msg_id,
+                top_msg_id=None,
+                reply_to_peer_id=None,
+                quote_text=None,
+                quote_entities=None,
+                quote_offset=None,
+            )
+
+        import random
+
+        res = await self.invoke_api(
+            MessagesSendMedia(
+                flags=msg_flags,
+                silent=silent if silent else None,
+                background=None,
+                clear_draft=None,
+                noforwards=None,
+                update_stickersets_order=None,
+                invert_media=None,
+                allow_paid_floodskip=None,
+                peer=input_peer,
+                reply_to=reply_to,
+                media=media,
+                message="",
+                random_id=random.randint(1, 2**63 - 1),
+                reply_markup=None,
+                entities=None,
+                schedule_date=None,
+                schedule_repeat_period=None,
+                send_as=None,
+                quick_reply_shortcut=None,
+                effect=None,
+                allow_paid_stars=None,
+                suggested_post=None,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    # ========================== Voice & Video Notes ==========================
+
+    async def send_voice(
+        self,
+        peer: PeerRef,
+        path: str | Path,
+        *,
+        duration: int | None = None,
+        waveform: bytes | None = None,
+        caption: str | None = None,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Send a voice message (.ogg OPUS format).
+
+        Args:
+            peer: Target chat/user
+            path: Path to the audio file (should be .ogg with OPUS codec)
+            duration: Duration in seconds (auto-detected if None)
+            waveform: Waveform data for visualization (optional)
+            caption: Caption text
+            reply_to_msg_id: Message ID to reply to
+            silent: Send without notification
+        """
+        from pathlib import Path as PathlibPath
+        from secrets import randbits
+
+        from telecraft.client.media import upload_file
+        from telecraft.tl.generated.types import (
+            DocumentAttributeAudio,
+            DocumentAttributeFilename,
+            InputMediaUploadedDocument,
+            InputReplyToMessage,
+        )
+
+        if not self.is_connected:
+            raise MtprotoClientError("Not connected")
+
+        p = PathlibPath(path)
+        if not p.exists() or not p.is_file():
+            raise MtprotoClientError(f"send_voice: not a file: {p}")
+
+        input_file = await upload_file(
+            p,
+            invoke_api=self.invoke_api,
+            timeout=timeout,
+        )
+
+        # Voice message attributes
+        audio_flags = 1024  # voice flag (bit 10)
+        if waveform is not None:
+            audio_flags |= 4
+
+        attrs = [
+            DocumentAttributeAudio(
+                flags=audio_flags,
+                voice=True,
+                duration=duration or 0,
+                title=None,
+                performer=None,
+                waveform=waveform,
+            ),
+            DocumentAttributeFilename(file_name=p.name),
+        ]
+
+        media = InputMediaUploadedDocument(
+            flags=0,
+            nosound_video=False,
+            force_file=False,
+            spoiler=False,
+            file=input_file,
+            thumb=None,
+            mime_type="audio/ogg",
+            attributes=attrs,
+            stickers=None,
+            video_cover=None,
+            video_timestamp=None,
+            ttl_seconds=None,
+        )
+
+        reply_to = None
+        if reply_to_msg_id is not None:
+            reply_to = InputReplyToMessage(
+                flags=0,
+                reply_to_msg_id=int(reply_to_msg_id),
+                top_msg_id=None,
+                reply_to_peer_id=None,
+                quote_text=None,
+                quote_entities=None,
+                quote_offset=None,
+            )
+
+        p2 = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p2)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p2, timeout=timeout)
+            input_peer = self.entities.input_peer(p2)
+
+        res = await self.invoke_api(
+            MessagesSendMedia(
+                flags=0,
+                silent=bool(silent),
+                background=False,
+                clear_draft=False,
+                noforwards=False,
+                update_stickersets_order=False,
+                invert_media=False,
+                allow_paid_floodskip=False,
+                peer=input_peer,
+                reply_to=reply_to,
+                media=media,
+                message=caption or "",
+                random_id=randbits(63),
+                reply_markup=None,
+                entities=None,
+                schedule_date=None,
+                schedule_repeat_period=None,
+                send_as=None,
+                quick_reply_shortcut=None,
+                effect=None,
+                allow_paid_stars=None,
+                suggested_post=None,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    async def send_video_note(
+        self,
+        peer: PeerRef,
+        path: str | Path,
+        *,
+        duration: int | None = None,
+        length: int = 240,
+        caption: str | None = None,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        """
+        Send a round video note (circular video message).
+
+        Args:
+            peer: Target chat/user
+            path: Path to the video file (should be square, ideally 240x240)
+            duration: Duration in seconds
+            length: Video dimensions (should be square, default 240)
+            caption: Caption text
+            reply_to_msg_id: Message ID to reply to
+            silent: Send without notification
+        """
+        from pathlib import Path as PathlibPath
+        from secrets import randbits
+
+        from telecraft.client.media import upload_file
+        from telecraft.tl.generated.types import (
+            DocumentAttributeFilename,
+            DocumentAttributeVideo,
+            InputMediaUploadedDocument,
+            InputReplyToMessage,
+        )
+
+        if not self.is_connected:
+            raise MtprotoClientError("Not connected")
+
+        p = PathlibPath(path)
+        if not p.exists() or not p.is_file():
+            raise MtprotoClientError(f"send_video_note: not a file: {p}")
+
+        input_file = await upload_file(
+            p,
+            invoke_api=self.invoke_api,
+            timeout=timeout,
+        )
+
+        # Video note attributes (round_message = True)
+        video_flags = 1  # round_message flag (bit 0)
+        if True:  # supports_streaming
+            video_flags |= 2
+
+        attrs = [
+            DocumentAttributeVideo(
+                flags=video_flags,
+                round_message=True,
+                supports_streaming=True,
+                nosound=None,
+                duration=float(duration or 0),
+                w=length,
+                h=length,
+                preload_prefix_size=None,
+                video_start_ts=None,
+                video_codec=None,
+            ),
+            DocumentAttributeFilename(file_name=p.name),
+        ]
+
+        media = InputMediaUploadedDocument(
+            flags=0,
+            nosound_video=False,
+            force_file=False,
+            spoiler=False,
+            file=input_file,
+            thumb=None,
+            mime_type="video/mp4",
+            attributes=attrs,
+            stickers=None,
+            video_cover=None,
+            video_timestamp=None,
+            ttl_seconds=None,
+        )
+
+        reply_to = None
+        if reply_to_msg_id is not None:
+            reply_to = InputReplyToMessage(
+                flags=0,
+                reply_to_msg_id=int(reply_to_msg_id),
+                top_msg_id=None,
+                reply_to_peer_id=None,
+                quote_text=None,
+                quote_entities=None,
+                quote_offset=None,
+            )
+
+        p2 = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p2)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p2, timeout=timeout)
+            input_peer = self.entities.input_peer(p2)
+
+        res = await self.invoke_api(
+            MessagesSendMedia(
+                flags=0,
+                silent=bool(silent),
+                background=False,
+                clear_draft=False,
+                noforwards=False,
+                update_stickersets_order=False,
+                invert_media=False,
+                allow_paid_floodskip=False,
+                peer=input_peer,
+                reply_to=reply_to,
+                media=media,
+                message=caption or "",
+                random_id=randbits(63),
+                reply_markup=None,
+                entities=None,
+                schedule_date=None,
+                schedule_repeat_period=None,
+                send_as=None,
+                quick_reply_shortcut=None,
+                effect=None,
+                allow_paid_stars=None,
+                suggested_post=None,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
     # ========================== Polls & Quizzes ==========================
 
     async def send_poll(
