@@ -702,6 +702,7 @@ class MtprotoClient:
         *,
         reply_to_msg_id: int | None = None,
         silent: bool = False,
+        reply_markup: Any | None = None,
         timeout: float = 20.0,
     ) -> Any:
         """
@@ -712,6 +713,7 @@ class MtprotoClient:
             text: Message text
             reply_to_msg_id: Optional message ID to reply to
             silent: Send without notification
+            reply_markup: Optional keyboard markup (InlineKeyboard.build() or ReplyKeyboard.build())
             timeout: RPC timeout in seconds
         """
         from secrets import randbits
@@ -732,9 +734,18 @@ class MtprotoClient:
                 todo_item_id=None,
             )
 
+        # Build flags
+        msg_flags = 0
+        if silent:
+            msg_flags |= 32
+        if reply_to is not None:
+            msg_flags |= 1
+        if reply_markup is not None:
+            msg_flags |= 4
+
         res = await self.invoke_api(
             MessagesSendMessage(
-                flags=0,
+                flags=msg_flags,
                 no_webpage=False,
                 silent=bool(silent),
                 background=False,
@@ -747,7 +758,7 @@ class MtprotoClient:
                 reply_to=reply_to,
                 message=text,
                 random_id=randbits(63),
-                reply_markup=None,
+                reply_markup=reply_markup,
                 entities=None,
                 schedule_date=None,
                 schedule_repeat_period=None,
@@ -769,6 +780,7 @@ class MtprotoClient:
         *,
         reply_to_msg_id: int | None = None,
         silent: bool = False,
+        reply_markup: Any | None = None,
         timeout: float = 20.0,
     ) -> Any:
         """
@@ -781,7 +793,14 @@ class MtprotoClient:
             text: Message text
             reply_to_msg_id: Optional message ID to reply to
             silent: Send without notification
+            reply_markup: Optional keyboard (use InlineKeyboard or ReplyKeyboard builders)
             timeout: RPC timeout in seconds
+
+        Example with inline keyboard:
+            from telecraft.client.keyboards import InlineKeyboard
+            kb = InlineKeyboard()
+            kb.button("Click", callback_data="click").button("Visit", url="https://t.me")
+            await client.send_message(peer, "Hello!", reply_markup=kb.build())
         """
         p = await self.resolve_peer(peer, timeout=timeout)
 
@@ -816,14 +835,16 @@ class MtprotoClient:
         input_peer = await _build_input_peer()
         try:
             return await self.send_message_peer(
-                input_peer, text, reply_to_msg_id=reply_to_msg_id, silent=silent, timeout=timeout
+                input_peer, text, reply_to_msg_id=reply_to_msg_id, silent=silent,
+                reply_markup=reply_markup, timeout=timeout
             )
         except RpcErrorException as e:
             if e.message == "PEER_ID_INVALID":
                 await _refresh_peer_ref()
                 input_peer = await _build_input_peer()
                 return await self.send_message_peer(
-                    input_peer, text, reply_to_msg_id=reply_to_msg_id, silent=silent, timeout=timeout
+                    input_peer, text, reply_to_msg_id=reply_to_msg_id, silent=silent,
+                    reply_markup=reply_markup, timeout=timeout
                 )
             raise
 
@@ -946,6 +967,151 @@ class MtprotoClient:
                 effect=None,
                 allow_paid_stars=None,
                 suggested_post=None,
+            ),
+            timeout=timeout,
+        )
+        self._ingest_from_updates_result(res)
+        return res
+
+    async def send_album(
+        self,
+        peer: PeerRef,
+        paths: list[str | Path],
+        *,
+        captions: list[str] | None = None,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        timeout: float = 60.0,
+    ) -> Any:
+        """
+        Send multiple photos/videos as an album (media group).
+
+        Args:
+            peer: Target chat/user
+            paths: List of file paths (2-10 files)
+            captions: Optional list of captions (same length as paths, or None)
+            reply_to_msg_id: Message ID to reply to
+            silent: Send without notification
+            timeout: Request timeout (longer due to uploads)
+
+        Returns:
+            Updates with the sent messages
+        """
+        from secrets import randbits
+
+        from telecraft.client.media import default_as_photo, guess_mime_type, upload_file
+        from telecraft.tl.generated.functions import MessagesSendMultiMedia
+        from telecraft.tl.generated.types import (
+            DocumentAttributeFilename,
+            InputMediaUploadedDocument,
+            InputMediaUploadedPhoto,
+            InputReplyToMessage,
+            InputSingleMedia,
+        )
+
+        if len(paths) < 2:
+            raise MtprotoClientError("send_album: need at least 2 files")
+        if len(paths) > 10:
+            raise MtprotoClientError("send_album: maximum 10 files")
+
+        if captions is not None and len(captions) != len(paths):
+            raise MtprotoClientError("send_album: captions must match paths length")
+
+        p = await self.resolve_peer(peer, timeout=timeout)
+        try:
+            input_peer = self.entities.input_peer(p)
+        except EntityCacheError:
+            await self._prime_entities_for_reply(want=p, timeout=timeout)
+            input_peer = self.entities.input_peer(p)
+
+        # Upload all files and build media list
+        multi_media: list[Any] = []
+        for i, file_path in enumerate(paths):
+            fp = Path(file_path)
+            if not fp.exists() or not fp.is_file():
+                raise MtprotoClientError(f"send_album: not a file: {fp}")
+
+            input_file = await upload_file(
+                fp,
+                invoke_api=self.invoke_api,
+                timeout=timeout,
+            )
+
+            is_photo = default_as_photo(fp)
+            caption = captions[i] if captions else ""
+
+            if is_photo:
+                media = InputMediaUploadedPhoto(
+                    flags=0,
+                    spoiler=False,
+                    file=input_file,
+                    stickers=None,
+                    ttl_seconds=None,
+                )
+            else:
+                mime = guess_mime_type(fp)
+                attrs = [DocumentAttributeFilename(file_name=fp.name)]
+                media = InputMediaUploadedDocument(
+                    flags=0,
+                    nosound_video=False,
+                    force_file=False,
+                    spoiler=False,
+                    file=input_file,
+                    thumb=None,
+                    mime_type=mime,
+                    attributes=attrs,
+                    stickers=None,
+                    video_cover=None,
+                    video_timestamp=None,
+                    ttl_seconds=None,
+                )
+
+            single = InputSingleMedia(
+                flags=0,
+                media=media,
+                random_id=randbits(63),
+                message=caption,
+                entities=None,
+            )
+            multi_media.append(single)
+
+        # Build reply_to
+        reply_to = None
+        if reply_to_msg_id is not None:
+            reply_to = InputReplyToMessage(
+                flags=0,
+                reply_to_msg_id=int(reply_to_msg_id),
+                top_msg_id=None,
+                reply_to_peer_id=None,
+                quote_text=None,
+                quote_entities=None,
+                quote_offset=None,
+            )
+
+        msg_flags = 0
+        if silent:
+            msg_flags |= 32
+        if reply_to is not None:
+            msg_flags |= 1
+
+        res = await self.invoke_api(
+            MessagesSendMultiMedia(
+                flags=msg_flags,
+                silent=silent if silent else None,
+                background=None,
+                clear_draft=None,
+                noforwards=None,
+                update_stickersets_order=None,
+                invert_media=None,
+                allow_paid_floodskip=None,
+                peer=input_peer,
+                reply_to=reply_to,
+                multi_media=multi_media,
+                schedule_date=None,
+                send_as=None,
+                quick_reply_shortcut=None,
+                effect=None,
+                allow_paid_stars=None,
             ),
             timeout=timeout,
         )
@@ -1702,6 +1868,89 @@ class MtprotoClient:
         self._persist_entities_cache(force=True)
 
         return list(cast(list[Any], getattr(res, "photos", [])))
+
+    async def upload_profile_photo(
+        self,
+        path: str | Path,
+        *,
+        fallback: bool = False,
+        timeout: float = 60.0,
+    ) -> Any:
+        """
+        Upload a new profile photo for the current user.
+
+        Args:
+            path: Path to the photo file
+            fallback: If True, set as fallback photo (shown when main is hidden)
+            timeout: Request timeout
+
+        Returns:
+            photos.Photo object with the uploaded photo
+        """
+        from telecraft.client.media import upload_file
+        from telecraft.tl.generated.functions import PhotosUploadProfilePhoto
+
+        p = Path(path)
+        if not p.exists() or not p.is_file():
+            raise MtprotoClientError(f"upload_profile_photo: not a file: {p}")
+
+        input_file = await upload_file(
+            p,
+            invoke_api=self.invoke_api,
+            timeout=timeout,
+        )
+
+        flags = 1  # file flag
+        if fallback:
+            flags |= 8
+
+        res = await self.invoke_api(
+            PhotosUploadProfilePhoto(
+                flags=flags,
+                fallback=fallback if fallback else None,
+                bot=None,
+                file=input_file,
+                video=None,
+                video_start_ts=None,
+                video_emoji_markup=None,
+            ),
+            timeout=timeout,
+        )
+        return res
+
+    async def delete_profile_photos(
+        self,
+        photo_ids: list[tuple[int, int]] | tuple[int, int],
+        *,
+        timeout: float = 20.0,
+    ) -> list[int]:
+        """
+        Delete profile photos.
+
+        Args:
+            photo_ids: List of (photo_id, access_hash) tuples, or single tuple
+            timeout: Request timeout
+
+        Returns:
+            List of deleted photo IDs
+        """
+        from telecraft.tl.generated.functions import PhotosDeletePhotos
+        from telecraft.tl.generated.types import InputPhoto
+
+        if isinstance(photo_ids, tuple) and len(photo_ids) == 2 and isinstance(photo_ids[0], int):
+            # Single photo
+            photo_ids = [photo_ids]  # type: ignore
+
+        input_photos = [
+            InputPhoto(id=pid, access_hash=ahash, file_reference=b"")
+            for pid, ahash in photo_ids
+        ]
+
+        res = await self.invoke_api(
+            PhotosDeletePhotos(id=input_photos),
+            timeout=timeout,
+        )
+        return list(res) if res else []
 
     async def edit_admin(
         self,
@@ -2590,6 +2839,191 @@ class MtprotoClient:
                 min_date=None,
                 max_date=None,
             ),
+            timeout=timeout,
+        )
+
+    # ========================== Chat Folders ==========================
+
+    async def get_folders(self, *, timeout: float = 20.0) -> list[Any]:
+        """
+        Get all chat folders (dialog filters).
+
+        Returns:
+            List of DialogFilter objects
+        """
+        from telecraft.tl.generated.functions import MessagesGetDialogFilters
+
+        res = await self.invoke_api(
+            MessagesGetDialogFilters(),
+            timeout=timeout,
+        )
+        return list(getattr(res, "filters", []))
+
+    async def create_folder(
+        self,
+        title: str,
+        *,
+        folder_id: int | None = None,
+        emoticon: str | None = None,
+        contacts: bool = False,
+        non_contacts: bool = False,
+        groups: bool = False,
+        channels: bool = False,
+        bots: bool = False,
+        exclude_muted: bool = False,
+        exclude_read: bool = False,
+        exclude_archived: bool = True,
+        include_peers: list[PeerRef] | None = None,
+        exclude_peers: list[PeerRef] | None = None,
+        pinned_peers: list[PeerRef] | None = None,
+        timeout: float = 20.0,
+    ) -> bool:
+        """
+        Create a new chat folder.
+
+        Args:
+            title: Folder title
+            folder_id: Optional folder ID (auto-generated if not provided)
+            emoticon: Folder icon emoji
+            contacts: Include contacts
+            non_contacts: Include non-contacts
+            groups: Include groups
+            channels: Include channels/broadcasts
+            bots: Include bots
+            exclude_muted: Exclude muted chats
+            exclude_read: Exclude read chats
+            exclude_archived: Exclude archived chats
+            include_peers: Specific chats to include
+            exclude_peers: Specific chats to exclude
+            pinned_peers: Chats to pin at top
+
+        Returns:
+            True if successful
+        """
+        from telecraft.tl.generated.functions import MessagesUpdateDialogFilter
+        from telecraft.tl.generated.types import DialogFilter, TextWithEntities
+
+        # Auto-generate folder ID if not provided
+        if folder_id is None:
+            import random
+            folder_id = random.randint(2, 255)
+
+        # Build flags
+        flags = 0
+        if contacts:
+            flags |= 1
+        if non_contacts:
+            flags |= 2
+        if groups:
+            flags |= 4
+        if channels:
+            flags |= 8
+        if bots:
+            flags |= 16
+        if exclude_muted:
+            flags |= 2048
+        if exclude_read:
+            flags |= 4096
+        if exclude_archived:
+            flags |= 8192
+        if emoticon is not None:
+            flags |= 33554432  # bit 25
+
+        # Resolve peers
+        include_input_peers: list[Any] = []
+        exclude_input_peers: list[Any] = []
+        pinned_input_peers: list[Any] = []
+
+        if include_peers:
+            for peer_ref in include_peers:
+                p = await self.resolve_peer(peer_ref, timeout=timeout)
+                try:
+                    include_input_peers.append(self.entities.input_peer(p))
+                except EntityCacheError:
+                    pass
+
+        if exclude_peers:
+            for peer_ref in exclude_peers:
+                p = await self.resolve_peer(peer_ref, timeout=timeout)
+                try:
+                    exclude_input_peers.append(self.entities.input_peer(p))
+                except EntityCacheError:
+                    pass
+
+        if pinned_peers:
+            for peer_ref in pinned_peers:
+                p = await self.resolve_peer(peer_ref, timeout=timeout)
+                try:
+                    pinned_input_peers.append(self.entities.input_peer(p))
+                except EntityCacheError:
+                    pass
+
+        dialog_filter = DialogFilter(
+            flags=flags,
+            contacts=contacts if contacts else None,
+            non_contacts=non_contacts if non_contacts else None,
+            groups=groups if groups else None,
+            broadcasts=channels if channels else None,
+            bots=bots if bots else None,
+            exclude_muted=exclude_muted if exclude_muted else None,
+            exclude_read=exclude_read if exclude_read else None,
+            exclude_archived=exclude_archived if exclude_archived else None,
+            title_noanimate=None,
+            id=folder_id,
+            title=TextWithEntities(text=title, entities=[]),
+            emoticon=emoticon,
+            color=None,
+            pinned_peers=pinned_input_peers,
+            include_peers=include_input_peers,
+            exclude_peers=exclude_input_peers,
+        )
+
+        return await self.invoke_api(
+            MessagesUpdateDialogFilter(
+                flags=1,  # filter present
+                id=folder_id,
+                filter=dialog_filter,
+            ),
+            timeout=timeout,
+        )
+
+    async def delete_folder(self, folder_id: int, *, timeout: float = 20.0) -> bool:
+        """
+        Delete a chat folder.
+
+        Args:
+            folder_id: The folder ID to delete
+
+        Returns:
+            True if successful
+        """
+        from telecraft.tl.generated.functions import MessagesUpdateDialogFilter
+
+        return await self.invoke_api(
+            MessagesUpdateDialogFilter(
+                flags=0,  # no filter = delete
+                id=folder_id,
+                filter=None,
+            ),
+            timeout=timeout,
+        )
+
+    async def reorder_folders(
+        self, folder_ids: list[int], *, timeout: float = 20.0
+    ) -> bool:
+        """
+        Reorder chat folders.
+
+        Args:
+            folder_ids: List of folder IDs in desired order
+
+        Returns:
+            True if successful
+        """
+        from telecraft.tl.generated.functions import MessagesUpdateDialogFiltersOrder
+
+        return await self.invoke_api(
+            MessagesUpdateDialogFiltersOrder(order=folder_ids),
             timeout=timeout,
         )
 
