@@ -105,7 +105,13 @@ class MessageEvent:
     is_backlog: bool = False
     allow_reply: bool = True
 
-    async def reply(self, text: str, *, quote: bool = False) -> Any:
+    async def reply(
+        self,
+        text: str,
+        *,
+        quote: bool = False,
+        reply_markup: Any | None = None,
+    ) -> Any:
         """
         Reply to the same chat if possible.
 
@@ -140,6 +146,7 @@ class MessageEvent:
                     (self.peer_type, int(self.peer_id)),
                     text,
                     reply_to_msg_id=reply_to_msg_id,
+                    reply_markup=reply_markup,
                 )
             except Exception:  # noqa: BLE001
                 # Fall through to legacy behavior
@@ -147,18 +154,24 @@ class MessageEvent:
 
         # Legacy behavior for backwards compatibility
         if self.chat_id is not None:
-            return await self.client.send_message_chat(self.chat_id, text)
+            return await self.client.send_message_chat(
+                self.chat_id, text, reply_markup=reply_markup
+            )
         if self.channel_id is not None:
             try:
-                return await self.client.send_message_channel(self.channel_id, text)
+                return await self.client.send_message_channel(
+                    self.channel_id, text, reply_markup=reply_markup
+                )
             except Exception as ex:  # noqa: BLE001
                 # Best-effort: missing access_hash is common after restarts/short updates.
                 try:
                     await self.client.prime_entities()
-                    return await self.client.send_message_channel(self.channel_id, text)
+                    return await self.client.send_message_channel(
+                        self.channel_id, text, reply_markup=reply_markup
+                    )
                 except Exception as ex2:  # noqa: BLE001
                     logger.info("send_message_channel failed; falling back to self", exc_info=ex2)
-                    return await self.client.send_message_self(text)
+                    return await self.client.send_message_self(text, reply_markup=reply_markup)
         # Saved Messages: prefer send_message_self() to avoid needing access_hash for our own user id.
         try:
             me_id_obj = getattr(self.client, "self_user_id", None)
@@ -171,19 +184,23 @@ class MessageEvent:
             and self.peer_id is not None
             and int(self.peer_id) == int(me_id)
         ):
-            return await self.client.send_message_self(text)
+            return await self.client.send_message_self(text, reply_markup=reply_markup)
 
         if self.user_id is not None:
             try:
-                return await self.client.send_message_user(self.user_id, text)
+                return await self.client.send_message_user(
+                    self.user_id, text, reply_markup=reply_markup
+                )
             except Exception as ex:  # noqa: BLE001
                 try:
                     await self.client.prime_entities()
-                    return await self.client.send_message_user(self.user_id, text)
+                    return await self.client.send_message_user(
+                        self.user_id, text, reply_markup=reply_markup
+                    )
                 except Exception as ex2:  # noqa: BLE001
                     logger.info("send_message_user failed; falling back to self", exc_info=ex2)
-                    return await self.client.send_message_self(text)
-        return await self.client.send_message_self(text)
+                    return await self.client.send_message_self(text, reply_markup=reply_markup)
+        return await self.client.send_message_self(text, reply_markup=reply_markup)
 
     async def add_user(self, user: object, *, fwd_limit: int = 10) -> Any:
         """
@@ -437,7 +454,7 @@ class ChatActionEvent:
     def is_channel(self) -> bool:
         return self.peer_type == "channel" and self.peer_id is not None
 
-    async def reply(self, text: str) -> Any:
+    async def reply(self, text: str, *, reply_markup: Any | None = None) -> Any:
         """
         Best-effort reply to the same peer (like MessageEvent.reply, but using peer_type/id).
         """
@@ -452,28 +469,38 @@ class ChatActionEvent:
             return None
 
         if self.peer_type == "chat" and self.peer_id is not None:
-            return await self.client.send_message_chat(int(self.peer_id), text)
+            return await self.client.send_message_chat(
+                int(self.peer_id), text, reply_markup=reply_markup
+            )
         if self.peer_type == "channel" and self.peer_id is not None:
             try:
-                return await self.client.send_message_channel(int(self.peer_id), text)
+                return await self.client.send_message_channel(
+                    int(self.peer_id), text, reply_markup=reply_markup
+                )
             except Exception as ex:  # noqa: BLE001
                 try:
                     await self.client.prime_entities()
-                    return await self.client.send_message_channel(int(self.peer_id), text)
+                    return await self.client.send_message_channel(
+                        int(self.peer_id), text, reply_markup=reply_markup
+                    )
                 except Exception as ex2:  # noqa: BLE001
                     logger.info("send_message_channel failed; falling back to self", exc_info=ex2)
-                    return await self.client.send_message_self(text)
+                    return await self.client.send_message_self(text, reply_markup=reply_markup)
         if self.peer_type == "user" and self.peer_id is not None:
             try:
-                return await self.client.send_message_user(int(self.peer_id), text)
+                return await self.client.send_message_user(
+                    int(self.peer_id), text, reply_markup=reply_markup
+                )
             except Exception as ex:  # noqa: BLE001
                 try:
                     await self.client.prime_entities()
-                    return await self.client.send_message_user(int(self.peer_id), text)
+                    return await self.client.send_message_user(
+                        int(self.peer_id), text, reply_markup=reply_markup
+                    )
                 except Exception as ex2:  # noqa: BLE001
                     logger.info("send_message_user failed; falling back to self", exc_info=ex2)
-                    return await self.client.send_message_self(text)
-        return await self.client.send_message_self(text)
+                    return await self.client.send_message_self(text, reply_markup=reply_markup)
+        return await self.client.send_message_self(text, reply_markup=reply_markup)
 
     @classmethod
     def from_update(cls, *, client: Any, update: Any) -> ChatActionEvent | None:

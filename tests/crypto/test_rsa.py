@@ -78,7 +78,5 @@ def test_encrypt_raw_roundtrips_and_has_sha1_prefix() -> None:
     # We padded to (k-1) bytes, so decrypted block should have a leading 0x00.
     assert m_bytes[0] == 0
     padded = m_bytes[1:]
-
     assert padded[:20] == sha1(data)
     assert padded[20 : 20 + len(data)] == data
-

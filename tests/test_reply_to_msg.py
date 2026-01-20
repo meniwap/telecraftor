@@ -66,6 +66,8 @@ class TestMessageEventReply:
         sig = inspect.signature(MessageEvent.reply)
         assert "quote" in sig.parameters
         assert sig.parameters["quote"].default is False
+        assert "reply_markup" in sig.parameters
+        assert sig.parameters["reply_markup"].default is None
 
     def test_message_event_reply_quote_false_no_reply_to(self):
         """Test that quote=False does not set reply_to_msg_id."""

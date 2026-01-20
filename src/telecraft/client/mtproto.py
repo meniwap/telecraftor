@@ -653,25 +653,63 @@ class MtprotoClient:
             )
         raise MtprotoClientError(f"resolve_peer: unsupported ref type: {type(ref).__name__}")
 
-    async def send_message_self(self, text: str, *, timeout: float = 20.0) -> Any:
+    async def send_message_self(
+        self,
+        text: str,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        reply_markup: Any | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
         """
         Minimal send message to self (no entity resolution needed).
         """
         from telecraft.tl.generated.types import InputPeerSelf
 
-        return await self.send_message_peer(InputPeerSelf(), text, timeout=timeout)
+        return await self.send_message_peer(
+            InputPeerSelf(),
+            text,
+            reply_to_msg_id=reply_to_msg_id,
+            silent=silent,
+            reply_markup=reply_markup,
+            timeout=timeout,
+        )
 
-    async def send_message_chat(self, chat_id: int, text: str, *, timeout: float = 20.0) -> Any:
+    async def send_message_chat(
+        self,
+        chat_id: int,
+        text: str,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        reply_markup: Any | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
         """
         Send a message to a basic group chat (InputPeerChat doesn't need access_hash).
         """
         from telecraft.tl.generated.types import InputPeerChat
 
         return await self.send_message_peer(
-            InputPeerChat(chat_id=int(chat_id)), text, timeout=timeout
+            InputPeerChat(chat_id=int(chat_id)),
+            text,
+            reply_to_msg_id=reply_to_msg_id,
+            silent=silent,
+            reply_markup=reply_markup,
+            timeout=timeout,
         )
 
-    async def send_message_user(self, user_id: int, text: str, *, timeout: float = 20.0) -> Any:
+    async def send_message_user(
+        self,
+        user_id: int,
+        text: str,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        reply_markup: Any | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
         """
         Send a message to a user (requires access_hash in the entity cache).
         """
@@ -680,10 +718,24 @@ class MtprotoClient:
         except EntityCacheError:
             await self._prime_entities_for_reply(want=Peer.user(int(user_id)), timeout=timeout)
             peer = self.entities.input_peer_user(int(user_id))
-        return await self.send_message_peer(peer, text, timeout=timeout)
+        return await self.send_message_peer(
+            peer,
+            text,
+            reply_to_msg_id=reply_to_msg_id,
+            silent=silent,
+            reply_markup=reply_markup,
+            timeout=timeout,
+        )
 
     async def send_message_channel(
-        self, channel_id: int, text: str, *, timeout: float = 20.0
+        self,
+        channel_id: int,
+        text: str,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        reply_markup: Any | None = None,
+        timeout: float = 20.0,
     ) -> Any:
         """
         Send a message to a channel/supergroup (requires access_hash in the entity cache).
@@ -693,7 +745,14 @@ class MtprotoClient:
         except EntityCacheError:
             await self._prime_entities_for_reply(want=Peer.channel(int(channel_id)), timeout=timeout)
             peer = self.entities.input_peer_channel(int(channel_id))
-        return await self.send_message_peer(peer, text, timeout=timeout)
+        return await self.send_message_peer(
+            peer,
+            text,
+            reply_to_msg_id=reply_to_msg_id,
+            silent=silent,
+            reply_markup=reply_markup,
+            timeout=timeout,
+        )
 
     async def send_message_peer(
         self,
@@ -719,6 +778,13 @@ class MtprotoClient:
         from secrets import randbits
 
         from telecraft.tl.generated.types import InputReplyToMessage
+
+        if reply_markup is not None:
+            # Allow passing builders directly.
+            from telecraft.client.keyboards import InlineKeyboard, ReplyKeyboard
+
+            if isinstance(reply_markup, (InlineKeyboard, ReplyKeyboard)):
+                reply_markup = reply_markup.build()
 
         reply_to = None
         if reply_to_msg_id is not None:
