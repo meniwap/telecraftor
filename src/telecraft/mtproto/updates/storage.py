@@ -4,6 +4,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 from telecraft.mtproto.updates.state import UpdatesState
 
@@ -99,7 +100,7 @@ def save_updates_state_file(path: str | Path, state: UpdatesState) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
 
     payload = PersistedUpdatesState.from_updates_state(state)
-    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp = p.with_name(f"{p.name}.{os.getpid()}.{uuid4().hex}.tmp")
     tmp.write_text(
         json.dumps(payload.to_json_dict(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -110,5 +111,4 @@ def save_updates_state_file(path: str | Path, state: UpdatesState) -> None:
     except OSError:
         pass
     tmp.replace(p)
-
 

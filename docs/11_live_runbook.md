@@ -1,0 +1,180 @@
+# Live QA Runbook
+
+## Purpose
+
+Run Telegram live tests in explicit lanes:
+- `core`: no second account required
+- `second_account`: add/remove flow for `@meniwap`
+- `optional`: unstable/expensive flows (dialogs/stickers/topics/privacy+notifications/games/saved/stars/gifts/stories readonly)
+- `paid`: optional spending-capable gifts/stars flow
+- `business`: business API smoke flow (opt-in)
+- `chatlists`: chatlists API smoke flow (opt-in)
+- `stories_write`: stories write smoke flow (opt-in)
+- `channel_admin`: channel admin smoke flow (opt-in)
+- dual audit output (Telegram + local files)
+
+## Prerequisites
+
+- Valid session file under `.sessions/sandbox/` (default runtime) or `.sessions/prod/`
+- `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` in env
+- Optional: `TELEGRAM_SESSION_PATH`
+
+## Known Issue (Sandbox Login)
+
+As of **February 10, 2026**, sandbox login to Telegram test network (`DC 2`, `149.154.167.40:443`)
+may fail with:
+
+- `RPC_ERROR 400: PHONE_CODE_INVALID` after `sendCode` succeeds
+
+Notes:
+- This issue was reproduced with clean sandbox sessions and multiple new `999662YYYY` numbers.
+- The same behavior was observed with both Telecraft and a Telethon cross-check, which suggests
+  the issue is likely test-network-side/account-policy-side rather than a Telecraft runtime issue.
+- Until it is resolved, use production live checks only with explicit prod overrides and safe lanes.
+
+## Command
+
+Core lane:
+
+```bash
+python -m pytest tests/live/core -m "live_core" -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-destructive \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+Second-account lane (explicit):
+
+```bash
+python -m pytest tests/live/second_account -m "live_second_account" -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-destructive \
+  --live-second-account meniwap \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+Optional polls lane:
+
+```bash
+python -m pytest tests/live/optional -m "live_optional" -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-enable-polls
+```
+
+Safe non-paid optional baseline:
+
+```bash
+python -m pytest tests/live/optional \
+  -m "live_optional and not live_paid and not live_business and not live_chatlists and not live_stories_write and not live_channel_admin" \
+  -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+Strict polls close mode (optional):
+
+```bash
+python -m pytest tests/live/optional/test_live_optional_polls.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-enable-polls \
+  --live-strict-polls-close \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+Optional paid lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_gifts_paid.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-paid
+```
+
+Optional business lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_business_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-business
+```
+
+Optional chatlists lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_chatlists_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-chatlists
+```
+
+Required env for chatlists lane:
+- `TELECRAFT_LIVE_CHATLIST_SLUG` with a valid invite slug (no `https://t.me/addlist/` prefix)
+
+Optional stories write lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_stories_write_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-stories-write
+```
+
+Optional channel admin lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_channels_admin_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-channel-admin
+```
+
+Prod override (explicit, hard-gated):
+
+```bash
+TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core -m "live_core" -vv -s \
+  --run-live \
+  --live-runtime prod \
+  --allow-prod-live \
+  --live-destructive
+```
+
+Note: pass `--live-second-account` without `@` because pytest treats leading `@` specially.
+The fixture normalizes bare usernames to `@username`.
+
+## Outputs
+
+For each run (`run_id`):
+- `reports/live/sandbox/<run_id>/events.jsonl` (sandbox runtime)
+- `reports/live/sandbox/<run_id>/summary.md`
+- `reports/live/sandbox/<run_id>/artifacts.json`
+- `reports/live/prod/<run_id>/...` (prod runtime)
+
+If `--live-audit-peer auto` is used, a persistent audit destination is created and stored in:
+- `.sessions/sandbox/live_audit_peer.txt` (sandbox runtime)
+- `.sessions/prod/live_audit_peer.txt` (prod runtime)
+
+## Safety Rules
+
+- Always run with `--run-live`.
+- Default live runtime is sandbox (`--live-runtime sandbox`).
+- Prod live requires both `--allow-prod-live` and `TELECRAFT_ALLOW_PROD_LIVE=1`.
+- Destructive operations require `--live-destructive`.
+- `second_account` lane requires explicit `--live-second-account`.
+- `paid` lane requires explicit `--live-paid`.
+- `business` lane requires explicit `--live-business`.
+- `chatlists` lane requires explicit `--live-chatlists`.
+- `stories_write` lane requires explicit `--live-stories-write`.
+- `channel_admin` lane requires explicit `--live-channel-admin`.
+- `business` and `chatlists` suites are fail-fast on unsupported/account capability errors.
+- `polls` close is warning-only by default; use `--live-strict-polls-close` to fail on close errors.
+- Cleanup runs even on failed steps.

@@ -1,0 +1,54 @@
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+
+import pytest
+
+from telecraft.client import Client
+from tests.live._suite_shared import finalize_run, resolve_or_create_audit_peer, run_step
+
+pytestmark = [pytest.mark.live, pytest.mark.live_optional]
+
+
+async def _run_dialogs_suite(client: Client, ctx: Any, reporter: Any) -> None:
+    await client.connect(timeout=ctx.cfg.timeout)
+    results: list[Any] = []
+    resource_ids: dict[str, object] = {}
+
+    reporter.audit_peer = await resolve_or_create_audit_peer(client, ctx, reporter)
+    await reporter.emit(
+        client=client,
+        status="START",
+        step="run",
+        details=f"run_id={ctx.run_id} lane=optional-dialogs",
+    )
+
+    async def step_dialogs_roundtrip() -> str:
+        out = await client.dialogs.list(limit=10, timeout=ctx.cfg.timeout)
+        resource_ids["dialogs_type"] = type(out).__name__
+        return f"dialogs={type(out).__name__}"
+
+    await run_step(
+        name="dialogs.roundtrip",
+        fn=step_dialogs_roundtrip,
+        client=client,
+        reporter=reporter,
+        results=results,
+    )
+
+    await finalize_run(
+        client=client,
+        ctx=ctx,
+        reporter=reporter,
+        results=results,
+        resource_ids=resource_ids,
+    )
+
+
+def test_dialogs__list__roundtrip_live(
+    client_v2: Client,
+    live_context: Any,
+    audit_reporter: Any,
+) -> None:
+    asyncio.run(_run_dialogs_suite(client_v2, live_context, audit_reporter))

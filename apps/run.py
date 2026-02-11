@@ -3,8 +3,21 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
+from telecraft.client.runtime_isolation import (
+    RuntimeIsolationError,
+    SessionPaths,
+    default_session_path,
+    pick_existing_session,
+    require_prod_override,
+    resolve_network,
+    resolve_runtime,
+    resolve_session_paths,
+    validate_session_matches_network,
+    write_current_session_pointer,
+)
 from telecraft.mtproto.rpc.sender import RpcErrorException
 
 
@@ -25,61 +38,12 @@ def _need_env_int(name: str) -> int:
         raise SystemExit(f"{name} must be an int") from e
 
 
-def _default_session(network: str, dc: int) -> str:
-    return str(Path(".sessions") / f"{network}_dc{dc}.session.json")
-
-def _current_session_pointer(network: str) -> Path:
-    return Path(".sessions") / f"{network}.current"
-
-def _read_current_session(network: str) -> str | None:
-    p = _current_session_pointer(network)
-    try:
-        s = p.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        return None
-    if not s:
-        return None
-    if Path(s).exists():
-        return s
-    return None
-
-def _write_current_session(network: str, session_path: str) -> None:
-    p = _current_session_pointer(network)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(str(session_path).strip() + "\n", encoding="utf-8", newline="\n")
-
-def _pick_latest_session(network: str) -> str | None:
-    best: tuple[float, str] | None = None
-    for dc in (1, 2, 3, 4, 5):
-        sp = _default_session(network, dc)
-        p = Path(sp)
-        if not p.exists():
-            continue
-        try:
-            mtime = p.stat().st_mtime
-        except OSError:
-            continue
-        if best is None or mtime > best[0]:
-            best = (mtime, sp)
-    return best[1] if best else None
-
-def _pick_existing_session(network: str, preferred_dc: int) -> str:
-    """
-    Pick a session file to use.
-    - Prefer the requested DC file if it exists
-    - Otherwise pick the first existing DC session file (1..5)
-    - Otherwise return the preferred path (will be created later)
-    """
-    current = _read_current_session(network)
-    if current is not None:
-        return current
-    preferred = _default_session(network, preferred_dc)
-    if Path(preferred).exists():
-        return preferred
-    latest = _pick_latest_session(network)
-    if latest is not None:
-        return latest
-    return preferred
+@dataclass(slots=True, frozen=True)
+class _RuntimeContext:
+    runtime: str
+    network: str
+    session_paths: SessionPaths
+    session_path: str
 
 def _session_client_args(session_path: str) -> tuple[int, str, int, str]:
     from telecraft.mtproto.session import load_session_file
@@ -88,14 +52,84 @@ def _session_client_args(session_path: str) -> tuple[int, str, int, str]:
     return int(s.dc_id), str(s.host), int(s.port), str(s.framing)
 
 
+def _resolve_runtime_network(args: argparse.Namespace) -> tuple[str, str]:
+    runtime_arg = str(getattr(args, "runtime", "sandbox")).strip()
+    network_arg_raw = getattr(args, "network", None)
+    network_arg = None if network_arg_raw is None else str(network_arg_raw).strip()
+    cmd = str(getattr(args, "cmd", "command")).strip() or "command"
+
+    try:
+        runtime = resolve_runtime(runtime_arg, default="sandbox")
+        if network_arg:
+            print(
+                "Warning: --network is deprecated; runtime determines network. "
+                "Use --runtime sandbox|prod."
+            )
+        network = resolve_network(runtime=runtime, explicit_network=network_arg)
+        if runtime == "prod":
+            require_prod_override(
+                allow_flag=bool(getattr(args, "allow_prod", False)),
+                env_var="TELECRAFT_ALLOW_PROD",
+                action="Telecraft CLI on production Telegram",
+                example=(
+                    f"TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py {cmd} "
+                    "--runtime prod --allow-prod ..."
+                ),
+            )
+        return runtime, network
+    except RuntimeIsolationError as e:
+        raise SystemExit(str(e)) from e
+
+
+def _resolve_runtime_context(
+    args: argparse.Namespace,
+    *,
+    allow_missing_session: bool,
+) -> _RuntimeContext:
+    runtime, network = _resolve_runtime_network(args)
+    session_paths = resolve_session_paths(runtime=runtime, network=network)
+
+    session_raw = getattr(args, "session", None)
+    if session_raw is None:
+        session = pick_existing_session(session_paths, preferred_dc=int(args.dc))
+    else:
+        p = Path(str(session_raw)).expanduser()
+        if not p.is_absolute():
+            p = (Path.cwd() / p).resolve()
+        session = str(p)
+
+    p_session = Path(session)
+    if not allow_missing_session and not p_session.exists():
+        raise SystemExit(
+            f"No session found for runtime={runtime!r} network={network!r}. "
+            f"Run login first. Expected: {session}"
+        )
+    if p_session.exists():
+        try:
+            validate_session_matches_network(
+                session_path=p_session,
+                expected_network=network,
+            )
+        except RuntimeIsolationError as e:
+            raise SystemExit(str(e)) from e
+
+    return _RuntimeContext(
+        runtime=runtime,
+        network=network,
+        session_paths=session_paths,
+        session_path=str(p_session),
+    )
+
+
 async def _cmd_login(args: argparse.Namespace) -> int:
     from telecraft.client.mtproto import ClientInit, MtprotoClient
 
+    ctx = _resolve_runtime_context(args, allow_missing_session=True)
     api_id = _need_env_int("TELEGRAM_API_ID")
     api_hash = _need_env("TELEGRAM_API_HASH")
 
     phone_number = args.phone or input("Phone number (international): ").strip()
-    session = args.session or _pick_existing_session(args.network, args.dc)
+    session = ctx.session_path
 
     init = ClientInit(api_id=api_id, api_hash=api_hash)
 
@@ -114,7 +148,7 @@ async def _cmd_login(args: argparse.Namespace) -> int:
             framing_override = args.framing
 
         client = MtprotoClient(
-            network=args.network,
+            network=ctx.network,
             dc_id=dc,
             host=host_override,
             port=port_override,
@@ -143,6 +177,7 @@ async def _cmd_login(args: argparse.Namespace) -> int:
                     ).strip()
                     authz = await client.check_password(pw, timeout=args.timeout)
                     print("Logged in OK.")
+                    write_current_session_pointer(ctx.session_paths, session)
                     _ = authz
                     return 0
                 raise
@@ -151,7 +186,7 @@ async def _cmd_login(args: argparse.Namespace) -> int:
             if getattr(auth, "TL_NAME", None) == "auth.authorization":
                 print("Logged in OK.")
                 print(f"Session saved to: {session}")
-                _write_current_session(args.network, session)
+                write_current_session_pointer(ctx.session_paths, session)
                 return 0
 
             # Sign-up required (new account)
@@ -167,7 +202,7 @@ async def _cmd_login(args: argparse.Namespace) -> int:
                 )
                 print("Signed up + logged in OK.")
                 print(f"Session saved to: {session}")
-                _write_current_session(args.network, session)
+                write_current_session_pointer(ctx.session_paths, session)
                 return 0
 
             print("Unexpected login result:", repr(auth))
@@ -180,7 +215,7 @@ async def _cmd_login(args: argparse.Namespace) -> int:
                     try:
                         dc = int(msg.split(prefix, 1)[1])
                         # New auth_key must be created on the new DC, so use a new session file.
-                        session = _default_session(args.network, dc)
+                        session = str(default_session_path(ctx.session_paths, dc=dc).resolve())
                         print(f"Migrating to DC {dc} (next session: {session})...")
                         break
                     except ValueError:
@@ -196,15 +231,14 @@ async def _cmd_login(args: argparse.Namespace) -> int:
 async def _cmd_me(args: argparse.Namespace) -> int:
     from telecraft.client.mtproto import ClientInit, MtprotoClient
 
+    ctx = _resolve_runtime_context(args, allow_missing_session=False)
     api_id = _need_env_int("TELEGRAM_API_ID")
     api_hash = _need_env("TELEGRAM_API_HASH")
 
-    session = args.session or _pick_existing_session(args.network, args.dc)
-    if not Path(session).exists():
-        raise SystemExit(f"No session found. Run login first. Expected: {session}")
+    session = ctx.session_path
     dc, host, port, framing = _session_client_args(session)
     client = MtprotoClient(
-        network=args.network,
+        network=ctx.network,
         dc_id=dc,
         host=host,
         port=port,
@@ -224,15 +258,14 @@ async def _cmd_me(args: argparse.Namespace) -> int:
 async def _cmd_updates(args: argparse.Namespace) -> int:
     from telecraft.client.mtproto import ClientInit, MtprotoClient
 
+    ctx = _resolve_runtime_context(args, allow_missing_session=False)
     api_id = _need_env_int("TELEGRAM_API_ID")
     api_hash = _need_env("TELEGRAM_API_HASH")
 
-    session = args.session or _pick_existing_session(args.network, args.dc)
-    if not Path(session).exists():
-        raise SystemExit(f"No session found. Run login first. Expected: {session}")
+    session = ctx.session_path
     dc, host, port, framing = _session_client_args(session)
     client = MtprotoClient(
-        network=args.network,
+        network=ctx.network,
         dc_id=dc,
         host=host,
         port=port,
@@ -251,18 +284,59 @@ async def _cmd_updates(args: argparse.Namespace) -> int:
         await client.close()
 
 
-async def _cmd_send_self(args: argparse.Namespace) -> int:
+async def _cmd_forward(args: argparse.Namespace) -> int:
     from telecraft.client.mtproto import ClientInit, MtprotoClient
 
+    ctx = _resolve_runtime_context(args, allow_missing_session=False)
     api_id = _need_env_int("TELEGRAM_API_ID")
     api_hash = _need_env("TELEGRAM_API_HASH")
 
-    session = args.session or _pick_existing_session(args.network, args.dc)
-    if not Path(session).exists():
-        raise SystemExit(f"No session found. Run login first. Expected: {session}")
+    session = ctx.session_path
     dc, host, port, framing = _session_client_args(session)
     client = MtprotoClient(
-        network=args.network,
+        network=ctx.network,
+        dc_id=dc,
+        host=host,
+        port=port,
+        framing=framing,
+        session_path=session,
+        init=ClientInit(api_id=api_id, api_hash=api_hash),
+    )
+    await client.connect(timeout=args.timeout)
+    try:
+        from_ref = _parse_peer_arg(args.from_peer)
+        to_ref = _parse_peer_arg(args.to_peer)
+        # Parse comma-separated msg_ids
+        msg_ids = [int(x.strip()) for x in args.msg_ids.split(",") if x.strip()]
+        if not msg_ids:
+            raise SystemExit("No message IDs provided")
+        print(f"Forwarding {len(msg_ids)} message(s) from {args.from_peer} to {args.to_peer}...")
+        res = await client.forward_messages(
+            from_peer=from_ref,
+            to_peer=to_ref,
+            msg_ids=msg_ids,
+            drop_author=args.drop_author,
+            drop_captions=args.drop_captions,
+            silent=args.silent,
+            timeout=args.timeout,
+        )
+        print(repr(res))
+        return 0
+    finally:
+        await client.close()
+
+
+async def _cmd_send_self(args: argparse.Namespace) -> int:
+    from telecraft.client.mtproto import ClientInit, MtprotoClient
+
+    ctx = _resolve_runtime_context(args, allow_missing_session=False)
+    api_id = _need_env_int("TELEGRAM_API_ID")
+    api_hash = _need_env("TELEGRAM_API_HASH")
+
+    session = ctx.session_path
+    dc, host, port, framing = _session_client_args(session)
+    client = MtprotoClient(
+        network=ctx.network,
         dc_id=dc,
         host=host,
         port=port,
@@ -296,15 +370,14 @@ def _parse_peer_arg(raw: str) -> object:
 async def _cmd_send(args: argparse.Namespace) -> int:
     from telecraft.client.mtproto import ClientInit, MtprotoClient
 
+    ctx = _resolve_runtime_context(args, allow_missing_session=False)
     api_id = _need_env_int("TELEGRAM_API_ID")
     api_hash = _need_env("TELEGRAM_API_HASH")
 
-    session = args.session or _pick_existing_session(args.network, args.dc)
-    if not Path(session).exists():
-        raise SystemExit(f"No session found. Run login first. Expected: {session}")
+    session = ctx.session_path
     dc, host, port, framing = _session_client_args(session)
     client = MtprotoClient(
-        network=args.network,
+        network=ctx.network,
         dc_id=dc,
         host=host,
         port=port,
@@ -327,15 +400,14 @@ async def _cmd_send(args: argparse.Namespace) -> int:
 async def _cmd_send_file(args: argparse.Namespace) -> int:
     from telecraft.client.mtproto import ClientInit, MtprotoClient
 
+    ctx = _resolve_runtime_context(args, allow_missing_session=False)
     api_id = _need_env_int("TELEGRAM_API_ID")
     api_hash = _need_env("TELEGRAM_API_HASH")
 
-    session = args.session or _pick_existing_session(args.network, args.dc)
-    if not Path(session).exists():
-        raise SystemExit(f"No session found. Run login first. Expected: {session}")
+    session = ctx.session_path
     dc, host, port, framing = _session_client_args(session)
     client = MtprotoClient(
-        network=args.network,
+        network=ctx.network,
         dc_id=dc,
         host=host,
         port=port,
@@ -380,15 +452,14 @@ async def _cmd_download_next_media(args: argparse.Namespace) -> int:
     from telecraft.bot.events import MessageEvent
     from telecraft.client.mtproto import ClientInit, MtprotoClient
 
+    ctx = _resolve_runtime_context(args, allow_missing_session=False)
     api_id = _need_env_int("TELEGRAM_API_ID")
     api_hash = _need_env("TELEGRAM_API_HASH")
 
-    session = args.session or _pick_existing_session(args.network, args.dc)
-    if not Path(session).exists():
-        raise SystemExit(f"No session found. Run login first. Expected: {session}")
+    session = ctx.session_path
     dc, host, port, framing = _session_client_args(session)
     client = MtprotoClient(
-        network=args.network,
+        network=ctx.network,
         dc_id=dc,
         host=host,
         port=port,
@@ -471,7 +542,11 @@ async def _cmd_download_next_media(args: argparse.Namespace) -> int:
                             mid = getattr(m, "id", None)
                             if not isinstance(mid, int) or int(mid) <= int(after_id):
                                 continue
-                            got = await client.download_media(m, dest=args.dest, timeout=args.timeout)
+                            got = await client.download_media(
+                                m,
+                                dest=args.dest,
+                                timeout=args.timeout,
+                            )
                             if got is not None:
                                 return str(got), newest_id
                         return None, newest_id
@@ -514,17 +589,17 @@ async def _cmd_download_next_media(args: argparse.Namespace) -> int:
         await client.close()
 
 async def _cmd_promote(args: argparse.Namespace) -> int:
-    from telecraft.client import ADMIN_RIGHTS_BASIC, ClientInit, MtprotoClient, make_admin_rights
+    from telecraft.client import ADMIN_RIGHTS_BASIC, make_admin_rights
+    from telecraft.client.mtproto import ClientInit, MtprotoClient
 
+    ctx = _resolve_runtime_context(args, allow_missing_session=False)
     api_id = _need_env_int("TELEGRAM_API_ID")
     api_hash = _need_env("TELEGRAM_API_HASH")
 
-    session = args.session or _pick_existing_session(args.network, args.dc)
-    if not Path(session).exists():
-        raise SystemExit(f"No session found. Run login first. Expected: {session}")
+    session = ctx.session_path
     dc, host, port, framing = _session_client_args(session)
     client = MtprotoClient(
-        network=args.network,
+        network=ctx.network,
         dc_id=dc,
         host=host,
         port=port,
@@ -571,17 +646,17 @@ async def _cmd_promote(args: argparse.Namespace) -> int:
 
 
 async def _cmd_ban(args: argparse.Namespace) -> int:
-    from telecraft.client import ClientInit, MtprotoClient, banned_rights_full_ban, make_banned_rights
+    from telecraft.client import banned_rights_full_ban, make_banned_rights
+    from telecraft.client.mtproto import ClientInit, MtprotoClient
 
+    ctx = _resolve_runtime_context(args, allow_missing_session=False)
     api_id = _need_env_int("TELEGRAM_API_ID")
     api_hash = _need_env("TELEGRAM_API_HASH")
 
-    session = args.session or _pick_existing_session(args.network, args.dc)
-    if not Path(session).exists():
-        raise SystemExit(f"No session found. Run login first. Expected: {session}")
+    session = ctx.session_path
     dc, host, port, framing = _session_client_args(session)
     client = MtprotoClient(
-        network=args.network,
+        network=ctx.network,
         dc_id=dc,
         host=host,
         port=port,
@@ -616,7 +691,24 @@ def main() -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def add_common(sp: argparse.ArgumentParser) -> None:
-        sp.add_argument("--network", choices=["test", "prod"], default="prod")
+        sp.add_argument(
+            "--runtime",
+            choices=["sandbox", "prod"],
+            default="sandbox",
+            help="Runtime lane (default: sandbox/test network)",
+        )
+        sp.add_argument(
+            "--allow-prod",
+            action="store_true",
+            default=False,
+            help="Allow production runtime (requires TELECRAFT_ALLOW_PROD=1)",
+        )
+        sp.add_argument(
+            "--network",
+            choices=["test", "prod"],
+            default=None,
+            help="Deprecated override; runtime now determines network",
+        )
         sp.add_argument("--dc", type=int, default=2)
         sp.add_argument("--framing", choices=["intermediate", "abridged"], default="intermediate")
         sp.add_argument("--timeout", type=float, default=30.0)
@@ -648,17 +740,27 @@ def main() -> int:
 
     sf = sub.add_parser("send-file", help="Upload and send a local file (photo/document)")
     add_common(sf)
-    sf.add_argument("peer", type=str, help="Target: @username | +phone | user:ID | chat:ID | channel:ID")
+    sf.add_argument(
+        "peer",
+        type=str,
+        help="Target: @username | +phone | user:ID | chat:ID | channel:ID",
+    )
     sf.add_argument("path", type=str, help="Local file path")
     sf.add_argument("--caption", type=str, default=None)
     sf.add_argument("--as-photo", action="store_true", help="Force send as photo")
     sf.add_argument("--as-document", action="store_true", help="Force send as document")
 
-    dl = sub.add_parser("download-next-media", help="Wait for next incoming media message and download it")
+    dl = sub.add_parser(
+        "download-next-media",
+        help="Wait for next incoming media message and download it",
+    )
     add_common(dl)
     dl.add_argument("--dest", type=str, default="downloads/", help="Directory or file path")
 
-    promote = sub.add_parser("promote", help="channels.editAdmin (promote/demote user in a channel)")
+    promote = sub.add_parser(
+        "promote",
+        help="channels.editAdmin (promote/demote user in a channel)",
+    )
     add_common(promote)
     promote.add_argument("channel", type=str, help="Target channel: @username | channel:ID")
     promote.add_argument("user", type=str, help="Target user: @username | +phone | user:ID")
@@ -675,6 +777,27 @@ def main() -> int:
 
     upd = sub.add_parser("updates", help="Print incoming updates")
     add_common(upd)
+
+    fwd = sub.add_parser("forward", help="Forward messages from one chat to another")
+    add_common(fwd)
+    fwd.add_argument(
+        "from_peer",
+        type=str,
+        help="Source: @username | user:ID | chat:ID | channel:ID",
+    )
+    fwd.add_argument(
+        "to_peer",
+        type=str,
+        help="Destination: @username | user:ID | chat:ID | channel:ID",
+    )
+    fwd.add_argument(
+        "msg_ids",
+        type=str,
+        help="Message IDs (comma-separated, e.g. 123 or 123,456,789)",
+    )
+    fwd.add_argument("--drop-author", action="store_true", help="Hide the original author")
+    fwd.add_argument("--drop-captions", action="store_true", help="Remove captions from media")
+    fwd.add_argument("--silent", action="store_true", help="Send without notification")
 
     args = p.parse_args()
 
@@ -697,6 +820,8 @@ def main() -> int:
             return asyncio.run(_cmd_ban(args))
         if args.cmd == "updates":
             return asyncio.run(_cmd_updates(args))
+        if args.cmd == "forward":
+            return asyncio.run(_cmd_forward(args))
         raise SystemExit("unknown command")
     except KeyboardInterrupt:
         return 0
@@ -704,4 +829,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

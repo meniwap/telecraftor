@@ -521,8 +521,17 @@ class MtprotoClient:
 
         Returns the User object, or None if not logged in or got UserEmpty.
         """
+        def _users_from_result(obj: Any) -> list[Any]:
+            users_obj = obj if isinstance(obj, list) else getattr(obj, "users", [])
+            return users_obj if isinstance(users_obj, list) else []
+
         res = await self.invoke_api(UsersGetUsers(id=[InputUserSelf()]), timeout=timeout)
-        users = res if isinstance(res, list) else []
+        users = _users_from_result(res)
+        # Some codecs currently decode top-level Vector<T> as a generic "vector" object.
+        # Fallback to users.getFullUser, which returns a structured wrapper with users list.
+        if not users:
+            full = await self.invoke_api(UsersGetFullUser(id=InputUserSelf()), timeout=timeout)
+            users = _users_from_result(full)
         self.entities.ingest_users(users)
         self._persist_entities_cache()
         me = users[0] if users else None
@@ -4543,6 +4552,7 @@ class MtprotoClient:
                 reply_markup=None,
                 entities=None,
                 schedule_date=None,
+                schedule_repeat_period=None,
                 quick_reply_shortcut_id=None,
             ),
             timeout=timeout,
@@ -5461,4 +5471,3 @@ class MtprotoClient:
             session_id=None,
         )
         save_session_file(self._session_path, sess)
-

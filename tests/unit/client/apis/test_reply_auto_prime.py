@@ -4,12 +4,9 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-import pytest
-
 from telecraft.bot.events import MessageEvent
 from telecraft.client.entities import EntityCacheError
 from telecraft.client.mtproto import ClientInit, MtprotoClient
-from telecraft.client.peers import Peer
 
 
 def test_mtproto_client_send_message_user_primes_and_retries() -> None:
@@ -28,7 +25,16 @@ def test_mtproto_client_send_message_user_primes_and_retries() -> None:
         # Populate the missing access_hash.
         client.entities.user_access_hash[123] = 999
 
-    async def send_message_peer(peer: Any, text: str, *, timeout: float = 20.0) -> Any:
+    async def send_message_peer(
+        peer: Any,
+        text: str,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        reply_markup: Any | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        _ = (reply_to_msg_id, silent, reply_markup, timeout)
         called["send"] += 1
         return {"peer": peer, "text": text}
 
@@ -54,21 +60,31 @@ def test_message_event_reply_primes_once_then_falls_back() -> None:
     class DummyClient:
         calls: list[str]
 
-        async def send_message_user(self, _user_id: int, _text: str) -> Any:
+        async def send_message_user(
+            self, _user_id: int, _text: str, *, reply_markup: Any | None = None
+        ) -> Any:
+            _ = reply_markup
             self.calls.append("send_user")
             raise EntityCacheError("Unknown user access_hash for user_id=1")
 
         async def prime_entities(self, *, limit: int = 100, timeout: float = 20.0) -> None:
             self.calls.append("prime")
 
-        async def send_message_self(self, _text: str) -> Any:
+        async def send_message_self(self, _text: str, *, reply_markup: Any | None = None) -> Any:
+            _ = reply_markup
             self.calls.append("send_self")
             return "ok"
 
     c = DummyClient(calls=[])
-    e = MessageEvent(client=c, raw=object(), user_id=1, peer_type="user", peer_id=1, msg_id=1, text="x")
+    e = MessageEvent(
+        client=c,
+        raw=object(),
+        user_id=1,
+        peer_type="user",
+        peer_id=1,
+        msg_id=1,
+        text="x",
+    )
     out = asyncio.run(e.reply("y"))
     assert out == "ok"
     assert c.calls == ["send_user", "prime", "send_user", "send_self"]
-
-

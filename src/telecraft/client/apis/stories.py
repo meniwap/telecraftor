@@ -1,0 +1,356 @@
+from __future__ import annotations
+
+import secrets
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
+
+from telecraft.client.apis._utils import resolve_input_peer
+from telecraft.client.peers import PeerRef
+from telecraft.tl.generated.functions import (
+    StoriesCanSendStory,
+    StoriesDeleteStories,
+    StoriesEditStory,
+    StoriesGetAllReadPeerStories,
+    StoriesGetAllStories,
+    StoriesGetPeerStories,
+    StoriesGetPinnedStories,
+    StoriesGetStoriesArchive,
+    StoriesGetStoriesById,
+    StoriesGetStoriesViews,
+    StoriesIncrementStoryViews,
+    StoriesReadStories,
+    StoriesSearchPosts,
+    StoriesSendReaction,
+    StoriesSendStory,
+    StoriesToggleAllStoriesHidden,
+    StoriesTogglePeerStoriesHidden,
+    StoriesTogglePinned,
+    StoriesTogglePinnedToTop,
+)
+
+if TYPE_CHECKING:
+    from telecraft.client.mtproto import MtprotoClient
+
+
+class StoriesCapabilitiesAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def can_send(self, peer: PeerRef, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesCanSendStory(peer=await resolve_input_peer(self._raw, peer, timeout=timeout)),
+            timeout=timeout,
+        )
+
+
+class StoriesFeedAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def all(
+        self,
+        *,
+        next: bool = False,
+        hidden: bool = False,
+        state: str | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if state is not None:
+            flags |= 1
+        if next:
+            flags |= 2
+        if hidden:
+            flags |= 4
+        return await self._raw.invoke_api(
+            StoriesGetAllStories(
+                flags=flags,
+                next=True if next else None,
+                hidden=True if hidden else None,
+                state=state,
+            ),
+            timeout=timeout,
+        )
+
+    async def peer(self, peer: PeerRef, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesGetPeerStories(peer=await resolve_input_peer(self._raw, peer, timeout=timeout)),
+            timeout=timeout,
+        )
+
+    async def archive(
+        self,
+        peer: PeerRef,
+        *,
+        offset_id: int = 0,
+        limit: int = 100,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            StoriesGetStoriesArchive(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                offset_id=int(offset_id),
+                limit=int(limit),
+            ),
+            timeout=timeout,
+        )
+
+    async def pinned(
+        self,
+        peer: PeerRef,
+        *,
+        offset_id: int = 0,
+        limit: int = 100,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            StoriesGetPinnedStories(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                offset_id=int(offset_id),
+                limit=int(limit),
+            ),
+            timeout=timeout,
+        )
+
+    async def by_id(self, peer: PeerRef, ids: Sequence[int], *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesGetStoriesById(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=[int(x) for x in ids],
+            ),
+            timeout=timeout,
+        )
+
+
+class StoriesAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+        self.capabilities = StoriesCapabilitiesAPI(raw)
+        self.feed = StoriesFeedAPI(raw)
+
+    async def read(self, peer: PeerRef, max_id: int, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesReadStories(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                max_id=int(max_id),
+            ),
+            timeout=timeout,
+        )
+
+    async def views(self, peer: PeerRef, ids: Sequence[int], *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesGetStoriesViews(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=[int(x) for x in ids],
+            ),
+            timeout=timeout,
+        )
+
+    async def toggle_all_hidden(self, hidden: bool, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesToggleAllStoriesHidden(hidden=bool(hidden)),
+            timeout=timeout,
+        )
+
+    async def toggle_peer_hidden(self, peer: PeerRef, hidden: bool, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesTogglePeerStoriesHidden(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                hidden=bool(hidden),
+            ),
+            timeout=timeout,
+        )
+
+    async def search_posts(
+        self,
+        *,
+        hashtag: str | None = None,
+        area: Any | None = None,
+        peer: PeerRef | None = None,
+        offset: str = "",
+        limit: int = 50,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        input_peer = None
+        if hashtag is not None:
+            flags |= 1
+        if area is not None:
+            flags |= 2
+        if peer is not None:
+            flags |= 4
+            input_peer = await resolve_input_peer(self._raw, peer, timeout=timeout)
+        return await self._raw.invoke_api(
+            StoriesSearchPosts(
+                flags=flags,
+                hashtag=hashtag,
+                area=area,
+                peer=input_peer,
+                offset=str(offset),
+                limit=int(limit),
+            ),
+            timeout=timeout,
+        )
+
+    async def all_read_peers(self, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(StoriesGetAllReadPeerStories(), timeout=timeout)
+
+    async def send(
+        self,
+        peer: PeerRef,
+        media: Any,
+        privacy_rules: Sequence[Any],
+        *,
+        caption: str | None = None,
+        entities: Sequence[Any] | None = None,
+        media_areas: Sequence[Any] | None = None,
+        pinned: bool = False,
+        noforwards: bool = False,
+        fwd_modified: bool = False,
+        period: int | None = None,
+        fwd_from_id: PeerRef | None = None,
+        fwd_from_story: int | None = None,
+        albums: Sequence[int] | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        fwd_from_input = None
+        if caption is not None or entities is not None:
+            flags |= 1
+        if pinned:
+            flags |= 4
+        if period is not None:
+            flags |= 8
+        if noforwards:
+            flags |= 16
+        if media_areas is not None:
+            flags |= 32
+        if fwd_from_id is not None or fwd_from_story is not None:
+            flags |= 64
+            if fwd_from_id is not None:
+                fwd_from_input = await resolve_input_peer(self._raw, fwd_from_id, timeout=timeout)
+        if fwd_modified:
+            flags |= 128
+        if albums is not None:
+            flags |= 256
+
+        return await self._raw.invoke_api(
+            StoriesSendStory(
+                flags=flags,
+                pinned=True if pinned else None,
+                noforwards=True if noforwards else None,
+                fwd_modified=True if fwd_modified else None,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                media=media,
+                media_areas=list(media_areas) if media_areas is not None else None,
+                caption=caption,
+                entities=list(entities) if entities is not None else None,
+                privacy_rules=list(privacy_rules),
+                random_id=secrets.randbits(63),
+                period=int(period) if period is not None else None,
+                fwd_from_id=fwd_from_input,
+                fwd_from_story=int(fwd_from_story) if fwd_from_story is not None else None,
+                albums=[int(x) for x in albums] if albums is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+    async def edit(
+        self,
+        peer: PeerRef,
+        story_id: int,
+        *,
+        media: Any | None = None,
+        media_areas: Sequence[Any] | None = None,
+        caption: str | None = None,
+        entities: Sequence[Any] | None = None,
+        privacy_rules: Sequence[Any] | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if media is not None:
+            flags |= 1
+        if caption is not None or entities is not None:
+            flags |= 2
+        if privacy_rules is not None:
+            flags |= 4
+        if media_areas is not None:
+            flags |= 8
+        return await self._raw.invoke_api(
+            StoriesEditStory(
+                flags=flags,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=int(story_id),
+                media=media,
+                media_areas=list(media_areas) if media_areas is not None else None,
+                caption=caption,
+                entities=list(entities) if entities is not None else None,
+                privacy_rules=list(privacy_rules) if privacy_rules is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+    async def delete(self, peer: PeerRef, ids: Sequence[int], *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesDeleteStories(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=[int(x) for x in ids],
+            ),
+            timeout=timeout,
+        )
+
+    async def pin(
+        self,
+        peer: PeerRef,
+        ids: Sequence[int],
+        *,
+        pinned: bool = True,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            StoriesTogglePinned(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=[int(x) for x in ids],
+                pinned=bool(pinned),
+            ),
+            timeout=timeout,
+        )
+
+    async def pin_to_top(self, peer: PeerRef, ids: Sequence[int], *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesTogglePinnedToTop(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=[int(x) for x in ids],
+            ),
+            timeout=timeout,
+        )
+
+    async def react(
+        self,
+        peer: PeerRef,
+        story_id: int,
+        reaction: Any,
+        *,
+        add_to_recent: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if add_to_recent else 0
+        return await self._raw.invoke_api(
+            StoriesSendReaction(
+                flags=flags,
+                add_to_recent=True if add_to_recent else None,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                story_id=int(story_id),
+                reaction=reaction,
+            ),
+            timeout=timeout,
+        )
+
+    async def increment_views(self, peer: PeerRef, ids: Sequence[int], *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesIncrementStoryViews(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=[int(x) for x in ids],
+            ),
+            timeout=timeout,
+        )

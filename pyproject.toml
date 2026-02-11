@@ -21,6 +21,21 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "unit: fast deterministic tests",
+  "live: live tests against Telegram",
+  "destructive: mutating live tests",
+  "requires_second_account: needs a second Telegram account",
+  "requires_business_account: needs a business-enabled Telegram account",
+  "live_core: core live lane without second account",
+  "live_second_account: live lane that requires explicit second account",
+  "live_optional: optional live lane (unstable/expensive)",
+  "live_paid: optional paid lane (spending operations)",
+  "live_business: optional business lane",
+  "live_chatlists: optional chatlists lane",
+  "live_stories_write: optional stories write lane",
+  "live_channel_admin: optional channel admin lane",
+]
 
 [tool.ruff]
 line-length = 100
@@ -35,5 +50,3 @@ python_version = "3.10"
 mypy_path = "src"
 strict = true
 exclude = "src/telecraft/tl/generated"
-
-

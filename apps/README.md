@@ -27,36 +27,44 @@ source apps/env.sh
 
 #### הרצה
 
-- Login (שומר קובץ session תחת `.sessions/`)
+- Login בסנדבוקס (ברירת מחדל בטוחה; שומר session תחת `.sessions/sandbox/`)
 
 ```bash
-./.venv/bin/python apps/run.py login --network prod --dc 2
+./.venv/bin/python apps/run.py login --runtime sandbox --dc 2
 ```
 
 - getMe
 
 ```bash
-./.venv/bin/python apps/run.py me --network prod --dc 2
+./.venv/bin/python apps/run.py me --runtime sandbox --dc 2
 ```
 
 - לשלוח הודעה לעצמך (Saved Messages)
 
 ```bash
-./.venv/bin/python apps/run.py send-self "hi" --network prod --dc 2
+./.venv/bin/python apps/run.py send-self "hi" --runtime sandbox --dc 2
 ```
 
 - לשלוח הודעה ל־peer דרך resolve (username/phone)
 
 ```bash
-./.venv/bin/python apps/run.py send "@username" "hi from telecraft" --network prod
-./.venv/bin/python apps/run.py send "+15551234567" "hi" --network prod
-./.venv/bin/python apps/run.py send "channel:123456789" "hi" --network prod
+./.venv/bin/python apps/run.py send "@username" "hi from telecraft" --runtime sandbox
+./.venv/bin/python apps/run.py send "+15551234567" "hi" --runtime sandbox
+./.venv/bin/python apps/run.py send "channel:123456789" "hi" --runtime sandbox
 ```
 
 - להקשיב ל־updates (תשלח לעצמך הודעה בזמן שזה רץ)
 
 ```bash
-./.venv/bin/python apps/run.py updates --network prod --dc 2
+./.venv/bin/python apps/run.py updates --runtime sandbox --dc 2
+```
+
+#### פרוד (רק אם אתה בטוח)
+
+חסום כברירת מחדל ודורש גם flag וגם env:
+
+```bash
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-prod --dc 2
 ```
 
 #### Echo bot (framework demo)
@@ -83,8 +91,8 @@ source apps/env.sh
 #### Session / state קבצים (לא נכנסים לגיט)
 
 בתיקייה `.sessions/` נוצרים:
-- `prod_dcX.session.json`: auth_key + endpoint/framing + server_salt
-- `prod_dcX.updates.json`: updates state מינימלי (pts/qts/seq/date) כדי שהבוט יחזיק ריסטארטים יותר טוב
-- `prod_dcX.entities.json`: entity cache מינימלי (user/channel access_hash) כדי ש־reply ב־DM/ערוצים יעבוד גם אחרי ריסטארט
-- `prod.current`: pointer לסשן “הנוכחי”
-
+- `.sessions/sandbox/test_dcX.session.json`: auth_key + endpoint/framing + server_salt
+- `.sessions/sandbox/test_dcX.updates.json`: updates state מינימלי
+- `.sessions/sandbox/test_dcX.entities.json`: entity cache מינימלי
+- `.sessions/sandbox/current`: pointer לסשן הסנדבוקס
+- `.sessions/prod/prod_dcX.*` ו-`.sessions/prod/current`: lane נפרד לפרוד
