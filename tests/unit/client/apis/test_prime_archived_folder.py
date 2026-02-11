@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from telecraft.client.entities import EntityCacheError
 from telecraft.client.mtproto import ClientInit, MtprotoClient
 
 
@@ -23,13 +22,25 @@ def test_send_message_channel_primes_archived_folder_when_needed() -> None:
 
     calls: list[tuple[str, int | None]] = []
 
-    async def prime_entities(*, limit: int = 100, folder_id: int | None = None, timeout: float = 20.0) -> None:
+    async def prime_entities(
+        *, limit: int = 100, folder_id: int | None = None, timeout: float = 20.0
+    ) -> None:
+        _ = (limit, timeout)
         calls.append(("prime", folder_id))
         # Only archived folder contains our channel.
         if folder_id == 1:
             c.entities.channel_access_hash[123] = 999
 
-    async def send_message_peer(_peer: Any, _text: str, *, timeout: float = 20.0) -> Any:
+    async def send_message_peer(
+        _peer: Any,
+        _text: str,
+        *,
+        reply_to_msg_id: int | None = None,
+        silent: bool = False,
+        reply_markup: Any | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        _ = (reply_to_msg_id, silent, reply_markup, timeout)
         calls.append(("send", None))
         return "ok"
 
@@ -41,5 +52,3 @@ def test_send_message_channel_primes_archived_folder_when_needed() -> None:
     assert ("prime", None) in calls
     assert ("prime", 1) in calls
     assert ("send", None) in calls
-
-

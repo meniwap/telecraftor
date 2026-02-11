@@ -5,6 +5,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
+from uuid import uuid4
 
 from telecraft.client.peers import Peer, PeerType, normalize_phone, normalize_username
 from telecraft.tl.generated.types import (
@@ -241,7 +242,7 @@ def load_entity_cache_file(path: str | Path) -> EntityCache:
 def save_entity_cache_file(path: str | Path, cache: EntityCache) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp = p.with_name(f"{p.name}.{os.getpid()}.{uuid4().hex}.tmp")
     tmp.write_text(
         json.dumps(cache.to_json_dict(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -252,4 +253,3 @@ def save_entity_cache_file(path: str | Path, cache: EntityCache) -> None:
     except OSError:
         pass
     tmp.replace(p)
-

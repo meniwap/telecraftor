@@ -5,6 +5,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 _SESSION_VERSION = 1
 
@@ -159,7 +160,7 @@ def save_session_file(path: str | Path, session: MtprotoSession) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
 
-    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp = p.with_name(f"{p.name}.{os.getpid()}.{uuid4().hex}.tmp")
     tmp.write_text(
         json.dumps(session.to_json_dict(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -173,4 +174,3 @@ def save_session_file(path: str | Path, session: MtprotoSession) -> None:
         pass
 
     tmp.replace(p)
-
