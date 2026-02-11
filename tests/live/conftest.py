@@ -359,8 +359,7 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
         session_path_obj = (Path.cwd() / session_path_obj).resolve()
     if not session_path_obj.exists():
         pytest.skip(
-            f"No session found for runtime={runtime!r} network={network!r}. "
-            "Run login first."
+            f"No session found for runtime={runtime!r} network={network!r}. Run login first."
         )
     try:
         validate_session_matches_network(

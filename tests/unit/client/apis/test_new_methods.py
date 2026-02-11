@@ -122,11 +122,11 @@ class TestIterParticipants:
     def test_participant_filters_exist(self):
         """Test that participant filter types exist."""
         from telecraft.tl.generated.types import (
-            ChannelParticipantsRecent,
             ChannelParticipantsAdmins,
-            ChannelParticipantsBots,
             ChannelParticipantsBanned,
+            ChannelParticipantsBots,
             ChannelParticipantsKicked,
+            ChannelParticipantsRecent,
         )
 
         # Just verify they can be instantiated
@@ -196,9 +196,9 @@ class TestSendAction:
     def test_action_types_exist(self):
         """Test that typing action types exist."""
         from telecraft.tl.generated.types import (
-            SendMessageTypingAction,
-            SendMessageRecordAudioAction,
             SendMessageCancelAction,
+            SendMessageRecordAudioAction,
+            SendMessageTypingAction,
         )
 
         assert SendMessageTypingAction() is not None

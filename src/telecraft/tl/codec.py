@@ -141,10 +141,7 @@ class TLWriter:
                     bit_opt = int(bit_s)
                 except ValueError:
                     bit_opt = None
-                if (
-                    bit_opt is not None
-                    and (flags_values.get(flags_name, 0) & (1 << bit_opt)) == 0
-                ):
+                if bit_opt is not None and (flags_values.get(flags_name, 0) & (1 << bit_opt)) == 0:
                     continue
                 if inner == "true":
                     continue
@@ -366,5 +363,3 @@ def loads(data: bytes) -> Any:
     r = TLReader(data)
     obj = r.read_object()
     return obj
-
-

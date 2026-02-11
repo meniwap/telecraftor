@@ -30,8 +30,10 @@ def _plan_moves(sessions_root: Path) -> list[MoveAction]:
 
         runtime_dir = _runtime_dir_for_name(name)
         if runtime_dir is not None:
-            target = sessions_root / runtime_dir / (
-                "current" if name in {"test.current", "prod.current"} else name
+            target = (
+                sessions_root
+                / runtime_dir
+                / ("current" if name in {"test.current", "prod.current"} else name)
             )
             moves.append(MoveAction(source=src, target=target, kind="move"))
             continue

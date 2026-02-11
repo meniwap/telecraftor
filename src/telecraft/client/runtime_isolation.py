@@ -55,9 +55,7 @@ def resolve_runtime(raw: str | None, *, default: RuntimeMode = "sandbox") -> Run
         return "sandbox"
     if v in {"prod", "production"}:
         return "prod"
-    raise RuntimeIsolationError(
-        f"Unknown runtime {raw!r}. Expected one of: sandbox, prod."
-    )
+    raise RuntimeIsolationError(f"Unknown runtime {raw!r}. Expected one of: sandbox, prod.")
 
 
 def resolve_network(*, runtime: RuntimeMode | str, explicit_network: str | None) -> NetworkMode:

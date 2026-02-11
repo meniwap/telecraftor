@@ -1,4 +1,5 @@
 """Tests for block/unblock, contacts, and invite links methods."""
+
 from __future__ import annotations
 
 import asyncio

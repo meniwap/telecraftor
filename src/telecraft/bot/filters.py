@@ -356,4 +356,3 @@ def and_(a: Filter, b: Filter) -> Filter:
 
 def or_(a: Filter, b: Filter) -> Filter:
     return Or(a=a, b=b)
-

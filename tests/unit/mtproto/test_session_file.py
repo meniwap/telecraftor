@@ -44,4 +44,3 @@ def test_session_file_rejects_invalid_salt() -> None:
             auth_key=b"\x11" * 256,
             server_salt=b"\x22" * 7,
         ).validate()
-

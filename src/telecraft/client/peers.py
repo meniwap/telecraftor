@@ -114,5 +114,3 @@ def peer_from_tl_peer(peer_obj: object) -> Peer | None:
         v = getattr(peer_obj, "channel_id", None)
         return Peer.channel(int(v)) if isinstance(v, int) else None
     return None
-
-

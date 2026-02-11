@@ -4,18 +4,13 @@ Tests for location, stickers, voice, and video note features.
 
 import asyncio
 import inspect
-from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from telecraft.client.mtproto import ClientInit, MtprotoClient, MtprotoClientError
-from telecraft.client.peers import Peer
 from telecraft.tl.generated.functions import (
-    MessagesEditMessage,
     MessagesGetStickerSet,
-    MessagesSendMedia,
 )
 from telecraft.tl.generated.types import (
     DocumentAttributeAudio,
@@ -23,13 +18,9 @@ from telecraft.tl.generated.types import (
     InputGeoPoint,
     InputGeoPointEmpty,
     InputMediaContact,
-    InputMediaDocument,
     InputMediaGeoLive,
     InputMediaGeoPoint,
-    InputMediaUploadedDocument,
-    InputPeerUser,
     InputStickerSetShortName,
-    Updates,
 )
 
 

@@ -25,7 +25,6 @@ from telecraft.tl.generated.types import (
     ReplyKeyboardMarkup,
 )
 
-
 # ========================== Inline Keyboard ==========================
 
 
@@ -108,7 +107,7 @@ class InlineKeyboard:
         switch_inline_query_current_chat: str | None = None,
         web_app_url: str | None = None,
         copy_text: str | None = None,
-    ) -> "InlineKeyboard":
+    ) -> InlineKeyboard:
         """Add a button to the current row."""
         data = callback_data.encode() if isinstance(callback_data, str) else callback_data
         self._current_row.append(
@@ -124,7 +123,7 @@ class InlineKeyboard:
         )
         return self
 
-    def add_row(self) -> "InlineKeyboard":
+    def add_row(self) -> InlineKeyboard:
         """Finish current row and start a new one."""
         if self._current_row:
             self._rows.append(self._current_row)
@@ -136,11 +135,11 @@ class InlineKeyboard:
         text: str,
         callback_data: bytes | str | None = None,
         url: str | None = None,
-    ) -> "InlineKeyboard":
+    ) -> InlineKeyboard:
         """Shorthand for add_button with common options."""
         return self.add_button(text, callback_data=callback_data, url=url)
 
-    def row(self) -> "InlineKeyboard":
+    def row(self) -> InlineKeyboard:
         """Alias for add_row()."""
         return self.add_row()
 
@@ -151,9 +150,7 @@ class InlineKeyboard:
         if self._current_row:
             rows.append(self._current_row)
 
-        tl_rows = [
-            KeyboardButtonRow(buttons=[btn.to_tl() for btn in row]) for row in rows
-        ]
+        tl_rows = [KeyboardButtonRow(buttons=[btn.to_tl() for btn in row]) for row in rows]
         return ReplyInlineMarkup(rows=tl_rows)
 
 
@@ -207,7 +204,7 @@ class ReplyKeyboard:
         *,
         request_phone: bool = False,
         request_location: bool = False,
-    ) -> "ReplyKeyboard":
+    ) -> ReplyKeyboard:
         """Add a button to the current row."""
         self._current_row.append(
             ReplyButton(
@@ -218,18 +215,18 @@ class ReplyKeyboard:
         )
         return self
 
-    def add_row(self) -> "ReplyKeyboard":
+    def add_row(self) -> ReplyKeyboard:
         """Finish current row and start a new one."""
         if self._current_row:
             self._rows.append(self._current_row)
             self._current_row = []
         return self
 
-    def button(self, text: str) -> "ReplyKeyboard":
+    def button(self, text: str) -> ReplyKeyboard:
         """Shorthand for add_button with just text."""
         return self.add_button(text)
 
-    def row(self) -> "ReplyKeyboard":
+    def row(self) -> ReplyKeyboard:
         """Alias for add_row()."""
         return self.add_row()
 
@@ -251,9 +248,7 @@ class ReplyKeyboard:
         if self.persistent:
             flags |= 16
 
-        tl_rows = [
-            KeyboardButtonRow(buttons=[btn.to_tl() for btn in row]) for row in rows
-        ]
+        tl_rows = [KeyboardButtonRow(buttons=[btn.to_tl() for btn in row]) for row in rows]
         return ReplyKeyboardMarkup(
             flags=flags,
             resize=self.resize if self.resize else None,
@@ -279,9 +274,7 @@ def remove_keyboard(selective: bool = False) -> ReplyKeyboardHide:
     return ReplyKeyboardHide(flags=flags, selective=selective if selective else None)
 
 
-def force_reply(
-    selective: bool = False, placeholder: str | None = None
-) -> ReplyKeyboardForceReply:
+def force_reply(selective: bool = False, placeholder: str | None = None) -> ReplyKeyboardForceReply:
     """
     Create a force reply object that shows reply interface to user.
 

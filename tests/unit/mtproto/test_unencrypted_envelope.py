@@ -23,5 +23,3 @@ def test_unpack_rejects_nonzero_auth_key_id() -> None:
     )
     with pytest.raises(Exception):
         unpack_unencrypted(bad)
-
-

@@ -40,7 +40,9 @@ class PrivacyAPI:
             timeout=timeout,
         )
 
-    async def set(self, key: PrivacyKey | Any, rules: Sequence[Any], *, timeout: float = 20.0) -> Any:
+    async def set(
+        self, key: PrivacyKey | Any, rules: Sequence[Any], *, timeout: float = 20.0
+    ) -> Any:
         return await self._raw.invoke_api(
             AccountSetPrivacy(
                 key=build_input_privacy_key(key),

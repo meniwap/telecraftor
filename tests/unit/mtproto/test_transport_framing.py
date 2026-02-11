@@ -36,7 +36,7 @@ def test_abridged_requires_multiple_of_4() -> None:
 
 def test_intermediate_encode_decode() -> None:
     f = IntermediateFraming()
-    payload = b"\xAA\xBB\xCC\xDD" * 5
+    payload = b"\xaa\xbb\xcc\xdd" * 5
     framed = f.encode(payload)
     buf = bytearray(framed)
     out = f.decode_from_buffer(buf)
@@ -46,11 +46,9 @@ def test_intermediate_encode_decode() -> None:
 
 def test_intermediate_partial_buffer() -> None:
     f = IntermediateFraming()
-    payload = b"\xAA\xBB\xCC\xDD" * 2
+    payload = b"\xaa\xbb\xcc\xdd" * 2
     framed = f.encode(payload)
     buf = bytearray(framed[:3])
     assert f.decode_from_buffer(buf) is None
     buf.extend(framed[3:])
     assert f.decode_from_buffer(buf) == payload
-
-

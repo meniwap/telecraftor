@@ -310,10 +310,9 @@ def _discover_test_function_names() -> set[str]:
 
             tree = ast.parse(path.read_text(encoding="utf-8"))
             for node in tree.body:
-                if (
-                    isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-                    and node.name.startswith("test_")
-                ):
+                if isinstance(
+                    node, (ast.FunctionDef, ast.AsyncFunctionDef)
+                ) and node.name.startswith("test_"):
                     names.add(node.name)
     return names
 
@@ -361,8 +360,7 @@ def test_v2_method_matrix_is_complete_and_valid() -> None:
     extra = sorted(seen - methods, key=lambda x: (x.namespace, x.method))
     assert not missing, f"Missing matrix entries: {[f'{m.namespace}.{m.method}' for m in missing]}"
     assert not extra, (
-        "Matrix has non-existing methods: "
-        f"{[f'{m.namespace}.{m.method}' for m in extra]}"
+        f"Matrix has non-existing methods: {[f'{m.namespace}.{m.method}' for m in extra]}"
     )
 
 
@@ -379,9 +377,8 @@ def test_v2_required_scenarios_have_named_tests() -> None:
             if expected not in discovered_names:
                 missing.append(expected)
 
-    assert not missing, (
-        "Missing required scenario tests (name-based coverage gate):\n"
-        + "\n".join(f"- {name}" for name in sorted(missing))
+    assert not missing, "Missing required scenario tests (name-based coverage gate):\n" + "\n".join(
+        f"- {name}" for name in sorted(missing)
     )
 
 

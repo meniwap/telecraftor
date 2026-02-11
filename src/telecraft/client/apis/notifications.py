@@ -27,7 +27,9 @@ if TYPE_CHECKING:
     from telecraft.client.mtproto import MtprotoClient
 
 
-async def _to_input_notify_target(raw: MtprotoClient, target: NotifyTarget, *, timeout: float) -> Any:
+async def _to_input_notify_target(
+    raw: MtprotoClient, target: NotifyTarget, *, timeout: float
+) -> Any:
     if target.kind == "peer":
         if target.peer is None:
             raise ValueError("NotifyTarget.peer_target requires peer")
@@ -83,7 +85,9 @@ class NotificationsAPI:
 
     async def get(self, target: NotifyTarget, *, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(
-            AccountGetNotifySettings(peer=await _to_input_notify_target(self._raw, target, timeout=timeout)),
+            AccountGetNotifySettings(
+                peer=await _to_input_notify_target(self._raw, target, timeout=timeout)
+            ),
             timeout=timeout,
         )
 

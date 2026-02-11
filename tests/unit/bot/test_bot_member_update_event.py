@@ -194,5 +194,3 @@ def test_member_filters_joined_and_banned() -> None:
         kind="ban",
     )
     assert member_banned()(ban_evt) is True
-
-

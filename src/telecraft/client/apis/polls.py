@@ -102,4 +102,3 @@ class PollsAPI:
         timeout: float = 20.0,
     ) -> Any:
         return await self._raw.send_scheduled_now(peer, msg_ids=msg_ids, timeout=timeout)
-

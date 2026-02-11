@@ -45,5 +45,3 @@ class IntermediateFraming:
         if len(payload) % 4 != 0:
             raise TransportError("Intermediate payload length is not multiple of 4.")
         return payload
-
-

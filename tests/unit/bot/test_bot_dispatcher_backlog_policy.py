@@ -52,5 +52,3 @@ def test_dispatcher_backlog_policy_marks_undated_events_at_startup() -> None:
     ok = disp._apply_backlog_policy(evt, started_at=1000, now_ts=1001)  # noqa: SLF001
     assert ok is True
     assert evt.is_backlog is True
-
-

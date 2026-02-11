@@ -142,4 +142,3 @@ class MtprotoState:
         _ = salt
 
         return plain[16:]
-

@@ -36,7 +36,7 @@ class AbridgedFraming:
         if not buffer:
             return None
         first = buffer[0]
-        if first == 0x7f:
+        if first == 0x7F:
             if len(buffer) < 4:
                 return None
             ln_words = int.from_bytes(buffer[1:4], "little")
@@ -50,5 +50,3 @@ class AbridgedFraming:
         payload = bytes(buffer[header_len:total])
         del buffer[:total]
         return payload
-
-

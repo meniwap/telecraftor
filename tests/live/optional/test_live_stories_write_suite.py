@@ -60,4 +60,3 @@ def test_stories__toggle_all_hidden__roundtrip_live(
     audit_reporter: Any,
 ) -> None:
     asyncio.run(_run_stories_write_suite(client_v2, live_context, audit_reporter))
-

@@ -31,10 +31,7 @@ async def _run_stars_readonly_suite(client: Client, ctx: Any, reporter: Any) -> 
         resource_ids["stars_status_type"] = type(status).__name__
         resource_ids["stars_topup_type"] = type(topup).__name__
         resource_ids["stars_tx_type"] = type(tx).__name__
-        return (
-            f"status={type(status).__name__} "
-            f"topup={type(topup).__name__} tx={type(tx).__name__}"
-        )
+        return f"status={type(status).__name__} topup={type(topup).__name__} tx={type(tx).__name__}"
 
     await run_step(
         name="stars.roundtrip",

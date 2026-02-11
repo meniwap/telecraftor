@@ -56,5 +56,3 @@ def test_add_user_to_channel_uses_channels_invite_to_channel() -> None:
     users = getattr(req, "users", None)
     assert isinstance(users, list) and len(users) == 1
     assert getattr(users[0], "TL_NAME", None) == "inputUser"
-
-

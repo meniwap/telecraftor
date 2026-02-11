@@ -28,5 +28,3 @@ def test_updates_state_storage_rejects_bad_version(tmp_path) -> None:
     )
     with pytest.raises(UpdatesStateStorageError):
         _ = load_updates_state_file(p)
-
-

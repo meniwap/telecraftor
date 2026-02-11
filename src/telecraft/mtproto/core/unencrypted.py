@@ -43,5 +43,3 @@ def unpack_unencrypted(data: bytes) -> UnencryptedMessage:
         raise UnencryptedMessageError("length mismatch")
     body = data[20:end]
     return UnencryptedMessage(msg_id=msg_id, body=body)
-
-

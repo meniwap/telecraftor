@@ -28,10 +28,7 @@ def test_against_openssl_if_available(tmp_path) -> None:
 
     key = bytes.fromhex("000102030405060708090a0b0c0d0e0f" * 2)
     iv = bytes.fromhex("0f0e0d0c0b0a09080706050403020100" * 2)
-    pt = bytes.fromhex(
-        "00112233445566778899aabbccddeeff"
-        "ffeeddccbbaa99887766554433221100"
-    )
+    pt = bytes.fromhex("00112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100")
 
     aes = AesIge(key=key, iv=iv)
     expected = aes.encrypt(pt)  # our result (used only if openssl exists)
@@ -63,5 +60,3 @@ def test_against_openssl_if_available(tmp_path) -> None:
 
     openssl_ct = out_file.read_bytes()
     assert openssl_ct == expected
-
-

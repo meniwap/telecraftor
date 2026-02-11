@@ -6,7 +6,6 @@ from typing import Any
 
 from telecraft.client.media import (
     ExtractedMediaWithCache,
-    PhotoSizeInfo,
     _get_photo_sizes_info,
     _pick_best_photo_size,
     download_via_get_file,
@@ -53,7 +52,9 @@ def test_extract_media_document_builds_location_and_filename() -> None:
         mime_type="text/plain",
         attributes=[DocumentAttributeFilename(file_name="a.txt")],
     )
-    msg = SimpleNamespace(TL_NAME="message", media=SimpleNamespace(TL_NAME="messageMediaDocument", document=doc))
+    msg = SimpleNamespace(
+        TL_NAME="message", media=SimpleNamespace(TL_NAME="messageMediaDocument", document=doc)
+    )
     m = extract_media(msg)
     assert m is not None
     assert m.kind == "document"
@@ -103,7 +104,13 @@ def test_get_photo_sizes_info_handles_progressive() -> None:
     photo = SimpleNamespace(
         TL_NAME="photo",
         sizes=[
-            SimpleNamespace(TL_NAME="photoSizeProgressive", type="y", w=1280, h=1280, sizes=[10000, 50000, 150000]),
+            SimpleNamespace(
+                TL_NAME="photoSizeProgressive",
+                type="y",
+                w=1280,
+                h=1280,
+                sizes=[10000, 50000, 150000],
+            ),
         ],
     )
     sizes = _get_photo_sizes_info(photo)
@@ -191,5 +198,3 @@ def test_extract_media_photo_regular() -> None:
     # Should NOT be ExtractedMediaWithCache (no cached bytes)
     if isinstance(m, ExtractedMediaWithCache):
         assert m.cached_bytes is None
-
-

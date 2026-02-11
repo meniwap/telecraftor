@@ -43,5 +43,3 @@ def test_object_roundtrip_input_peer_user() -> None:
     assert isinstance(out, InputPeerUser)
     assert out.user_id == 123
     assert out.access_hash == 456
-
-

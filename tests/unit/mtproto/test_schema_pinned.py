@@ -17,5 +17,3 @@ def test_layer_pinned() -> None:
 
     if LAYER <= 0:
         pytest.skip("Layer not pinned yet. Run: python tools/fetch_schema.py")
-
-

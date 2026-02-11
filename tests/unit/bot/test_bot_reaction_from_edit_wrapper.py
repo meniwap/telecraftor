@@ -33,5 +33,3 @@ def test_reaction_event_can_be_built_from_edit_wrapper() -> None:
     assert e.peer_type == "user"
     assert e.peer_id == 1
     assert e.msg_id == 10
-
-

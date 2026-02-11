@@ -173,5 +173,3 @@ def test_reaction_filters_basic() -> None:
     assert reaction_contains("❤️")(e) is True
     assert reaction_count_gte("❤️", 2)(e) is True
     assert reaction_count_gte("❤️", 5)(e) is False
-
-

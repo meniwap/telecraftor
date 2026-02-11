@@ -23,5 +23,3 @@ class Framing(Protocol):
 class Endpoint:
     host: str
     port: int
-
-

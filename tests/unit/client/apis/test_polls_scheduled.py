@@ -1,4 +1,5 @@
 """Tests for polls, quizzes, and scheduled messages."""
+
 from __future__ import annotations
 
 import asyncio
@@ -93,15 +94,17 @@ def test_send_poll_creates_input_media_poll() -> None:
 
     c.invoke_api = invoke_api  # type: ignore[assignment]
 
-    result = asyncio.run(c.send_poll(
-        ("user", 123),
-        "What is your favorite color?",
-        ["Red", "Blue", "Green"],
-    ))
+    result = asyncio.run(
+        c.send_poll(
+            ("user", 123),
+            "What is your favorite color?",
+            ["Red", "Blue", "Green"],
+        )
+    )
     assert result is not None
     assert len(seen) == 1
     assert getattr(seen[0], "TL_NAME", None) == "messages.sendMedia"
-    
+
     media = getattr(seen[0], "media", None)
     assert media is not None
     assert getattr(media, "TL_NAME", None) == "inputMediaPoll"
@@ -118,6 +121,7 @@ def test_send_poll_requires_at_least_2_options() -> None:
     c.invoke_api = invoke_api  # type: ignore[assignment]
 
     import pytest
+
     with pytest.raises(Exception, match="at least 2 options"):
         asyncio.run(c.send_poll(("user", 123), "Question?", ["Only one"]))
 
@@ -135,16 +139,18 @@ def test_send_quiz_sets_quiz_flag() -> None:
 
     c.invoke_api = invoke_api  # type: ignore[assignment]
 
-    result = asyncio.run(c.send_quiz(
-        ("user", 123),
-        "2 + 2 = ?",
-        ["3", "4", "5"],
-        correct_option=1,  # "4" is correct
-        explanation="Basic math!",
-    ))
+    result = asyncio.run(
+        c.send_quiz(
+            ("user", 123),
+            "2 + 2 = ?",
+            ["3", "4", "5"],
+            correct_option=1,  # "4" is correct
+            explanation="Basic math!",
+        )
+    )
     assert result is not None
     assert len(seen) == 1
-    
+
     media = getattr(seen[0], "media", None)
     poll = getattr(media, "poll", None)
     assert getattr(poll, "quiz", None) is True

@@ -43,5 +43,3 @@ def test_parse_events_prefers_reaction_over_edit_when_no_edit_date() -> None:
     assert any(isinstance(e, ReactionEvent) for e in evts)
     # Should not include MessageEvent(kind="edit") for reaction-only edits.
     assert all(getattr(e, "kind", None) != "edit" for e in evts)
-
-

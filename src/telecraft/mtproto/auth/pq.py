@@ -105,5 +105,3 @@ class Pq:
     pq: int
     p: int
     q: int
-
-

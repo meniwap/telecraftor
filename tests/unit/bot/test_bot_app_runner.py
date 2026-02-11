@@ -47,5 +47,3 @@ def test_run_forever_stop_event_exits() -> None:
 
     asyncio.run(run_forever(_run_once, stop_event=stop))
     assert ran is False
-
-

@@ -3,7 +3,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from telecraft.client.stickers import DocumentRef, StickerSetRef, build_input_document, build_input_sticker_set
+from telecraft.client.stickers import (
+    DocumentRef,
+    StickerSetRef,
+    build_input_document,
+    build_input_sticker_set,
+)
 from telecraft.tl.generated.functions import (
     MessagesClearRecentStickers,
     MessagesFaveSticker,
@@ -13,14 +18,14 @@ from telecraft.tl.generated.functions import (
     MessagesGetFavedStickers,
     MessagesGetFeaturedStickers,
     MessagesGetRecentStickers,
-    MessagesGetStickerSet,
     MessagesGetStickers,
+    MessagesGetStickerSet,
     MessagesInstallStickerSet,
     MessagesReadFeaturedStickers,
     MessagesReorderStickerSets,
     MessagesSaveRecentSticker,
-    MessagesSearchStickerSets,
     MessagesSearchStickers,
+    MessagesSearchStickerSets,
     MessagesUninstallStickerSet,
 )
 
@@ -36,7 +41,9 @@ class StickerSetsAPI:
         return await self._raw.invoke_api(MessagesGetAllStickers(hash=int(hash)), timeout=timeout)
 
     async def featured(self, *, hash: int = 0, timeout: float = 20.0) -> Any:
-        return await self._raw.invoke_api(MessagesGetFeaturedStickers(hash=int(hash)), timeout=timeout)
+        return await self._raw.invoke_api(
+            MessagesGetFeaturedStickers(hash=int(hash)), timeout=timeout
+        )
 
     async def read_featured(self, ids: Sequence[int], *, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(

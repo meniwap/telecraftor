@@ -96,5 +96,3 @@ def test_reaction_event_my_reactions_fallbacks_to_chosen_order() -> None:
         reactions=mr,
     )
     assert e.my_reactions == ["❤️", "🔥"]
-
-

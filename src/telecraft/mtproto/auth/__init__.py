@@ -16,5 +16,3 @@ __all__ = [
     "tmp_aes_key_iv",
     "make_input_check_password_srp",
 ]
-
-

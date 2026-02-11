@@ -50,4 +50,3 @@ def test_send_req_pq_multi_fails_after_too_many_small_frames() -> None:
     transport = FakeTransport(payloads=[b"\x00\x00\x00\x00"] * 1000)
     with pytest.raises(AuthHandshakeError):
         asyncio.run(send_req_pq_multi(transport, MsgIdGenerator()))
-

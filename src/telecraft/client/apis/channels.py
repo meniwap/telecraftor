@@ -57,7 +57,9 @@ class ChannelSettingsAPI:
             timeout=timeout,
         )
 
-    async def toggle_antispam(self, channel: PeerRef, enabled: bool, *, timeout: float = 20.0) -> Any:
+    async def toggle_antispam(
+        self, channel: PeerRef, enabled: bool, *, timeout: float = 20.0
+    ) -> Any:
         return await self._raw.invoke_api(
             ChannelsToggleAntiSpam(
                 channel=await resolve_input_channel(self._raw, channel, timeout=timeout),

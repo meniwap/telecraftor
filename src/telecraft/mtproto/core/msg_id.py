@@ -42,5 +42,3 @@ class MsgIdGenerator:
             msg_id = self._last + 4
         self._last = msg_id
         return msg_id
-
-

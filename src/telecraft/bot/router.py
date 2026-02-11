@@ -202,4 +202,3 @@ class Router:
                 break
             except Exception as ex:  # noqa: BLE001
                 logger.exception("Handler crashed", exc_info=ex)
-

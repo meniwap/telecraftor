@@ -9,5 +9,3 @@ def sha1(data: bytes) -> bytes:
 
 def sha256(data: bytes) -> bytes:
     return hashlib.sha256(data).digest()
-
-

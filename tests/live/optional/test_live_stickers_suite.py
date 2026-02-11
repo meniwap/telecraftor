@@ -54,4 +54,3 @@ def test_stickers_sets__all__roundtrip_live(
     audit_reporter: Any,
 ) -> None:
     asyncio.run(_run_stickers_suite(client_v2, live_context, audit_reporter))
-

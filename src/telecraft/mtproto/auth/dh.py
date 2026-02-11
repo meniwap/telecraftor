@@ -63,5 +63,3 @@ def make_dh_result(*, g: int, dh_prime: bytes, g_a: bytes) -> DhResult:
     gb = _int_to_be_bytes(gb_int)
     auth = _int_to_be_bytes(auth_int)
     return DhResult(auth_key=auth, auth_key_id=auth_key_id(auth), g_b=gb)
-
-

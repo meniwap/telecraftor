@@ -33,7 +33,6 @@ class FakeActionChatJoinedByRequest:
     TL_NAME = "messageActionChatJoinedByRequest"
 
 
-
 @dataclass
 class FakeActionChatJoinedByLink:
     TL_NAME = "messageActionChatJoinedByLink"
@@ -126,6 +125,7 @@ def test_chat_action_pin_reads_pinned_msg_id_from_reply_header() -> None:
     assert e.kind == "pin"
     assert e.pinned_msg_id == 77
 
+
 def test_parse_events_prefers_chat_action_over_message_event_for_message_service() -> None:
     msg = FakeMessageService(
         flags=0,
@@ -161,5 +161,3 @@ def test_router_on_action_dispatches() -> None:
 
     asyncio.run(r.dispatch_action(evt))
     assert got == ["join:chat:123"]
-
-

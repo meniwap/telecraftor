@@ -83,4 +83,3 @@ def test_srp_changes_with_password() -> None:
         password="pw2", password_state=pw_state, random_bytes=lambda n: fixed[:n]
     )
     assert a.m1 != b.m1
-

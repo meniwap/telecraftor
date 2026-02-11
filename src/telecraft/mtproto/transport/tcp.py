@@ -66,5 +66,3 @@ class TcpTransport:
             if not chunk:
                 raise TransportError("Connection closed.")
             self._rx_buf.extend(chunk)
-
-
