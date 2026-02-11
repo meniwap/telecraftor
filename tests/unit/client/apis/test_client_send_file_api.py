@@ -69,5 +69,3 @@ def test_send_file_routes_to_send_media_document(tmp_path: Path) -> None:
     send_req = [x for x in seen if getattr(x, "TL_NAME", None) == "messages.sendMedia"][-1]
     media = getattr(send_req, "media", None)
     assert getattr(media, "TL_NAME", None) == "inputMediaUploadedDocument"
-
-

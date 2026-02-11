@@ -31,4 +31,3 @@ def test_channels__read_history__delegates_to_raw() -> None:
     out = asyncio.run(client.channels.read_history("channel:1", timeout=5.0))
     assert out["ok"] is True
     assert any(name == "invoke_api" for name, _, _ in raw.calls)
-

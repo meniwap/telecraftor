@@ -20,5 +20,3 @@ def test_build_pq_inner_data_factorizes() -> None:
     assert st.public_key_fingerprint == 123456789
     assert st.inner_data.p == st.p
     assert st.inner_data.q == st.q
-
-

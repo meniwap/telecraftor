@@ -58,5 +58,3 @@ def test_update_new_wrapper_sets_kind_new() -> None:
     e = MessageEvent.from_update(client=object(), update=upd)
     assert e is not None
     assert e.kind == "new"
-
-

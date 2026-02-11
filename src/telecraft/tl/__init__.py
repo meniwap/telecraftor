@@ -12,5 +12,3 @@ __all__ = [
     "parse_tl_with_errors",
     "TLParseError",
 ]
-
-

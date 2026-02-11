@@ -12,4 +12,3 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         parts = p.parts
         if "tests" in parts and "unit" in parts:
             item.add_marker(pytest.mark.unit)
-

@@ -82,5 +82,3 @@ def test_action_dedupe_does_not_drop_legit_repeated_pins_with_different_msg_id()
 
     asyncio.run(_run())
     assert [e.msg_id for e in seen] == [100, 101]
-
-

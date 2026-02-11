@@ -26,7 +26,9 @@ class ProfileEmojiStatusAPI:
         )
 
     async def recent(self, *, hash: int = 0, timeout: float = 20.0) -> Any:
-        return await self._raw.invoke_api(AccountGetRecentEmojiStatuses(hash=int(hash)), timeout=timeout)
+        return await self._raw.invoke_api(
+            AccountGetRecentEmojiStatuses(hash=int(hash)), timeout=timeout
+        )
 
     async def channel_defaults(self, *, hash: int = 0, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(
@@ -38,7 +40,9 @@ class ProfileEmojiStatusAPI:
         return await self._raw.invoke_api(AccountClearRecentEmojiStatuses(), timeout=timeout)
 
     async def update(self, status: Any, *, timeout: float = 20.0) -> Any:
-        return await self._raw.invoke_api(AccountUpdateEmojiStatus(emoji_status=status), timeout=timeout)
+        return await self._raw.invoke_api(
+            AccountUpdateEmojiStatus(emoji_status=status), timeout=timeout
+        )
 
 
 class ProfileAPI:

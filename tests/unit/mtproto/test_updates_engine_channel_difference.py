@@ -36,5 +36,3 @@ def test_update_channel_triggers_get_channel_difference() -> None:
     req0 = calls[0]
     assert getattr(req0, "TL_NAME", None) == "updates.getChannelDifference"
     assert isinstance(getattr(req0, "filter", None), ChannelMessagesFilterEmpty)
-
-

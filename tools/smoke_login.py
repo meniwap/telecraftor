@@ -142,8 +142,10 @@ async def _run(args: argparse.Namespace) -> int:
         args.phone if args.phone is not None else input("Phone number (international): ").strip()
     )
 
-    session_path = Path(args.session) if args.session is not None else _default_session_path(
-        network=args.network, dc=args.dc
+    session_path = (
+        Path(args.session)
+        if args.session is not None
+        else _default_session_path(network=args.network, dc=args.dc)
     )
     session_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -249,4 +251,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -10,5 +10,3 @@ def test_make_dh_result_basic() -> None:
     assert isinstance(res.auth_key, (bytes, bytearray))
     assert len(res.auth_key_id) == 8
     assert isinstance(res.g_b, (bytes, bytearray))
-
-

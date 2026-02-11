@@ -1,4 +1,5 @@
 """Tests for member transfer and bulk operations."""
+
 from __future__ import annotations
 
 import asyncio
@@ -33,16 +34,19 @@ def test_add_users_to_group_returns_stats() -> None:
         # Simulate failure for user 2
         if call_count[0] == 2:
             from telecraft.mtproto.rpc.sender import RpcErrorException
+
             raise RpcErrorException(code=400, message="USER_PRIVACY_RESTRICTED")
         return type("_R", (), {"users": [], "chats": []})()
 
     c.invoke_api = invoke_api  # type: ignore[assignment]
 
-    result = asyncio.run(c.add_users_to_group(
-        ("channel", 100),
-        [("user", 1), ("user", 2), ("user", 3)],
-        on_error="skip",
-    ))
+    result = asyncio.run(
+        c.add_users_to_group(
+            ("channel", 100),
+            [("user", 1), ("user", 2), ("user", 3)],
+            on_error="skip",
+        )
+    )
 
     assert result["total"] == 3
     assert len(result["success"]) == 2
@@ -57,17 +61,21 @@ def test_add_users_to_group_raises_on_error() -> None:
 
     async def invoke_api(req: Any, *, timeout: float = 0) -> Any:
         from telecraft.mtproto.rpc.sender import RpcErrorException
+
         raise RpcErrorException(code=400, message="USER_PRIVACY_RESTRICTED")
 
     c.invoke_api = invoke_api  # type: ignore[assignment]
 
     import pytest
+
     with pytest.raises(Exception):
-        asyncio.run(c.add_users_to_group(
-            ("channel", 100),
-            [("user", 1)],
-            on_error="raise",
-        ))
+        asyncio.run(
+            c.add_users_to_group(
+                ("channel", 100),
+                [("user", 1)],
+                on_error="raise",
+            )
+        )
 
 
 # ===================== Get Group Members Tests =====================
@@ -82,15 +90,19 @@ def test_get_group_members_returns_list() -> None:
         # Return mock participants
         user1 = type("_U", (), {"id": 1, "first_name": "User1", "bot": False})()
         user2 = type("_U", (), {"id": 2, "first_name": "User2", "bot": True})()
-        return type("_R", (), {
-            "participants": [
-                type("_P", (), {"user_id": 1})(),
-                type("_P", (), {"user_id": 2})(),
-            ],
-            "users": [user1, user2],
-            "chats": [],
-            "count": 2,
-        })()
+        return type(
+            "_R",
+            (),
+            {
+                "participants": [
+                    type("_P", (), {"user_id": 1})(),
+                    type("_P", (), {"user_id": 2})(),
+                ],
+                "users": [user1, user2],
+                "chats": [],
+                "count": 2,
+            },
+        )()
 
     c.invoke_api = invoke_api  # type: ignore[assignment]
 
@@ -118,26 +130,32 @@ def test_transfer_members_structure() -> None:
             # Return mock participants
             user1 = type("_U", (), {"id": 1, "first_name": "User1", "bot": False})()
             user2 = type("_U", (), {"id": 2, "first_name": "Bot", "bot": True})()
-            return type("_R", (), {
-                "participants": [
-                    type("_P", (), {"user_id": 1})(),
-                    type("_P", (), {"user_id": 2})(),
-                ],
-                "users": [user1, user2],
-                "chats": [],
-                "count": 2,
-            })()
+            return type(
+                "_R",
+                (),
+                {
+                    "participants": [
+                        type("_P", (), {"user_id": 1})(),
+                        type("_P", (), {"user_id": 2})(),
+                    ],
+                    "users": [user1, user2],
+                    "chats": [],
+                    "count": 2,
+                },
+            )()
         else:
             # invite
             return type("_R", (), {"users": [], "chats": []})()
 
     c.invoke_api = invoke_api  # type: ignore[assignment]
 
-    result = asyncio.run(c.transfer_members(
-        ("channel", 100),
-        ("channel", 200),
-        exclude_bots=True,
-    ))
+    result = asyncio.run(
+        c.transfer_members(
+            ("channel", 100),
+            ("channel", 200),
+            exclude_bots=True,
+        )
+    )
 
     assert "success" in result
     assert "failed" in result

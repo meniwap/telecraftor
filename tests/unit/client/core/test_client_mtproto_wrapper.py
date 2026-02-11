@@ -31,4 +31,3 @@ def test_client_invoke_with_layer_requires_init() -> None:
     c = MtprotoClient()
     with pytest.raises(MtprotoClientError):
         asyncio.run(c.invoke_with_layer(HelpGetConfig()))
-

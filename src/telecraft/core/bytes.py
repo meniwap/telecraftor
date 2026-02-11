@@ -52,5 +52,3 @@ def write_uint_le(value: int) -> bytes:
 
 def write_long_le(value: int) -> bytes:
     return struct.pack("<q", int(value))
-
-

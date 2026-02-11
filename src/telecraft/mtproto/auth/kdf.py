@@ -65,5 +65,3 @@ def new_nonce_hash(*, new_nonce: bytes, auth_key: bytes, number: int) -> bytes:
         raise KdfError("new_nonce must be 32 bytes")
     aux = auth_key_aux_hash(auth_key)
     return sha1(new_nonce + bytes([number]) + aux)[4:20]
-
-

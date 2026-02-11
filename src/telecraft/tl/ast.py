@@ -57,5 +57,3 @@ class TLSchema:
 
     constructors: tuple[TLConstructor, ...]
     methods: tuple[TLMethod, ...]
-
-

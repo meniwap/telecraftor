@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from telecraft.tl.generated.types import ChatAdminRights, ChatBannedRights
 
 
@@ -116,8 +114,7 @@ ADMIN_RIGHTS_BASIC = make_admin_rights(
     manage_topics=True,
 )
 
+
 # Full ban (kick/ban semantics): disallow viewing messages until_date.
 def banned_rights_full_ban(*, until_date: int = 0) -> ChatBannedRights:
     return make_banned_rights(view_messages=True, until_date=until_date)
-
-

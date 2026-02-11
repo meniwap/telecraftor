@@ -6,6 +6,7 @@ from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
+
 def _peer_type_and_id(peer: object) -> tuple[str | None, int | None]:
     name = getattr(peer, "TL_NAME", None)
     if name == "peerUser":
@@ -18,6 +19,7 @@ def _peer_type_and_id(peer: object) -> tuple[str | None, int | None]:
         v = getattr(peer, "channel_id", None)
         return ("channel", int(v)) if isinstance(v, int) else (None, None)
     return None, None
+
 
 def _flag_is_set(flags: object, bit: int) -> bool:
     try:
@@ -34,6 +36,7 @@ def _decode_text(v: object) -> str | None:
     if isinstance(v, (bytes, bytearray)):
         return bytes(v).decode("utf-8", "replace")
     return str(v)
+
 
 def _parse_command(text: str) -> tuple[str | None, str | None]:
     """
@@ -162,7 +165,7 @@ class MessageEvent:
                 return await self.client.send_message_channel(
                     self.channel_id, text, reply_markup=reply_markup
                 )
-            except Exception as ex:  # noqa: BLE001
+            except Exception:  # noqa: BLE001
                 # Best-effort: missing access_hash is common after restarts/short updates.
                 try:
                     await self.client.prime_entities()
@@ -172,7 +175,8 @@ class MessageEvent:
                 except Exception as ex2:  # noqa: BLE001
                     logger.info("send_message_channel failed; falling back to self", exc_info=ex2)
                     return await self.client.send_message_self(text, reply_markup=reply_markup)
-        # Saved Messages: prefer send_message_self() to avoid needing access_hash for our own user id.
+        # Saved Messages: prefer send_message_self() to avoid needing
+        # access_hash for our own user id.
         try:
             me_id_obj = getattr(self.client, "self_user_id", None)
             me_id = int(me_id_obj) if isinstance(me_id_obj, int) else None
@@ -191,7 +195,7 @@ class MessageEvent:
                 return await self.client.send_message_user(
                     self.user_id, text, reply_markup=reply_markup
                 )
-            except Exception as ex:  # noqa: BLE001
+            except Exception:  # noqa: BLE001
                 try:
                     await self.client.prime_entities()
                     return await self.client.send_message_user(
@@ -215,7 +219,9 @@ class MessageEvent:
             raise ValueError("add_user: missing peer context")
         if self.peer_type not in {"chat", "channel"}:
             raise ValueError(f"add_user: unsupported peer_type={self.peer_type!r}")
-        return await self.client.add_user_to_group((self.peer_type, int(self.peer_id)), user, fwd_limit=int(fwd_limit))
+        return await self.client.add_user_to_group(
+            (self.peer_type, int(self.peer_id)), user, fwd_limit=int(fwd_limit)
+        )
 
     @property
     def has_media(self) -> bool:
@@ -364,7 +370,8 @@ class MessageEvent:
                 sender_user_id = int(cast(int, getattr(from_peer, "user_id")))
 
             # Heuristic: if Telegram omits from_id in a private message object, it is almost
-            # always a self-authored/outgoing message (common for Saved Messages + some short updates).
+            # always a self-authored/outgoing message (common for Saved
+            # Messages + some short updates).
             if sender_user_id is None and peer_name == "peerUser" and outgoing is False:
                 outgoing = True
 
@@ -477,7 +484,7 @@ class ChatActionEvent:
                 return await self.client.send_message_channel(
                     int(self.peer_id), text, reply_markup=reply_markup
                 )
-            except Exception as ex:  # noqa: BLE001
+            except Exception:  # noqa: BLE001
                 try:
                     await self.client.prime_entities()
                     return await self.client.send_message_channel(
@@ -491,7 +498,7 @@ class ChatActionEvent:
                 return await self.client.send_message_user(
                     int(self.peer_id), text, reply_markup=reply_markup
                 )
-            except Exception as ex:  # noqa: BLE001
+            except Exception:  # noqa: BLE001
                 try:
                     await self.client.prime_entities()
                     return await self.client.send_message_user(
@@ -1098,4 +1105,3 @@ def parse_events(*, client: Any, update: Any) -> list[BotEvent]:
         out.append(d)
 
     return out
-

@@ -20,9 +20,7 @@ def test_server_salt_length() -> None:
 
 def test_new_nonce_hash_lengths() -> None:
     new_nonce = b"\x01" * 32
-    auth_key = b"\xAA" * 256
+    auth_key = b"\xaa" * 256
     for n in (1, 2, 3):
         h = new_nonce_hash(new_nonce=new_nonce, auth_key=auth_key, number=n)
         assert len(h) == 16
-
-

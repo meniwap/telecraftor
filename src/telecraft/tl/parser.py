@@ -139,5 +139,3 @@ def parse_tl_with_errors(text: str) -> tuple[TLSchema, tuple[TLParseError, ...]]
 def parse_tl_file(path: str | Path) -> TLSchema:
     p = Path(path)
     return parse_tl(p.read_text(encoding="utf-8"))
-
-

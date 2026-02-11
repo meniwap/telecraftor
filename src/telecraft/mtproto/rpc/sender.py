@@ -175,9 +175,7 @@ class MtprotoEncryptedSender:
         flood_retries = 0
 
         while True:
-            result = await self._invoke_tl_once(
-                req_obj, dumps_fn=dumps, timeout=timeout
-            )
+            result = await self._invoke_tl_once(req_obj, dumps_fn=dumps, timeout=timeout)
 
             # Check if this is a FloodWaitError that we should auto-handle
             if isinstance(result, FloodWaitError):
@@ -354,14 +352,10 @@ class MtprotoEncryptedSender:
                 wait_seconds = parse_flood_wait_seconds(message)
                 if wait_seconds is not None:
                     call.future.set_exception(
-                        FloodWaitError(
-                            code=code, message=message, wait_seconds=wait_seconds
-                        )
+                        FloodWaitError(code=code, message=message, wait_seconds=wait_seconds)
                     )
                 else:
-                    call.future.set_exception(
-                        RpcErrorException(code=code, message=message)
-                    )
+                    call.future.set_exception(RpcErrorException(code=code, message=message))
             else:
                 call.future.set_result(result)
             return
@@ -479,4 +473,3 @@ class MtprotoEncryptedSender:
             "msg_new_detailed_info",
             "new_session_created",
         }
-

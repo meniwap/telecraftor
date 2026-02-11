@@ -167,13 +167,7 @@ def make_input_check_password_srp(
     hp = sha256(p_bytes)
     hg = sha256(g_bytes)
     m1 = sha256(
-        _xor_bytes(hp, hg)
-        + sha256(params.salt1)
-        + sha256(params.salt2)
-        + A_bytes
-        + b_bytes
-        + K
+        _xor_bytes(hp, hg) + sha256(params.salt1) + sha256(params.salt2) + A_bytes + b_bytes + K
     )
 
     return InputCheckPasswordSrp(srp_id=params.srp_id, a=A_bytes, m1=m1)
-

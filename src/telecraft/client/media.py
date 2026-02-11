@@ -3,12 +3,17 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from secrets import randbits
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
-from telecraft.tl.generated.functions import UploadGetFile, UploadSaveBigFilePart, UploadSaveFilePart
+from telecraft.tl.generated.functions import (
+    UploadGetFile,
+    UploadSaveBigFilePart,
+    UploadSaveFilePart,
+)
 from telecraft.tl.generated.types import (
     InputDocumentFileLocation,
     InputFile,
@@ -155,13 +160,15 @@ def _get_photo_sizes_info(photo: Any) -> list[PhotoSizeInfo]:
             sz = getattr(s, "size", None)
             size = int(sz) if isinstance(sz, int) else None
 
-        result.append(PhotoSizeInfo(
-            type=t,
-            width=width,
-            height=height,
-            size=size,
-            cached_bytes=cached_bytes,
-        ))
+        result.append(
+            PhotoSizeInfo(
+                type=t,
+                width=width,
+                height=height,
+                size=size,
+                cached_bytes=cached_bytes,
+            )
+        )
 
     return result
 
@@ -340,9 +347,7 @@ async def upload_file(
             ok = await invoke_api(req, timeout=timeout)
             ok_b = _tl_bool(ok)
             if ok_b is not True:
-                raise MediaError(
-                    f"upload_file: upload part failed (part={part}, ok={ok!r})"
-                )
+                raise MediaError(f"upload_file: upload part failed (part={part}, ok={ok!r})")
             part += 1
 
     if part != parts:
@@ -351,7 +356,9 @@ async def upload_file(
     name = p.name
     if use_big:
         return InputFileBig(id=fid, parts=int(parts), name=name)
-    return InputFile(id=fid, parts=int(parts), name=name, md5_checksum=md5.hexdigest() if md5 else "")
+    return InputFile(
+        id=fid, parts=int(parts), name=name, md5_checksum=md5.hexdigest() if md5 else ""
+    )
 
 
 def guess_mime_type(path: str | Path) -> str:
@@ -401,7 +408,9 @@ async def download_via_get_file(
         if isinstance(res, UploadFileCdnRedirect):
             raise MediaError("download_media: CDN redirect not supported in MVP")
         if not isinstance(res, UploadFile):
-            raise MediaError(f"download_media: unexpected upload.getFile result: {type(res).__name__}")
+            raise MediaError(
+                f"download_media: unexpected upload.getFile result: {type(res).__name__}"
+            )
 
         b = getattr(res, "bytes", None)
         if not isinstance(b, (bytes, bytearray)):
@@ -433,5 +442,3 @@ def ensure_dest_path(dest: str | Path, *, file_name: str) -> Path:
     if str(dest).endswith(os.sep):
         return d / file_name
     return d
-
-

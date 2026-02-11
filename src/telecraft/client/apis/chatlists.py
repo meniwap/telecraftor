@@ -30,7 +30,9 @@ def _chatlist_input(chatlist: ChatlistRef | Any) -> Any:
     return chatlist
 
 
-async def _input_peers(raw: MtprotoClient, peers: Sequence[PeerRef], *, timeout: float) -> list[Any]:
+async def _input_peers(
+    raw: MtprotoClient, peers: Sequence[PeerRef], *, timeout: float
+) -> list[Any]:
     return [await resolve_input_peer(raw, peer, timeout=timeout) for peer in peers]
 
 
@@ -95,7 +97,9 @@ class ChatlistInvitesAPI:
         )
 
     async def check(self, slug: str, *, timeout: float = 20.0) -> Any:
-        return await self._raw.invoke_api(ChatlistsCheckChatlistInvite(slug=str(slug)), timeout=timeout)
+        return await self._raw.invoke_api(
+            ChatlistsCheckChatlistInvite(slug=str(slug)), timeout=timeout
+        )
 
     async def join(self, slug: str, peers: Sequence[PeerRef], *, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(

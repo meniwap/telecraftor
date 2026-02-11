@@ -23,4 +23,3 @@ def test_privacy__get__delegates_to_raw() -> None:
     assert len(raw.calls) == 1
     assert raw.calls[0][0] == "invoke_api"
     assert raw.calls[0][2]["timeout"] == 4.0
-

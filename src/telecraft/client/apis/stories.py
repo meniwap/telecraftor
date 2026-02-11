@@ -152,7 +152,9 @@ class StoriesAPI:
             timeout=timeout,
         )
 
-    async def toggle_peer_hidden(self, peer: PeerRef, hidden: bool, *, timeout: float = 20.0) -> Any:
+    async def toggle_peer_hidden(
+        self, peer: PeerRef, hidden: bool, *, timeout: float = 20.0
+    ) -> Any:
         return await self._raw.invoke_api(
             StoriesTogglePeerStoriesHidden(
                 peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
@@ -346,7 +348,9 @@ class StoriesAPI:
             timeout=timeout,
         )
 
-    async def increment_views(self, peer: PeerRef, ids: Sequence[int], *, timeout: float = 20.0) -> Any:
+    async def increment_views(
+        self, peer: PeerRef, ids: Sequence[int], *, timeout: float = 20.0
+    ) -> Any:
         return await self._raw.invoke_api(
             StoriesIncrementStoryViews(
                 peer=await resolve_input_peer(self._raw, peer, timeout=timeout),

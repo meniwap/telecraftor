@@ -27,4 +27,3 @@ class UpdatesState:
             date=int(cast(int, tl.date)),
             seq=int(cast(int, tl.seq)),
         )
-

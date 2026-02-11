@@ -84,7 +84,7 @@ async def send_req_pq_multi(transport: PacketTransport, msg_id_gen: MsgIdGenerat
         # Wait, obj is the *body* (ResPq). ResPq doesn't have msg_id field.
         # The msg_id was in the UnencryptedMessage envelope which we unwrapped inside _send.
         pass
-    
+
     if not isinstance(obj, ResPq):
         raise AuthHandshakeError(f"Unexpected response: {type(obj)}")
     return obj
@@ -157,9 +157,7 @@ def rsa_encrypt_inner_data(inner: PQInnerData, key: RsaPublicKey) -> bytes:
     return key.encrypt_raw(data)
 
 
-def decrypt_server_dh_inner(
-    server_dh: ServerDhParamsOk, *, new_nonce: bytes
-) -> ServerDhInnerData:
+def decrypt_server_dh_inner(server_dh: ServerDhParamsOk, *, new_nonce: bytes) -> ServerDhInnerData:
     """
     Decrypt server_DH_inner_data from server_DH_params_ok.encrypted_answer.
     """
@@ -256,8 +254,7 @@ async def _send_unencrypted_request(
         except UnencryptedMessageError as e:
             preview = payload[:32].hex()
             raise AuthHandshakeError(
-                "Failed to parse unencrypted response "
-                f"(len={len(payload)}, first32={preview}): {e}"
+                f"Failed to parse unencrypted response (len={len(payload)}, first32={preview}): {e}"
             ) from e
 
         # Keep outgoing msg_ids ahead of the server-provided msg_id.
@@ -315,12 +312,12 @@ async def exchange_auth_key(
             have,
         )
         raise AuthHandshakeError(f"No matching RSA key for server fingerprints: {fps!r}")
-    
+
     logger.debug(f"Selected RSA key fingerprint: {key.fingerprint}")
 
     encrypted_inner = rsa_encrypt_inner_data(st.inner_data, key)
     logger.debug(f"Encrypted inner data length: {len(encrypted_inner)}")
-    
+
     req_dh = ReqDhParams(
         nonce=st.nonce,
         server_nonce=st.server_nonce,
@@ -329,14 +326,14 @@ async def exchange_auth_key(
         public_key_fingerprint=key.fingerprint,
         encrypted_data=encrypted_inner,
     )
-    
+
     req_blob = dumps(req_dh)
     logger.debug(f"ReqDhParams serialized length: {len(req_blob)} bytes")
     logger.debug(f"ReqDhParams raw hex prefix: {req_blob[:64].hex()}")
 
     dh_params = await _send_unencrypted_request(transport, msg_id_gen, req_dh)
     logger.debug(f"Received dh_params response type: {type(dh_params)}")
-    
+
     if isinstance(dh_params, ServerDhParamsFail):
         raise AuthHandshakeError("Server returned server_DH_params_fail")
     if not isinstance(dh_params, ServerDhParamsOk):
@@ -441,5 +438,3 @@ async def exchange_auth_key(
         auth_key=dh_res.auth_key,
         auth_key_id=dh_res.auth_key_id,
     )
-
-

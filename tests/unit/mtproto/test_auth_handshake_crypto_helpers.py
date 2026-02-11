@@ -78,5 +78,3 @@ def test_rsa_encrypt_inner_data_uses_mtproto_raw_padding() -> None:
     inner_bytes = dumps(inner)
     assert padded[:20] == sha1(inner_bytes)
     assert padded[20 : 20 + len(inner_bytes)] == inner_bytes
-
-

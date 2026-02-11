@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from telecraft.mtproto.rpc.sender import (
     FloodWaitConfig,
     FloodWaitError,
@@ -106,9 +104,7 @@ class TestFloodWaitRetryIntegration:
         state.server_salt = b"\x00" * 8
         msg_id_gen = MagicMock()
 
-        sender = MtprotoEncryptedSender(
-            transport, state=state, msg_id_gen=msg_id_gen
-        )
+        sender = MtprotoEncryptedSender(transport, state=state, msg_id_gen=msg_id_gen)
 
         # Test that default config is applied
         assert sender._flood_wait_config.enabled is True

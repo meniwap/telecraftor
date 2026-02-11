@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .admin import AdminAPI
 from .business import BusinessAPI, BusinessLinksAPI, BusinessProfileAPI, BusinessQuickRepliesAPI
-from .channels import ChannelSettingsAPI, ChannelsAPI
+from .channels import ChannelsAPI, ChannelSettingsAPI
 from .chatlists import ChatlistInvitesAPI, ChatlistsAPI, ChatlistSuggestionsAPI, ChatlistUpdatesAPI
 from .chats import ChatsAPI
 from .contacts import ContactsAPI
@@ -31,15 +31,15 @@ from .saved import (
     SavedPinnedAPI,
     SavedReactionTagsAPI,
 )
+from .stars import StarsAPI, StarsFormsAPI, StarsRevenueAPI, StarsTransactionsAPI
 from .stickers import (
     StickerEmojiAPI,
     StickerFavoritesAPI,
     StickerRecentAPI,
-    StickerSearchAPI,
     StickersAPI,
+    StickerSearchAPI,
     StickerSetsAPI,
 )
-from .stars import StarsAPI, StarsFormsAPI, StarsRevenueAPI, StarsTransactionsAPI
 from .stories import StoriesAPI, StoriesCapabilitiesAPI, StoriesFeedAPI
 from .topics import TopicsAPI, TopicsForumAPI
 from .updates import UpdatesAPI

@@ -127,5 +127,3 @@ DEFAULT_SERVER_KEYRING = ServerKeyRing(
         _MAIN_KEY.fingerprint: _MAIN_KEY,
     }
 )
-
-

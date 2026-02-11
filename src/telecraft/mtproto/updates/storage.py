@@ -111,4 +111,3 @@ def save_updates_state_file(path: str | Path, state: UpdatesState) -> None:
     except OSError:
         pass
     tmp.replace(p)
-

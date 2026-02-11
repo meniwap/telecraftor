@@ -32,5 +32,3 @@ def test_flags_true_decodes_to_true_when_bit_present() -> None:
     roundtripped = loads(dumps(obj))
     assert isinstance(roundtripped, MessagePeerReaction)
     assert roundtripped.my is True
-
-

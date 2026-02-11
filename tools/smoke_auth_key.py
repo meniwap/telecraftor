@@ -27,7 +27,7 @@ def _b64(data: bytes) -> str:
 
 async def _run(args: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
-    
+
     if args.host is not None:
         host, port = args.host, args.port
     else:
@@ -98,5 +98,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

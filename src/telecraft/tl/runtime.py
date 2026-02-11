@@ -31,5 +31,3 @@ class TLRequest:
     def to_payload(self) -> dict[str, Any]:
         # Placeholder hook for future codec/serialization layer.
         return self.__dict__.copy()
-
-

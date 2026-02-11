@@ -12,8 +12,8 @@ from telecraft.client.apis._utils import (
 from telecraft.client.peers import PeerRef
 from telecraft.tl.generated.functions import (
     MessagesGetDialogFilters,
-    MessagesGetDialogUnreadMarks,
     MessagesGetDialogs,
+    MessagesGetDialogUnreadMarks,
     MessagesGetPeerDialogs,
     MessagesGetPinnedDialogs,
     MessagesGetSuggestedDialogFilters,
@@ -197,7 +197,9 @@ class DialogsAPI:
                 folder_id=int(folder_id) if folder_id is not None else None,
                 offset_date=int(offset_date),
                 offset_id=int(offset_id),
-                offset_peer=await resolve_input_peer_or_self(self._raw, offset_peer, timeout=timeout),
+                offset_peer=await resolve_input_peer_or_self(
+                    self._raw, offset_peer, timeout=timeout
+                ),
                 limit=int(limit),
                 hash=int(hash),
             ),

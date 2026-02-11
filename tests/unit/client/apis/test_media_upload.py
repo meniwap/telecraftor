@@ -66,5 +66,3 @@ def test_upload_file_big_uses_save_big_file_part(tmp_path: Path) -> None:
     assert seen[0].file_part == 0
     assert seen[-1].file_part == res.parts - 1
     assert seen[0].file_total_parts == res.parts
-
-

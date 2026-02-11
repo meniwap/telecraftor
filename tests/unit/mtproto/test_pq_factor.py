@@ -19,5 +19,3 @@ def test_factorize_medium() -> None:
 def test_reject_prime() -> None:
     with pytest.raises(PqFactorizationError):
         factorize_pq(101)
-
-

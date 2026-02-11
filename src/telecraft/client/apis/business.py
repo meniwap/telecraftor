@@ -39,7 +39,9 @@ class BusinessLinksAPI:
         return await self._raw.invoke_api(AccountGetBusinessChatLinks(), timeout=timeout)
 
     async def create(self, link_obj: Any, *, timeout: float = 20.0) -> Any:
-        return await self._raw.invoke_api(AccountCreateBusinessChatLink(link=link_obj), timeout=timeout)
+        return await self._raw.invoke_api(
+            AccountCreateBusinessChatLink(link=link_obj), timeout=timeout
+        )
 
     async def edit(self, slug: str, link_obj: Any, *, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(
@@ -92,7 +94,9 @@ class BusinessProfileAPI:
             timeout=timeout,
         )
 
-    async def update_work_hours(self, work_hours_obj_or_none: Any | None, *, timeout: float = 20.0) -> Any:
+    async def update_work_hours(
+        self, work_hours_obj_or_none: Any | None, *, timeout: float = 20.0
+    ) -> Any:
         flags = 1 if work_hours_obj_or_none is not None else 0
         return await self._raw.invoke_api(
             AccountUpdateBusinessWorkHours(
@@ -102,7 +106,9 @@ class BusinessProfileAPI:
             timeout=timeout,
         )
 
-    async def update_greeting(self, message_obj_or_none: Any | None, *, timeout: float = 20.0) -> Any:
+    async def update_greeting(
+        self, message_obj_or_none: Any | None, *, timeout: float = 20.0
+    ) -> Any:
         flags = 1 if message_obj_or_none is not None else 0
         return await self._raw.invoke_api(
             AccountUpdateBusinessGreetingMessage(flags=flags, message=message_obj_or_none),
@@ -187,7 +193,9 @@ class BusinessQuickRepliesAPI:
             timeout=timeout,
         )
 
-    async def delete_messages(self, shortcut_id: int, ids: Sequence[int], *, timeout: float = 20.0) -> Any:
+    async def delete_messages(
+        self, shortcut_id: int, ids: Sequence[int], *, timeout: float = 20.0
+    ) -> Any:
         return await self._raw.invoke_api(
             MessagesDeleteQuickReplyMessages(
                 shortcut_id=int(shortcut_id),

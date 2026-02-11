@@ -32,5 +32,3 @@ def test_parse_peer_ref_username_fallback() -> None:
 def test_parse_peer_ref_empty_rejected() -> None:
     with pytest.raises(ValueError):
         _ = parse_peer_ref("   ")
-
-

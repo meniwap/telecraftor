@@ -29,5 +29,3 @@ def test_outgoing_is_derived_from_flags_not_out_field() -> None:
     e = MessageEvent.from_update(client=object(), update=upd)
     assert e is not None
     assert e.outgoing is False
-
-

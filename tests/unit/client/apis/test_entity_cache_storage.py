@@ -63,5 +63,3 @@ def test_entity_cache_storage_migrates_v1(tmp_path) -> None:
     assert got.channel_access_hash == {3: 4}
     assert got.username_to_peer == {}
     assert got.phone_to_user_id == {}
-
-

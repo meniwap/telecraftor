@@ -11,5 +11,3 @@ def test_event_command_parsing() -> None:
     e2 = MessageEvent(client=object(), raw=object(), text="hi")
     assert e2.command is None
     assert e2.command_args is None
-
-

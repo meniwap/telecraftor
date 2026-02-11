@@ -120,5 +120,3 @@ async def run_userbot(
                 logger.info("client.close failed; ignoring", exc_info=ex)
 
     await run_forever(_run_once, stop_event=stop_event, reconnect=reconnect)
-
-

@@ -23,8 +23,8 @@ from telecraft.client.apis import (
     ProfileAPI,
     ReactionsAPI,
     SavedAPI,
-    StickersAPI,
     StarsAPI,
+    StickersAPI,
     StoriesAPI,
     TopicsAPI,
     UpdatesAPI,
@@ -51,14 +51,18 @@ class Client:
         init: ClientInit | None = None,
         raw: MtprotoClient | None = None,
     ) -> None:
-        self.raw = raw if raw is not None else MtprotoClient(
-            network=network,
-            dc_id=dc_id,
-            host=host,
-            port=port,
-            framing=framing,
-            session_path=session_path,
-            init=init,
+        self.raw = (
+            raw
+            if raw is not None
+            else MtprotoClient(
+                network=network,
+                dc_id=dc_id,
+                host=host,
+                port=port,
+                framing=framing,
+                session_path=session_path,
+                init=init,
+            )
         )
         self.peers = PeersAPI(self.raw)
         self.profile = ProfileAPI(self.raw)

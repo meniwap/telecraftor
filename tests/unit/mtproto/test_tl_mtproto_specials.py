@@ -64,4 +64,3 @@ def test_parse_msg_container() -> None:
     assert obj.messages[0].seqno == seqno
     assert isinstance(obj.messages[0].obj, RpcResult)
     assert isinstance(obj.messages[0].obj.result, Pong)
-

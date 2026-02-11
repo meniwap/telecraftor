@@ -550,4 +550,3 @@ class Dispatcher:
             peer_buckets=peer_buckets,
         ):
             await self.router.dispatch_action(evt)
-

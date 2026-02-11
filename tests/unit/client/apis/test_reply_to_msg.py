@@ -7,7 +7,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 class TestSendMessageReplyTo:
     def test_send_message_peer_creates_input_reply_to_message(self):
-        """Test that send_message_peer creates InputReplyToMessage when reply_to_msg_id is provided."""
+        """
+        Test that send_message_peer creates InputReplyToMessage when
+        reply_to_msg_id is provided.
+        """
         from telecraft.tl.generated.types import InputReplyToMessage
 
         # Just verify the type exists and can be created
@@ -27,8 +30,9 @@ class TestSendMessageReplyTo:
     def test_send_message_peer_none_reply_to(self):
         """Test that reply_to is None when no reply_to_msg_id is provided."""
         # This is a structural test - we verify the parameter exists
-        from telecraft.client.mtproto import MtprotoClient
         import inspect
+
+        from telecraft.client.mtproto import MtprotoClient
 
         sig = inspect.signature(MtprotoClient.send_message_peer)
         assert "reply_to_msg_id" in sig.parameters
@@ -36,8 +40,9 @@ class TestSendMessageReplyTo:
 
     def test_send_message_has_reply_to_param(self):
         """Test that high-level send_message has reply_to_msg_id parameter."""
-        from telecraft.client.mtproto import MtprotoClient
         import inspect
+
+        from telecraft.client.mtproto import MtprotoClient
 
         sig = inspect.signature(MtprotoClient.send_message)
         assert "reply_to_msg_id" in sig.parameters
@@ -47,8 +52,9 @@ class TestSendMessageReplyTo:
 
     def test_send_file_has_reply_to_param(self):
         """Test that send_file has reply_to_msg_id parameter."""
-        from telecraft.client.mtproto import MtprotoClient
         import inspect
+
+        from telecraft.client.mtproto import MtprotoClient
 
         sig = inspect.signature(MtprotoClient.send_file)
         assert "reply_to_msg_id" in sig.parameters
@@ -60,8 +66,9 @@ class TestSendMessageReplyTo:
 class TestMessageEventReply:
     def test_message_event_reply_has_quote_param(self):
         """Test that MessageEvent.reply has quote parameter."""
-        from telecraft.bot.events import MessageEvent
         import inspect
+
+        from telecraft.bot.events import MessageEvent
 
         sig = inspect.signature(MessageEvent.reply)
         assert "quote" in sig.parameters

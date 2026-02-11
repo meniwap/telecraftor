@@ -31,5 +31,3 @@ messages.sendMessage#a0b5a75c peer:InputPeer message:string random_id:long = Upd
     assert send.result.raw == "Updates"
     assert send.params[0].type_ref.raw == "InputPeer"
     assert send.params[2].name == "random_id"
-
-

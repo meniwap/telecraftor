@@ -132,5 +132,3 @@ class RsaPublicKey:
 
     def encrypt_raw(self, data: bytes) -> bytes:
         return rsa_encrypt_raw(self.der_spki, data)
-
-

@@ -5,7 +5,6 @@ from typing import Any
 
 from telecraft.client.admin import ADMIN_RIGHTS_BASIC, banned_rights_full_ban
 from telecraft.client.mtproto import ClientInit, MtprotoClient
-from telecraft.client.peers import Peer
 
 
 def _make_connected_client() -> MtprotoClient:
@@ -243,7 +242,11 @@ def test_get_chat_member_calls_channels_get_participant() -> None:
         return type(
             "_P",
             (),
-            {"users": [], "chats": [], "participant": type("_Part", (), {"TL_NAME": "channelParticipant"})()},
+            {
+                "users": [],
+                "chats": [],
+                "participant": type("_Part", (), {"TL_NAME": "channelParticipant"})(),
+            },
         )()
 
     c.invoke_api = invoke_api  # type: ignore[assignment]
@@ -253,5 +256,3 @@ def test_get_chat_member_calls_channels_get_participant() -> None:
     assert len(seen) == 1
     req = seen[0]
     assert getattr(req, "TL_NAME", None) == "channels.getParticipant"
-
-

@@ -2,8 +2,6 @@
 Tests for keyboard builders.
 """
 
-import pytest
-
 from telecraft.client.keyboards import (
     InlineButton,
     InlineKeyboard,
@@ -17,7 +15,6 @@ from telecraft.tl.generated.types import (
     KeyboardButtonCallback,
     KeyboardButtonRequestGeoLocation,
     KeyboardButtonRequestPhone,
-    KeyboardButtonRow,
     KeyboardButtonSwitchInline,
     KeyboardButtonUrl,
     KeyboardButtonWebView,
@@ -64,7 +61,7 @@ class TestInlineKeyboard:
         kb.add_button("A", callback_data=b"a")
         kb.add_button("B", callback_data=b"b")
         markup = kb.build()
-        
+
         assert isinstance(markup, ReplyInlineMarkup)
         assert len(markup.rows) == 1
         assert len(markup.rows[0].buttons) == 2
@@ -75,7 +72,7 @@ class TestInlineKeyboard:
         kb.add_row()
         kb.add_button("B", callback_data=b"b")
         markup = kb.build()
-        
+
         assert len(markup.rows) == 2
         assert len(markup.rows[0].buttons) == 1
         assert len(markup.rows[1].buttons) == 1
@@ -89,7 +86,7 @@ class TestInlineKeyboard:
             .button("C", callback_data="c")
         )
         markup = kb.build()
-        
+
         assert len(markup.rows) == 2
         assert len(markup.rows[0].buttons) == 2
         assert len(markup.rows[1].buttons) == 1
@@ -98,7 +95,7 @@ class TestInlineKeyboard:
         kb = InlineKeyboard()
         kb.add_button("Test", callback_data="hello")
         markup = kb.build()
-        
+
         btn = markup.rows[0].buttons[0]
         assert btn.data == b"hello"
 
@@ -129,7 +126,7 @@ class TestReplyKeyboard:
         kb.add_button("Option 1")
         kb.add_button("Option 2")
         markup = kb.build()
-        
+
         assert isinstance(markup, ReplyKeyboardMarkup)
         assert len(markup.rows) == 1
         assert len(markup.rows[0].buttons) == 2
@@ -138,28 +135,28 @@ class TestReplyKeyboard:
         kb = ReplyKeyboard(resize=True)
         kb.add_button("Test")
         markup = kb.build()
-        
+
         assert markup.resize is True
 
     def test_single_use_flag(self) -> None:
         kb = ReplyKeyboard(single_use=True)
         kb.add_button("Test")
         markup = kb.build()
-        
+
         assert markup.single_use is True
 
     def test_placeholder(self) -> None:
         kb = ReplyKeyboard(placeholder="Type here...")
         kb.add_button("Test")
         markup = kb.build()
-        
+
         assert markup.placeholder == "Type here..."
 
     def test_request_phone_button(self) -> None:
         kb = ReplyKeyboard()
         kb.add_button("Share Phone", request_phone=True)
         markup = kb.build()
-        
+
         assert isinstance(markup.rows[0].buttons[0], KeyboardButtonRequestPhone)
 
 

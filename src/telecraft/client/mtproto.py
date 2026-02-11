@@ -44,30 +44,32 @@ from telecraft.tl.generated.functions import (
     AuthSendCode,
     AuthSignIn,
     AuthSignUp,
+    ChannelsCreateChannel,
+    ChannelsDeleteMessages,
     ChannelsEditAdmin,
     ChannelsEditBanned,
+    ChannelsGetFullChannel,
+    ChannelsGetParticipant,
+    ChannelsGetParticipants,
     ChannelsInviteToChannel,
+    ChannelsJoinChannel,
+    ChannelsLeaveChannel,
+    ChannelsReadHistory,
     ContactsBlock,
     ContactsGetBlocked,
     ContactsGetContacts,
-    ContactsUnblock,
     ContactsResolvePhone,
     ContactsResolveUsername,
+    ContactsUnblock,
     HelpGetConfig,
     InitConnection,
     InvokeWithLayer,
     MessagesAddChatUser,
-    ChannelsDeleteMessages,
-    ChannelsGetFullChannel,
-    ChannelsGetParticipant,
-    ChannelsGetParticipants,
-    ChannelsJoinChannel,
-    ChannelsLeaveChannel,
-    MessagesDeleteMessages,
     MessagesCreateChat,
     MessagesDeleteExportedChatInvite,
     MessagesDeleteHistory,
-    MessagesEditChatPhoto,
+    MessagesDeleteMessages,
+    MessagesDeleteScheduledMessages,
     MessagesEditChatTitle,
     MessagesEditExportedChatInvite,
     MessagesEditMessage,
@@ -76,20 +78,17 @@ from telecraft.tl.generated.functions import (
     MessagesGetCommonChats,
     MessagesGetExportedChatInvites,
     MessagesGetFullChat,
-    MessagesDeleteScheduledMessages,
-    MessagesGetScheduledHistory,
+    MessagesGetHistory,
     MessagesGetPollResults,
+    MessagesGetScheduledHistory,
     MessagesReadHistory,
     MessagesSearch,
-    MessagesSendScheduledMessages,
-    MessagesSendVote,
-    ChannelsCreateChannel,
-    ChannelsReadHistory,
     MessagesSendMedia,
     MessagesSendMessage,
     MessagesSendReaction,
+    MessagesSendScheduledMessages,
+    MessagesSendVote,
     MessagesSetTyping,
-    MessagesGetHistory,
     MessagesUpdatePinnedMessage,
     PhotosGetUserPhotos,
     Ping,
@@ -102,10 +101,10 @@ from telecraft.tl.generated.types import (
     AuthSentCode,
     AuthSentCodePaymentRequired,
     AuthSentCodeSuccess,
-    CodeSettings,
-    ContactsResolvedPeer,
     ChatAdminRights,
     ChatBannedRights,
+    CodeSettings,
+    ContactsResolvedPeer,
     InputUser,
     InputUserSelf,
 )
@@ -209,7 +208,8 @@ class MtprotoClient:
         self._updates_out: asyncio.Queue[Any] | None = None
         self._updates_state_last_save: float = 0.0
         self._entities_last_save: float = 0.0
-        # Best-effort "me" identity (used by higher-level layers to classify self-authored messages).
+        # Best-effort "me" identity (used by higher-level layers
+        # to classify self-authored messages).
         self.self_user_id: int | None = None
 
         self.config: Any | None = None
@@ -521,6 +521,7 @@ class MtprotoClient:
 
         Returns the User object, or None if not logged in or got UserEmpty.
         """
+
         def _users_from_result(obj: Any) -> list[Any]:
             users_obj = obj if isinstance(obj, list) else getattr(obj, "users", [])
             return users_obj if isinstance(users_obj, list) else []
@@ -584,7 +585,9 @@ class MtprotoClient:
         self._persist_entities_cache()
         return p
 
-    async def resolve_phone(self, phone: str, *, timeout: float = 20.0, force: bool = False) -> Peer:
+    async def resolve_phone(
+        self, phone: str, *, timeout: float = 20.0, force: bool = False
+    ) -> Peer:
         """
         Resolve +phone -> Peer(user) and populate EntityCache.
         """
@@ -752,7 +755,9 @@ class MtprotoClient:
         try:
             peer = self.entities.input_peer_channel(int(channel_id))
         except EntityCacheError:
-            await self._prime_entities_for_reply(want=Peer.channel(int(channel_id)), timeout=timeout)
+            await self._prime_entities_for_reply(
+                want=Peer.channel(int(channel_id)), timeout=timeout
+            )
             peer = self.entities.input_peer_channel(int(channel_id))
         return await self.send_message_peer(
             peer,
@@ -910,16 +915,24 @@ class MtprotoClient:
         input_peer = await _build_input_peer()
         try:
             return await self.send_message_peer(
-                input_peer, text, reply_to_msg_id=reply_to_msg_id, silent=silent,
-                reply_markup=reply_markup, timeout=timeout
+                input_peer,
+                text,
+                reply_to_msg_id=reply_to_msg_id,
+                silent=silent,
+                reply_markup=reply_markup,
+                timeout=timeout,
             )
         except RpcErrorException as e:
             if e.message == "PEER_ID_INVALID":
                 await _refresh_peer_ref()
                 input_peer = await _build_input_peer()
                 return await self.send_message_peer(
-                    input_peer, text, reply_to_msg_id=reply_to_msg_id, silent=silent,
-                    reply_markup=reply_markup, timeout=timeout
+                    input_peer,
+                    text,
+                    reply_to_msg_id=reply_to_msg_id,
+                    silent=silent,
+                    reply_markup=reply_markup,
+                    timeout=timeout,
                 )
             raise
 
@@ -1508,9 +1521,9 @@ class MtprotoClient:
         """
         from telecraft.tl.generated.types import (
             InputMessagesFilterEmpty,
+            MessagesChannelMessages,
             MessagesMessages,
             MessagesMessagesSlice,
-            MessagesChannelMessages,
         )
 
         p = await self.resolve_peer(peer, timeout=timeout)
@@ -1588,11 +1601,11 @@ class MtprotoClient:
             or the channel is public.
         """
         from telecraft.tl.generated.types import (
-            ChannelParticipantsRecent,
             ChannelParticipantsAdmins,
-            ChannelParticipantsBots,
             ChannelParticipantsBanned,
+            ChannelParticipantsBots,
             ChannelParticipantsKicked,
+            ChannelParticipantsRecent,
             ChannelsChannelParticipants,
             ChannelsChannelParticipantsNotModified,
         )
@@ -1851,15 +1864,15 @@ class MtprotoClient:
             True if successful
         """
         from telecraft.tl.generated.types import (
-            SendMessageTypingAction,
-            SendMessageRecordAudioAction,
-            SendMessageRecordVideoAction,
-            SendMessageUploadPhotoAction,
-            SendMessageUploadVideoAction,
-            SendMessageUploadDocumentAction,
+            SendMessageCancelAction,
             SendMessageChooseStickerAction,
             SendMessageGamePlayAction,
-            SendMessageCancelAction,
+            SendMessageRecordAudioAction,
+            SendMessageRecordVideoAction,
+            SendMessageTypingAction,
+            SendMessageUploadDocumentAction,
+            SendMessageUploadPhotoAction,
+            SendMessageUploadVideoAction,
         )
 
         action_map = {
@@ -1895,6 +1908,7 @@ class MtprotoClient:
 
         # Result is a Bool
         from telecraft.client.media import _tl_bool
+
         return _tl_bool(res) is True
 
     async def get_profile_photos(
@@ -2017,8 +2031,7 @@ class MtprotoClient:
             photo_ids = [photo_ids]  # type: ignore
 
         input_photos = [
-            InputPhoto(id=pid, access_hash=ahash, file_reference=b"")
-            for pid, ahash in photo_ids
+            InputPhoto(id=pid, access_hash=ahash, file_reference=b"") for pid, ahash in photo_ids
         ]
 
         res = await self.invoke_api(
@@ -2049,7 +2062,9 @@ class MtprotoClient:
         try:
             input_channel = self.entities.input_channel(int(ch.peer_id))
         except EntityCacheError:
-            await self._prime_entities_for_reply(want=Peer.channel(int(ch.peer_id)), timeout=timeout)
+            await self._prime_entities_for_reply(
+                want=Peer.channel(int(ch.peer_id)), timeout=timeout
+            )
             input_channel = self.entities.input_channel(int(ch.peer_id))
 
         u = await self.resolve_peer(user, timeout=timeout)
@@ -2086,13 +2101,13 @@ class MtprotoClient:
         """
         ch = await self.resolve_peer(channel, timeout=timeout)
         if ch.peer_type != "channel":
-            raise MtprotoClientError(
-                f"edit_banned: channel must be a channel, got {ch.peer_type}"
-            )
+            raise MtprotoClientError(f"edit_banned: channel must be a channel, got {ch.peer_type}")
         try:
             input_channel = self.entities.input_channel(int(ch.peer_id))
         except EntityCacheError:
-            await self._prime_entities_for_reply(want=Peer.channel(int(ch.peer_id)), timeout=timeout)
+            await self._prime_entities_for_reply(
+                want=Peer.channel(int(ch.peer_id)), timeout=timeout
+            )
             input_channel = self.entities.input_channel(int(ch.peer_id))
 
         p = await self.resolve_peer(participant, timeout=timeout)
@@ -2305,12 +2320,16 @@ class MtprotoClient:
         """
         ch = await self.resolve_peer(channel, timeout=timeout)
         if ch.peer_type != "channel":
-            raise MtprotoClientError(f"get_chat_member: channel must be a channel, got {ch.peer_type}")
+            raise MtprotoClientError(
+                f"get_chat_member: channel must be a channel, got {ch.peer_type}"
+            )
 
         try:
             input_channel = self.entities.input_channel(int(ch.peer_id))
         except EntityCacheError:
-            await self._prime_entities_for_reply(want=Peer.channel(int(ch.peer_id)), timeout=timeout)
+            await self._prime_entities_for_reply(
+                want=Peer.channel(int(ch.peer_id)), timeout=timeout
+            )
             input_channel = self.entities.input_channel(int(ch.peer_id))
 
         u = await self.resolve_peer(user, timeout=timeout)
@@ -2679,11 +2698,15 @@ class MtprotoClient:
         for user_ref in users:
             u = await self.resolve_peer(user_ref, timeout=timeout)
             if u.peer_type != "user":
-                raise MtprotoClientError(f"create_group: all members must be users, got {u.peer_type}")
+                raise MtprotoClientError(
+                    f"create_group: all members must be users, got {u.peer_type}"
+                )
             try:
                 input_user = self.entities.input_user(int(u.peer_id))
             except EntityCacheError:
-                await self._prime_entities_for_reply(want=Peer.user(int(u.peer_id)), timeout=timeout)
+                await self._prime_entities_for_reply(
+                    want=Peer.user(int(u.peer_id)), timeout=timeout
+                )
                 input_user = self.entities.input_user(int(u.peer_id))
             input_users.append(input_user)
 
@@ -2775,7 +2798,9 @@ class MtprotoClient:
             try:
                 input_channel = self.entities.input_channel(int(p.peer_id))
             except EntityCacheError:
-                await self._prime_entities_for_reply(want=Peer.channel(int(p.peer_id)), timeout=timeout)
+                await self._prime_entities_for_reply(
+                    want=Peer.channel(int(p.peer_id)), timeout=timeout
+                )
                 input_channel = self.entities.input_channel(int(p.peer_id))
 
             res = await self.invoke_api(
@@ -2783,7 +2808,9 @@ class MtprotoClient:
                 timeout=timeout,
             )
         else:
-            raise MtprotoClientError(f"set_chat_title: peer must be a group/channel, got {p.peer_type}")
+            raise MtprotoClientError(
+                f"set_chat_title: peer must be a group/channel, got {p.peer_type}"
+            )
 
         self._ingest_from_updates_result(res)
         return res
@@ -2851,7 +2878,9 @@ class MtprotoClient:
             try:
                 input_channel = self.entities.input_channel(int(p.peer_id))
             except EntityCacheError:
-                await self._prime_entities_for_reply(want=Peer.channel(int(p.peer_id)), timeout=timeout)
+                await self._prime_entities_for_reply(
+                    want=Peer.channel(int(p.peer_id)), timeout=timeout
+                )
                 input_channel = self.entities.input_channel(int(p.peer_id))
 
             return await self.invoke_api(
@@ -2981,6 +3010,7 @@ class MtprotoClient:
         # Auto-generate folder ID if not provided
         if folder_id is None:
             import random
+
             folder_id = random.randint(2, 255)
 
         # Build flags
@@ -3083,9 +3113,7 @@ class MtprotoClient:
             timeout=timeout,
         )
 
-    async def reorder_folders(
-        self, folder_ids: list[int], *, timeout: float = 20.0
-    ) -> bool:
+    async def reorder_folders(self, folder_ids: list[int], *, timeout: float = 20.0) -> bool:
         """
         Reorder chat folders.
 
@@ -3600,8 +3628,8 @@ class MtprotoClient:
         Returns:
             messages.StickerSet with stickers and documents
         """
-        from telecraft.tl.generated.types import InputStickerSetShortName
         from telecraft.tl.generated.functions import MessagesGetStickerSet
+        from telecraft.tl.generated.types import InputStickerSetShortName
 
         sticker_set = InputStickerSetShortName(short_name=short_name)
 
@@ -3756,8 +3784,7 @@ class MtprotoClient:
         SUPPORTED_DICE = {"🎲", "🎯", "🏀", "⚽", "🎳", "🎰"}
         if emoji not in SUPPORTED_DICE:
             raise MtprotoClientError(
-                f"send_dice: unsupported emoji '{emoji}'. "
-                f"Supported: {', '.join(SUPPORTED_DICE)}"
+                f"send_dice: unsupported emoji '{emoji}'. Supported: {', '.join(SUPPORTED_DICE)}"
             )
 
         p = await self.resolve_peer(peer, timeout=timeout)
@@ -4237,6 +4264,7 @@ class MtprotoClient:
             poll_flags |= 32  # flags.5
 
         import random
+
         poll = Poll(
             id=random.randint(1, 2**63 - 1),
             flags=poll_flags,
@@ -4354,7 +4382,7 @@ class MtprotoClient:
         if len(options) > 10:
             raise MtprotoClientError("send_quiz: maximum 10 options")
         if correct_option < 0 or correct_option >= len(options):
-            raise MtprotoClientError(f"send_quiz: correct_option must be 0-{len(options)-1}")
+            raise MtprotoClientError(f"send_quiz: correct_option must be 0-{len(options) - 1}")
 
         p = await self.resolve_peer(peer, timeout=timeout)
 
@@ -4382,6 +4410,7 @@ class MtprotoClient:
             poll_flags |= 16  # flags.4
 
         import random
+
         poll = Poll(
             id=random.randint(1, 2**63 - 1),
             flags=poll_flags,
@@ -4604,7 +4633,8 @@ class MtprotoClient:
         Add a user to a group.
 
         - basic groups (peer_type='chat'): messages.addChatUser(chat_id, user_id, fwd_limit)
-        - supergroups/channels (peer_type='channel'): channels.inviteToChannel(channel, users=[user])
+        - supergroups/channels (peer_type='channel'):
+          channels.inviteToChannel(channel, users=[user])
         """
         g = await self.resolve_peer(group, timeout=timeout)
         u = await self.resolve_peer(user, timeout=timeout)
@@ -4615,7 +4645,9 @@ class MtprotoClient:
             try:
                 return self.entities.input_user(int(u.peer_id))
             except EntityCacheError:
-                await self._prime_entities_for_reply(want=Peer.user(int(u.peer_id)), timeout=timeout)
+                await self._prime_entities_for_reply(
+                    want=Peer.user(int(u.peer_id)), timeout=timeout
+                )
                 return self.entities.input_user(int(u.peer_id))
 
         async def _refresh_user_ref() -> None:
@@ -4625,7 +4657,8 @@ class MtprotoClient:
             Common case: stale username/phone -> user_id mapping in the persisted EntityCache.
             """
             nonlocal u
-            # If we have a username/phone ref, force a network resolve to refresh user_id/access_hash.
+            # If we have a username/phone ref, force a network resolve
+            # to refresh user_id/access_hash.
             if isinstance(user, str) and user.strip():
                 try:
                     parsed = parse_peer_ref(user.strip())
@@ -4638,7 +4671,8 @@ class MtprotoClient:
                     if parsed.startswith("+"):
                         u = await self.resolve_phone(parsed, timeout=timeout, force=True)
                         return
-            # Otherwise, just try priming (may refresh access_hash if the user is present in dialogs).
+            # Otherwise, just try priming (may refresh access_hash
+            # if the user is present in dialogs).
             await self._prime_entities_for_reply(want=Peer.user(int(u.peer_id)), timeout=timeout)
 
         input_user = await _build_input_user()
@@ -4674,7 +4708,9 @@ class MtprotoClient:
             try:
                 input_channel = self.entities.input_channel(int(g.peer_id))
             except EntityCacheError:
-                await self._prime_entities_for_reply(want=Peer.channel(int(g.peer_id)), timeout=timeout)
+                await self._prime_entities_for_reply(
+                    want=Peer.channel(int(g.peer_id)), timeout=timeout
+                )
                 input_channel = self.entities.input_channel(int(g.peer_id))
             try:
                 res = await self.invoke_api(
@@ -4737,7 +4773,7 @@ class MtprotoClient:
                     user_id = int(u.peer_id)
                 except Exception:
                     pass
-                
+
                 error_msg = str(e)
                 if on_error == "raise":
                     raise
@@ -4868,18 +4904,24 @@ class MtprotoClient:
             # For basic groups, use messages.deleteChatUser
             u = await self.resolve_peer(user, timeout=timeout)
             if u.peer_type != "user":
-                raise MtprotoClientError(f"remove_user_from_group: user must be a user, got {u.peer_type}")
+                raise MtprotoClientError(
+                    f"remove_user_from_group: user must be a user, got {u.peer_type}"
+                )
 
             try:
                 input_user = self.entities.input_user(int(u.peer_id))
             except EntityCacheError:
-                await self._prime_entities_for_reply(want=Peer.user(int(u.peer_id)), timeout=timeout)
+                await self._prime_entities_for_reply(
+                    want=Peer.user(int(u.peer_id)), timeout=timeout
+                )
                 input_user = self.entities.input_user(int(u.peer_id))
 
             from telecraft.tl.generated.functions import MessagesDeleteChatUser
 
             res = await self.invoke_api(
-                MessagesDeleteChatUser(flags=0, revoke_history=False, chat_id=int(g.peer_id), user_id=input_user),
+                MessagesDeleteChatUser(
+                    flags=0, revoke_history=False, chat_id=int(g.peer_id), user_id=input_user
+                ),
                 timeout=timeout,
             )
             self._ingest_from_updates_result(res)
@@ -4975,7 +5017,9 @@ class MtprotoClient:
         if self._init is None:
             raise MtprotoClientError("ClientInit(api_id=...) is required for cross-DC operations")
 
-        c = MtprotoClient(network=self._network, dc_id=int(dc_id), init=self._init, session_path=None)
+        c = MtprotoClient(
+            network=self._network, dc_id=int(dc_id), init=self._init, session_path=None
+        )
         await c.connect(timeout=timeout)
         exported = await self.invoke_api(AuthExportAuthorization(dc_id=int(dc_id)), timeout=timeout)
         exp_id = getattr(exported, "id", None)
@@ -4984,7 +5028,9 @@ class MtprotoClient:
             raise MtprotoClientError(
                 f"Unexpected auth.exportAuthorization result: {type(exported).__name__}"
             )
-        await c.invoke_api(AuthImportAuthorization(id=int(exp_id), bytes=bytes(exp_bytes)), timeout=timeout)
+        await c.invoke_api(
+            AuthImportAuthorization(id=int(exp_id), bytes=bytes(exp_bytes)), timeout=timeout
+        )
         self._media_clients[int(dc_id)] = c
         return c
 
@@ -5065,8 +5111,8 @@ class MtprotoClient:
         from telecraft.tl.generated.types import (
             InputPeerEmpty,
             MessagesDialogs,
-            MessagesDialogsSlice,
             MessagesDialogsNotModified,
+            MessagesDialogsSlice,
         )
 
         offset_date = 0
@@ -5140,6 +5186,7 @@ class MtprotoClient:
                     # Try to convert peer to input_peer
                     try:
                         from telecraft.client.peers import Peer
+
                         p = Peer.from_tl(last_dialog_peer)
                         offset_peer = self.entities.input_peer(p)
                     except Exception:  # noqa: BLE001
@@ -5221,7 +5268,9 @@ class MtprotoClient:
                 timeout=timeout,
             )
 
-            if not isinstance(res, (MessagesMessages, MessagesMessagesSlice, MessagesChannelMessages)):
+            if not isinstance(
+                res, (MessagesMessages, MessagesMessagesSlice, MessagesChannelMessages)
+            ):
                 break
 
             # Ingest entities
@@ -5311,7 +5360,8 @@ class MtprotoClient:
         timeout: float = 20.0,
     ) -> list[Any]:
         """
-        Best-effort wrapper around messages.getHistory that also ingests users/chats into EntityCache.
+        Best-effort wrapper around messages.getHistory that also ingests
+        users/chats into EntityCache.
         """
         from telecraft.tl.generated.types import MessagesMessages, MessagesMessagesSlice
 

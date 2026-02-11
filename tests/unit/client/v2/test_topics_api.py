@@ -31,4 +31,3 @@ def test_topics__list__delegates_to_raw() -> None:
     out = asyncio.run(client.topics.list("channel:1", limit=5, timeout=7.0))
     assert out["ok"] is True
     assert any(name == "invoke_api" for name, _, _ in raw.calls)
-

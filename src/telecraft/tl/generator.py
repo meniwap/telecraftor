@@ -173,5 +173,3 @@ def generate(schema: TLSchema, out_dir: Path) -> GeneratedFiles:
     registry_py.write_text("".join(reg_lines), encoding="utf-8", newline="\n")
 
     return GeneratedFiles(types_py=types_py, functions_py=functions_py, registry_py=registry_py)
-
-
