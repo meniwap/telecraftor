@@ -985,6 +985,7 @@ class MtprotoClient:
             timeout=timeout,
         )
 
+        media: Any
         if as_photo:
             media = InputMediaUploadedPhoto(
                 flags=0,
@@ -1128,6 +1129,7 @@ class MtprotoClient:
             is_photo = default_as_photo(fp)
             caption = captions[i] if captions else ""
 
+            media: Any
             if is_photo:
                 media = InputMediaUploadedPhoto(
                     flags=0,
@@ -1174,6 +1176,8 @@ class MtprotoClient:
                 quote_text=None,
                 quote_entities=None,
                 quote_offset=None,
+                monoforum_peer_id=None,
+                todo_item_id=None,
             )
 
         msg_flags = 0
@@ -2026,12 +2030,16 @@ class MtprotoClient:
         from telecraft.tl.generated.functions import PhotosDeletePhotos
         from telecraft.tl.generated.types import InputPhoto
 
+        normalized_photo_ids: list[tuple[int, int]]
         if isinstance(photo_ids, tuple) and len(photo_ids) == 2 and isinstance(photo_ids[0], int):
             # Single photo
-            photo_ids = [photo_ids]  # type: ignore
+            normalized_photo_ids = [photo_ids]
+        else:
+            normalized_photo_ids = list(photo_ids)
 
         input_photos = [
-            InputPhoto(id=pid, access_hash=ahash, file_reference=b"") for pid, ahash in photo_ids
+            InputPhoto(id=pid, access_hash=ahash, file_reference=b"")
+            for pid, ahash in normalized_photo_ids
         ]
 
         res = await self.invoke_api(
@@ -3083,7 +3091,9 @@ class MtprotoClient:
             exclude_peers=exclude_input_peers,
         )
 
-        return await self.invoke_api(
+        from telecraft.client.media import _tl_bool
+
+        res = await self.invoke_api(
             MessagesUpdateDialogFilter(
                 flags=1,  # filter present
                 id=folder_id,
@@ -3091,6 +3101,7 @@ class MtprotoClient:
             ),
             timeout=timeout,
         )
+        return _tl_bool(res) is True
 
     async def delete_folder(self, folder_id: int, *, timeout: float = 20.0) -> bool:
         """
@@ -3102,9 +3113,10 @@ class MtprotoClient:
         Returns:
             True if successful
         """
+        from telecraft.client.media import _tl_bool
         from telecraft.tl.generated.functions import MessagesUpdateDialogFilter
 
-        return await self.invoke_api(
+        res = await self.invoke_api(
             MessagesUpdateDialogFilter(
                 flags=0,  # no filter = delete
                 id=folder_id,
@@ -3112,6 +3124,7 @@ class MtprotoClient:
             ),
             timeout=timeout,
         )
+        return _tl_bool(res) is True
 
     async def reorder_folders(self, folder_ids: list[int], *, timeout: float = 20.0) -> bool:
         """
@@ -3123,12 +3136,14 @@ class MtprotoClient:
         Returns:
             True if successful
         """
+        from telecraft.client.media import _tl_bool
         from telecraft.tl.generated.functions import MessagesUpdateDialogFiltersOrder
 
-        return await self.invoke_api(
+        res = await self.invoke_api(
             MessagesUpdateDialogFiltersOrder(order=folder_ids),
             timeout=timeout,
         )
+        return _tl_bool(res) is True
 
     # ========================== Scheduled Messages ==========================
 
@@ -3305,6 +3320,8 @@ class MtprotoClient:
                 quote_text=None,
                 quote_entities=None,
                 quote_offset=None,
+                monoforum_peer_id=None,
+                todo_item_id=None,
             )
 
         import random
@@ -3426,6 +3443,8 @@ class MtprotoClient:
                 quote_text=None,
                 quote_entities=None,
                 quote_offset=None,
+                monoforum_peer_id=None,
+                todo_item_id=None,
             )
 
         import random
@@ -3577,6 +3596,8 @@ class MtprotoClient:
                 quote_text=None,
                 quote_entities=None,
                 quote_offset=None,
+                monoforum_peer_id=None,
+                todo_item_id=None,
             )
 
         import random
@@ -3709,6 +3730,8 @@ class MtprotoClient:
                 quote_text=None,
                 quote_entities=None,
                 quote_offset=None,
+                monoforum_peer_id=None,
+                todo_item_id=None,
             )
 
         import random
@@ -3812,6 +3835,8 @@ class MtprotoClient:
                 quote_text=None,
                 quote_entities=None,
                 quote_offset=None,
+                monoforum_peer_id=None,
+                todo_item_id=None,
             )
 
         import random
@@ -4016,6 +4041,8 @@ class MtprotoClient:
                 quote_text=None,
                 quote_entities=None,
                 quote_offset=None,
+                monoforum_peer_id=None,
+                todo_item_id=None,
             )
 
         p2 = await self.resolve_peer(peer, timeout=timeout)
@@ -4149,6 +4176,8 @@ class MtprotoClient:
                 quote_text=None,
                 quote_entities=None,
                 quote_offset=None,
+                monoforum_peer_id=None,
+                todo_item_id=None,
             )
 
         p2 = await self.resolve_peer(peer, timeout=timeout)
@@ -4305,6 +4334,8 @@ class MtprotoClient:
                 quote_text=None,
                 quote_entities=None,
                 quote_offset=None,
+                monoforum_peer_id=None,
+                todo_item_id=None,
             )
 
         res = await self.invoke_api(
@@ -4456,6 +4487,8 @@ class MtprotoClient:
                 quote_text=None,
                 quote_entities=None,
                 quote_offset=None,
+                monoforum_peer_id=None,
+                todo_item_id=None,
             )
 
         res = await self.invoke_api(
@@ -5185,10 +5218,9 @@ class MtprotoClient:
                 if last_dialog_peer is not None:
                     # Try to convert peer to input_peer
                     try:
-                        from telecraft.client.peers import Peer
-
-                        p = Peer.from_tl(last_dialog_peer)
-                        offset_peer = self.entities.input_peer(p)
+                        p = peer_from_tl_peer(last_dialog_peer)
+                        if p is not None:
+                            offset_peer = self.entities.input_peer(p)
                     except Exception:  # noqa: BLE001
                         # Continue with empty peer
                         pass
