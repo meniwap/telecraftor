@@ -235,21 +235,21 @@ def extract_media(message_or_event: Any) -> ExtractedMedia | None:
         if not best_size:
             return None
 
-        loc = InputPhotoFileLocation(
+        photo_loc = InputPhotoFileLocation(
             id=int(getattr(photo, "id")),
             access_hash=int(getattr(photo, "access_hash")),
             file_reference=bytes(getattr(photo, "file_reference", b"") or b""),
             thumb_size=best_size.type,
         )
-        fname = f"photo_{int(getattr(photo, 'id'))}.jpg"
+        photo_fname = f"photo_{int(getattr(photo, 'id'))}.jpg"
 
         # For cached photos, include the bytes directly
         if best_size.cached_bytes:
             return ExtractedMediaWithCache(
                 kind="photo",
                 dc_id=int(dc_id),
-                location=loc,
-                file_name=fname,
+                location=photo_loc,
+                file_name=photo_fname,
                 size=len(best_size.cached_bytes),
                 cached_bytes=best_size.cached_bytes,
             )
@@ -257,8 +257,8 @@ def extract_media(message_or_event: Any) -> ExtractedMedia | None:
         return ExtractedMedia(
             kind="photo",
             dc_id=int(dc_id),
-            location=loc,
-            file_name=fname,
+            location=photo_loc,
+            file_name=photo_fname,
             size=best_size.size,
         )
 
@@ -271,33 +271,33 @@ def extract_media(message_or_event: Any) -> ExtractedMedia | None:
         if not isinstance(dc_id, int):
             return None
 
-        loc = InputDocumentFileLocation(
+        doc_loc = InputDocumentFileLocation(
             id=int(getattr(doc, "id")),
             access_hash=int(getattr(doc, "access_hash")),
             file_reference=bytes(getattr(doc, "file_reference", b"") or b""),
             thumb_size="",
         )
 
-        fname: str | None = None
+        doc_fname: str | None = None
         attrs = getattr(doc, "attributes", None)
         if isinstance(attrs, list):
             for a in attrs:
                 if getattr(a, "TL_NAME", None) == "documentAttributeFilename":
-                    fname = _decode_text(getattr(a, "file_name", None))
+                    doc_fname = _decode_text(getattr(a, "file_name", None))
                     break
-        if not fname:
+        if not doc_fname:
             # Best-effort from mime type.
             mime = _decode_text(getattr(doc, "mime_type", None)) or "application/octet-stream"
             ext = mimetypes.guess_extension(mime) or ""
-            fname = f"document_{int(getattr(doc, 'id'))}{ext}"
+            doc_fname = f"document_{int(getattr(doc, 'id'))}{ext}"
 
         size_v = getattr(doc, "size", None)
         size = int(size_v) if isinstance(size_v, int) else None
         return ExtractedMedia(
             kind="document",
             dc_id=int(dc_id),
-            location=loc,
-            file_name=str(fname),
+            location=doc_loc,
+            file_name=doc_fname,
             size=size,
         )
 
@@ -334,6 +334,7 @@ async def upload_file(
             if md5 is not None:
                 md5.update(chunk)
 
+            req: UploadSaveBigFilePart | UploadSaveFilePart
             if use_big:
                 req = UploadSaveBigFilePart(
                     file_id=fid,
