@@ -5,7 +5,7 @@ import json
 import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -112,7 +112,7 @@ class AuditReporter:
         details: str = "",
         to_telegram: bool = True,
     ) -> None:
-        ts = datetime.now(UTC).isoformat()
+        ts = datetime.now(timezone.utc).isoformat()
         payload = {
             "ts": ts,
             "run_id": self.ctx.run_id,
@@ -417,7 +417,7 @@ def client_v2(live_config: LiveConfig) -> Client:
 
 @pytest.fixture
 def live_context(live_config: LiveConfig) -> LiveContext:
-    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
     run_dir = (live_config.report_root / run_id).resolve()
     run_dir.mkdir(parents=True, exist_ok=True)
     return LiveContext(cfg=live_config, run_id=run_id, run_dir=run_dir)

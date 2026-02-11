@@ -4,7 +4,7 @@ import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -151,7 +151,7 @@ async def finalize_run(
     fail_count = len([r for r in results if r.status == "FAIL"])
     summary = {
         "run_id": ctx.run_id,
-        "ts": datetime.now(UTC).isoformat(),
+        "ts": datetime.now(timezone.utc).isoformat(),
         "pass_count": pass_count,
         "fail_count": fail_count,
         "cleanup_errors": cleanup_errors,
