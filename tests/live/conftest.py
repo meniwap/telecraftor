@@ -53,6 +53,11 @@ class LiveConfig:
     enable_paid: bool
     enable_business: bool
     enable_chatlists: bool
+    enable_calls: bool
+    enable_calls_write: bool
+    enable_takeout: bool
+    enable_webapps: bool
+    enable_admin: bool
     enable_stories_write: bool
     enable_channel_admin: bool
 
@@ -232,6 +237,36 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Enable optional chatlists live lane",
     )
     group.addoption(
+        "--live-calls",
+        action="store_true",
+        default=False,
+        help="Enable optional calls readonly live lane",
+    )
+    group.addoption(
+        "--live-calls-write",
+        action="store_true",
+        default=False,
+        help="Enable optional calls write/destructive live lane",
+    )
+    group.addoption(
+        "--live-takeout",
+        action="store_true",
+        default=False,
+        help="Enable optional takeout live lane",
+    )
+    group.addoption(
+        "--live-webapps",
+        action="store_true",
+        default=False,
+        help="Enable optional webapps live lane",
+    )
+    group.addoption(
+        "--live-admin",
+        action="store_true",
+        default=False,
+        help="Enable optional admin-sensitive live lane",
+    )
+    group.addoption(
         "--live-stories-write",
         action="store_true",
         default=False,
@@ -263,6 +298,11 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "live_paid: live lane that may spend Stars")
     config.addinivalue_line("markers", "live_business: optional business lane")
     config.addinivalue_line("markers", "live_chatlists: optional chatlists lane")
+    config.addinivalue_line("markers", "live_calls: optional calls readonly lane")
+    config.addinivalue_line("markers", "live_calls_write: optional calls write lane")
+    config.addinivalue_line("markers", "live_takeout: optional takeout lane")
+    config.addinivalue_line("markers", "live_webapps: optional webapps lane")
+    config.addinivalue_line("markers", "live_admin: optional admin-sensitive lane")
     config.addinivalue_line("markers", "live_stories_write: optional stories write lane")
     config.addinivalue_line("markers", "live_channel_admin: optional channel admin lane")
 
@@ -273,6 +313,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         paid_enabled = bool(config.getoption("--live-paid"))
         business_enabled = bool(config.getoption("--live-business"))
         chatlists_enabled = bool(config.getoption("--live-chatlists"))
+        calls_enabled = bool(config.getoption("--live-calls"))
+        calls_write_enabled = bool(config.getoption("--live-calls-write"))
+        takeout_enabled = bool(config.getoption("--live-takeout"))
+        webapps_enabled = bool(config.getoption("--live-webapps"))
+        admin_enabled = bool(config.getoption("--live-admin"))
         stories_write_enabled = bool(config.getoption("--live-stories-write"))
         channel_admin_enabled = bool(config.getoption("--live-channel-admin"))
         skip_second = pytest.mark.skip(
@@ -281,6 +326,13 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         skip_paid = pytest.mark.skip(reason="Paid live tests require --live-paid")
         skip_business = pytest.mark.skip(reason="Business live tests require --live-business")
         skip_chatlists = pytest.mark.skip(reason="Chatlists live tests require --live-chatlists")
+        skip_calls = pytest.mark.skip(reason="Calls live tests require --live-calls")
+        skip_calls_write = pytest.mark.skip(
+            reason="Calls write live tests require --live-calls-write"
+        )
+        skip_takeout = pytest.mark.skip(reason="Takeout live tests require --live-takeout")
+        skip_webapps = pytest.mark.skip(reason="Webapps live tests require --live-webapps")
+        skip_admin = pytest.mark.skip(reason="Admin live tests require --live-admin")
         skip_stories_write = pytest.mark.skip(
             reason="Stories write live tests require --live-stories-write"
         )
@@ -298,6 +350,16 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 item.add_marker(skip_business)
             if not chatlists_enabled and "live_chatlists" in item.keywords:
                 item.add_marker(skip_chatlists)
+            if not calls_enabled and "live_calls" in item.keywords:
+                item.add_marker(skip_calls)
+            if not calls_write_enabled and "live_calls_write" in item.keywords:
+                item.add_marker(skip_calls_write)
+            if not takeout_enabled and "live_takeout" in item.keywords:
+                item.add_marker(skip_takeout)
+            if not webapps_enabled and "live_webapps" in item.keywords:
+                item.add_marker(skip_webapps)
+            if not admin_enabled and "live_admin" in item.keywords:
+                item.add_marker(skip_admin)
             if not stories_write_enabled and "live_stories_write" in item.keywords:
                 item.add_marker(skip_stories_write)
             if not channel_admin_enabled and "live_channel_admin" in item.keywords:
@@ -401,6 +463,11 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
         enable_paid=bool(pytestconfig.getoption("--live-paid")),
         enable_business=bool(pytestconfig.getoption("--live-business")),
         enable_chatlists=bool(pytestconfig.getoption("--live-chatlists")),
+        enable_calls=bool(pytestconfig.getoption("--live-calls")),
+        enable_calls_write=bool(pytestconfig.getoption("--live-calls-write")),
+        enable_takeout=bool(pytestconfig.getoption("--live-takeout")),
+        enable_webapps=bool(pytestconfig.getoption("--live-webapps")),
+        enable_admin=bool(pytestconfig.getoption("--live-admin")),
         enable_stories_write=bool(pytestconfig.getoption("--live-stories-write")),
         enable_channel_admin=bool(pytestconfig.getoption("--live-channel-admin")),
     )

@@ -3,13 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 
 from telecraft.client.apis import (
+    AccountAPI,
     AdminAPI,
     BusinessAPI,
+    CallsAPI,
     ChannelsAPI,
     ChatlistsAPI,
     ChatsAPI,
     ContactsAPI,
     DialogsAPI,
+    DiscoveryAPI,
+    DraftsAPI,
     FoldersAPI,
     GamesAPI,
     GiftsAPI,
@@ -22,12 +26,19 @@ from telecraft.client.apis import (
     PrivacyAPI,
     ProfileAPI,
     ReactionsAPI,
+    ReportsAPI,
     SavedAPI,
+    SearchAPI,
     StarsAPI,
+    StatsAPI,
     StickersAPI,
     StoriesAPI,
+    TakeoutAPI,
+    TodosAPI,
     TopicsAPI,
+    TranslateAPI,
     UpdatesAPI,
+    WebAppsAPI,
 )
 from telecraft.client.mtproto import ClientInit, MtprotoClient
 
@@ -67,6 +78,9 @@ class Client:
         self.peers = PeersAPI(self.raw)
         self.profile = ProfileAPI(self.raw)
         self.messages = MessagesAPI(self.raw)
+        self.search = SearchAPI(self.raw)
+        self.drafts = DraftsAPI(self.raw)
+        self.reports = ReportsAPI(self.raw)
         self.media = MediaAPI(self.raw)
         self.chats = ChatsAPI(self.raw)
         self.admin = AdminAPI(self.raw)
@@ -87,6 +101,14 @@ class Client:
         self.stories = StoriesAPI(self.raw)
         self.chatlists = ChatlistsAPI(self.raw)
         self.channels = ChannelsAPI(self.raw)
+        self.stats = StatsAPI(self.raw)
+        self.discovery = DiscoveryAPI(self.raw)
+        self.account = AccountAPI(self.raw)
+        self.calls = CallsAPI(self.raw)
+        self.takeout = TakeoutAPI(self.raw)
+        self.webapps = WebAppsAPI(self.raw)
+        self.todos = TodosAPI(self.raw)
+        self.translate = TranslateAPI(self.raw)
         self.presence = PresenceAPI(self.raw)
         self.updates = UpdatesAPI(self.raw)
 

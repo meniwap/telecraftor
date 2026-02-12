@@ -9,6 +9,11 @@ Run Telegram live tests in explicit lanes:
 - `paid`: optional spending-capable gifts/stars flow
 - `business`: business API smoke flow (opt-in)
 - `chatlists`: chatlists API smoke flow (opt-in)
+- `calls`: calls readonly smoke flow (opt-in)
+- `calls_write`: calls write/destructive smoke flow (opt-in)
+- `takeout`: takeout smoke flow (opt-in)
+- `webapps`: webapps smoke flow (opt-in)
+- `admin`: admin-sensitive smoke flows (opt-in)
 - `stories_write`: stories write smoke flow (opt-in)
 - `channel_admin`: channel admin smoke flow (opt-in)
 - dual audit output (Telegram + local files)
@@ -117,6 +122,59 @@ python -m pytest tests/live/optional/test_live_chatlists_suite.py -vv -s \
   --live-chatlists
 ```
 
+Optional calls readonly lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_calls_readonly_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-calls
+```
+
+Optional calls write lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_calls_write_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-calls-write \
+  --live-destructive
+```
+
+Required env for calls lanes:
+- `TELECRAFT_LIVE_CALLS_PEER` (readonly lane)
+- `TELECRAFT_LIVE_CALLS_WRITE_PEER` (write lane)
+
+Optional takeout lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_takeout_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-takeout
+```
+
+Optional webapps lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_webapps_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-webapps
+```
+
+Required env for webapps lane:
+- `TELECRAFT_LIVE_WEBAPP_BOT` (bot peer, e.g. `@mybot`)
+
+Optional admin-sensitive lanes:
+
+```bash
+python -m pytest tests/live/optional/test_live_stats_readonly_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-admin
+```
+
 Required env for chatlists lane:
 - `TELECRAFT_LIVE_CHATLIST_SLUG` with a valid invite slug (no `https://t.me/addlist/` prefix)
 
@@ -173,6 +231,11 @@ If `--live-audit-peer auto` is used, a persistent audit destination is created a
 - `paid` lane requires explicit `--live-paid`.
 - `business` lane requires explicit `--live-business`.
 - `chatlists` lane requires explicit `--live-chatlists`.
+- `calls` readonly lane requires explicit `--live-calls`.
+- `calls_write` lane requires explicit `--live-calls-write`.
+- `takeout` lane requires explicit `--live-takeout`.
+- `webapps` lane requires explicit `--live-webapps`.
+- `admin` sensitive lanes require explicit `--live-admin`.
 - `stories_write` lane requires explicit `--live-stories-write`.
 - `channel_admin` lane requires explicit `--live-channel-admin`.
 - `business` and `chatlists` suites are fail-fast on unsupported/account capability errors.

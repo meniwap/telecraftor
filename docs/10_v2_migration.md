@@ -48,6 +48,21 @@ Move from monolithic `MtprotoClient` usage to structured `Client` namespaces.
 - Old: raw business/chatlists/stories/channel-admin methods
 - New: `Client.business.*`, `Client.chatlists.*`, `Client.stories.*`, `Client.channels.*`
 
+- Old: raw search/drafts/report methods
+- New: `Client.search.*`, `Client.drafts.*`, `Client.reports.*`
+
+- Old: raw stats/recommendations methods
+- New: `Client.stats.*`, `Client.discovery.*`
+
+- Old: raw account sessions/themes/wallpapers methods
+- New: `Client.account.*`
+
+- Old: raw phone group-call methods
+- New: `Client.calls.*`
+
+- Old: raw takeout/webview/todo/translate methods
+- New: `Client.takeout.*`, `Client.webapps.*`, `Client.todos.*`, `Client.translate.*`
+
 ## Example
 
 ```python
@@ -64,8 +79,11 @@ await client.messages.send("@username", "hi")
 await client.media.send_file("@username", "pic.jpg")
 await client.games.roll_dice("@username")
 await client.saved.dialogs.list(limit=20)
+await client.search.global_messages(q="invoice", limit=20)
 await client.stars.status(peer="self")
 await client.gifts.catalog()
+await client.account.sessions.list()
+await client.translate.text("hola", "en")
 await client.close()
 ```
 

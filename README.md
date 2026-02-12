@@ -23,6 +23,9 @@ await client.close()
 
 Namespaces:
 - `client.messages`
+- `client.search`
+- `client.drafts`
+- `client.reports`
 - `client.media`
 - `client.chats` (`client.chats.members`, `client.chats.invites`)
 - `client.admin`
@@ -43,6 +46,14 @@ Namespaces:
 - `client.chatlists` (`client.chatlists.invites`, `client.chatlists.updates`, `client.chatlists.suggestions`)
 - `client.stories` (`client.stories.capabilities`, `client.stories.feed`)
 - `client.channels` (`client.channels.settings`)
+- `client.stats` (`client.stats.channels`, `client.stats.graph`, `client.stats.public_forwards`)
+- `client.discovery` (`client.discovery.channels`, `client.discovery.bots`)
+- `client.account` (`client.account.sessions`, `client.account.web_sessions`, `client.account.content`, `client.account.ttl`, `client.account.terms`, `client.account.themes`, `client.account.wallpapers`)
+- `client.calls` (`client.calls.group`, `client.calls.stream`, `client.calls.conference`)
+- `client.takeout` (`client.takeout.messages`, `client.takeout.media`)
+- `client.webapps`
+- `client.todos`
+- `client.translate`
 - `client.peers`
 - `client.profile`
 - `client.presence`
@@ -160,6 +171,43 @@ python -m pytest tests/live/optional/test_live_channels_admin_suite.py -vv -s \
   --run-live \
   --live-runtime sandbox \
   --live-channel-admin
+```
+
+Calls readonly lane (opt-in):
+
+```bash
+python -m pytest tests/live/optional/test_live_calls_readonly_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-calls
+```
+
+Calls write lane (opt-in, destructive):
+
+```bash
+python -m pytest tests/live/optional/test_live_calls_write_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-calls-write \
+  --live-destructive
+```
+
+Takeout lane (opt-in):
+
+```bash
+python -m pytest tests/live/optional/test_live_takeout_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-takeout
+```
+
+WebApps lane (opt-in):
+
+```bash
+python -m pytest tests/live/optional/test_live_webapps_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-webapps
 ```
 
 Enable paid gifts/stars lane explicitly (never on by default):
