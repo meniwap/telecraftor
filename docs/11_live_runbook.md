@@ -37,6 +37,23 @@ Notes:
   the issue is likely test-network-side/account-policy-side rather than a Telecraft runtime issue.
 - Until it is resolved, use production live checks only with explicit prod overrides and safe lanes.
 
+## TL Decode Forensics (Optional)
+
+If a live lane hits an unknown/new TL constructor, you can capture raw failing payloads:
+
+```bash
+TELECRAFT_DEBUG_DUMP_TL=1 \
+TELECRAFT_DEBUG_TL_DIR=reports/debug_tl \
+python -m pytest tests/live/optional/test_live_optional_polls.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-enable-polls
+```
+
+Notes:
+- Decoder now keeps the receiver loop alive on decode failures and fails only relevant requests.
+- Dump files are written only when `TELECRAFT_DEBUG_DUMP_TL=1` is set.
+
 ## Command
 
 Core lane:
