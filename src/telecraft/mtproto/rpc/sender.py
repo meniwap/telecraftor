@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import gzip
 import logging
 import re
 import struct
@@ -9,7 +10,7 @@ from typing import Any, Protocol, cast
 
 from telecraft.mtproto.core.msg_id import MsgIdGenerator
 from telecraft.mtproto.core.state import MtprotoState
-from telecraft.tl.codec import MsgContainer, RpcResult, loads
+from telecraft.tl.codec import MsgContainer, RpcResult, TLCodecError, loads
 from telecraft.tl.generated.types import (
     BadMsgNotification,
     BadServerSalt,
@@ -24,6 +25,9 @@ logger = logging.getLogger(__name__)
 
 # Pattern to extract wait time from FLOOD_WAIT_X, SLOWMODE_WAIT_X, etc.
 _WAIT_PATTERN = re.compile(r"(?:FLOOD_WAIT|SLOWMODE_WAIT|FLOOD_PREMIUM_WAIT)_(\d+)")
+_RPC_RESULT_CONSTRUCTOR_ID = -212046591  # 0xF35C6D01
+_MSG_CONTAINER_CONSTRUCTOR_ID = 1945237724  # 0x73F1F8DC
+_GZIP_PACKED_CONSTRUCTOR_ID = 812830625  # 0x3072CFA1
 
 
 class PacketTransport(Protocol):
@@ -50,6 +54,10 @@ class RpcErrorException(RpcSenderError):
         super().__init__(f"RPC_ERROR {code}: {message}")
         self.code = code
         self.message = message
+
+
+class RpcDecodeError(RpcSenderError):
+    """Raised when a response payload cannot be decoded into TL objects."""
 
 
 def parse_flood_wait_seconds(message: str) -> int | None:
@@ -86,6 +94,85 @@ def _parse_inner_message(inner: bytes) -> tuple[int, int, bytes]:
 
 def _i64_to_le_bytes(x: int) -> bytes:
     return (int(x) & ((1 << 64) - 1)).to_bytes(8, "little", signed=False)
+
+
+def _read_tl_bytes_from(payload: bytes, *, start: int) -> tuple[bytes, int]:
+    if start >= len(payload):
+        raise ValueError("Unexpected EOF while reading TL bytes")
+    first = payload[start]
+    if first < 254:
+        ln = first
+        p = start + 1
+        end = p + ln
+        if end > len(payload):
+            raise ValueError("Unexpected EOF in TL bytes (short)")
+        pad = (4 - ((1 + ln) % 4)) % 4
+        end += pad
+        if end > len(payload):
+            raise ValueError("Unexpected EOF in TL bytes padding")
+        return payload[p : p + ln], end
+
+    if start + 4 > len(payload):
+        raise ValueError("Unexpected EOF in TL bytes header")
+    ln = int.from_bytes(payload[start + 1 : start + 4], "little")
+    p = start + 4
+    end = p + ln
+    if end > len(payload):
+        raise ValueError("Unexpected EOF in TL bytes (long)")
+    pad = (4 - ((4 + ln) % 4)) % 4
+    end += pad
+    if end > len(payload):
+        raise ValueError("Unexpected EOF in TL bytes padding (long)")
+    return payload[p : p + ln], end
+
+
+def _collect_req_msg_ids(payload: bytes, out: set[int], *, depth: int = 0) -> None:
+    if depth > 8 or len(payload) < 4:
+        return
+    cid = int(struct.unpack_from("<i", payload, 0)[0])
+
+    if cid == _RPC_RESULT_CONSTRUCTOR_ID:
+        if len(payload) >= 12:
+            out.add(int(struct.unpack_from("<q", payload, 4)[0]))
+        return
+
+    if cid == _MSG_CONTAINER_CONSTRUCTOR_ID:
+        if len(payload) < 8:
+            return
+        count = int(struct.unpack_from("<i", payload, 4)[0])
+        if count < 0:
+            return
+        pos = 8
+        for _ in range(count):
+            if pos + 16 > len(payload):
+                return
+            msg_len = int(struct.unpack_from("<i", payload, pos + 12)[0])
+            if msg_len < 0:
+                return
+            start = pos + 16
+            end = start + msg_len
+            if end > len(payload):
+                return
+            _collect_req_msg_ids(payload[start:end], out, depth=depth + 1)
+            pos = end
+        return
+
+    if cid == _GZIP_PACKED_CONSTRUCTOR_ID:
+        try:
+            packed, _ = _read_tl_bytes_from(payload, start=4)
+            unpacked = gzip.decompress(packed)
+        except Exception:  # noqa: BLE001
+            return
+        _collect_req_msg_ids(unpacked, out, depth=depth + 1)
+
+
+def extract_req_msg_ids_from_payload(payload: bytes) -> set[int]:
+    req_msg_ids: set[int] = set()
+    try:
+        _collect_req_msg_ids(payload, req_msg_ids)
+    except Exception:  # noqa: BLE001
+        logger.debug("Failed to extract req_msg_id from undecodable payload", exc_info=True)
+    return req_msg_ids
 
 
 @dataclass(slots=True)
@@ -247,6 +334,9 @@ class MtprotoEncryptedSender:
                     # Return FloodWaitError for handling by invoke_tl
                     self._cleanup_call(call)
                     raise
+                except Exception:
+                    self._cleanup_call(call)
+                    raise
                 else:
                     self._cleanup_call(call)
                     return result
@@ -304,6 +394,44 @@ class MtprotoEncryptedSender:
             if self._pending.get(mid) is call:
                 self._pending.pop(mid, None)
             self._sent.pop(mid, None)
+
+    def _fail_decode_for_req_ids(
+        self,
+        *,
+        req_msg_ids: set[int],
+        outer_msg_id: int,
+        error: Exception,
+    ) -> None:
+        if not req_msg_ids:
+            logger.warning(
+                "TL decode failed for msg_id=%s but no req_msg_id could be extracted: %s",
+                outer_msg_id,
+                error,
+            )
+            return
+
+        affected: dict[int, tuple[int, _PendingCall]] = {}
+        for req_msg_id in req_msg_ids:
+            call = self._pending.get(req_msg_id)
+            if call is None or call.future.done():
+                continue
+            affected[id(call)] = (req_msg_id, call)
+
+        if not affected:
+            logger.warning(
+                "TL decode failed for msg_id=%s (req_ids=%s) but no active pending call matched",
+                outer_msg_id,
+                sorted(req_msg_ids),
+            )
+            return
+
+        for req_msg_id, call in affected.values():
+            call.future.set_exception(
+                RpcDecodeError(
+                    f"Failed to decode response for req_msg_id={req_msg_id} "
+                    f"(outer_msg_id={outer_msg_id}): {error}"
+                )
+            )
 
     def _unwrap_received(self, obj: Any, *, msg_id: int, seqno: int) -> list[ReceivedMessage]:
         # Note: We intentionally do NOT unwrap RpcResult here; we need req_msg_id.
@@ -439,7 +567,24 @@ class MtprotoEncryptedSender:
                 # Robust msg id generator: observe server time progression.
                 self._msg_id_gen.observe(outer_msg_id)
 
-                obj = loads(body)
+                try:
+                    obj = loads(body)
+                except TLCodecError as e:
+                    req_msg_ids = extract_req_msg_ids_from_payload(body)
+                    logger.exception(
+                        "Failed to decode incoming TL payload; failing only related requests "
+                        "(outer_msg_id=%s, req_msg_ids=%s)",
+                        outer_msg_id,
+                        sorted(req_msg_ids),
+                    )
+                    self._fail_decode_for_req_ids(
+                        req_msg_ids=req_msg_ids,
+                        outer_msg_id=outer_msg_id,
+                        error=e,
+                    )
+                    await self._send_ack([outer_msg_id])
+                    continue
+
                 received = self._unwrap_received(obj, msg_id=outer_msg_id, seqno=outer_seqno)
 
                 ack_ids: list[int] = []
