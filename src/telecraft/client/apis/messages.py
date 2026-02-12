@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 from telecraft.client.apis._utils import resolve_input_peer
@@ -35,7 +35,7 @@ class MessagesScheduledAPI:
     async def send_now(
         self,
         peer: PeerRef,
-        msg_ids: int | list[int],
+        msg_ids: int | Sequence[int],
         *,
         timeout: float = 20.0,
     ) -> Any:
@@ -51,7 +51,7 @@ class MessagesScheduledAPI:
     async def delete(
         self,
         peer: PeerRef,
-        msg_ids: int | list[int],
+        msg_ids: int | Sequence[int],
         *,
         timeout: float = 20.0,
     ) -> Any:
