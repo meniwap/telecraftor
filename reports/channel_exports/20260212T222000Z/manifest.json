@@ -1,0 +1,27 @@
+{
+  "run_id": "20260212T222000Z",
+  "created_at": "2026-02-12T22:20:00.916682+00:00",
+  "method": "public_web_export_tme_s",
+  "channels": {
+    "kurigram_news": {
+      "channel": "kurigram_news",
+      "start_url": "https://t.me/s/kurigram_news",
+      "pages_crawled": 6,
+      "exported_text_messages": 104,
+      "first_message_id": 1,
+      "last_message_id": 144,
+      "jsonl": "/Users/meniwap/telecraftor/reports/channel_exports/20260212T222000Z/kurigram_news_text.jsonl",
+      "txt": "/Users/meniwap/telecraftor/reports/channel_exports/20260212T222000Z/kurigram_news_text.txt"
+    },
+    "pyrotgfork": {
+      "channel": "pyrotgfork",
+      "start_url": "https://t.me/s/pyrotgfork",
+      "pages_crawled": 4,
+      "exported_text_messages": 73,
+      "first_message_id": 1,
+      "last_message_id": 176,
+      "jsonl": "/Users/meniwap/telecraftor/reports/channel_exports/20260212T222000Z/pyrotgfork_text.jsonl",
+      "txt": "/Users/meniwap/telecraftor/reports/channel_exports/20260212T222000Z/pyrotgfork_text.txt"
+    }
+  }
+}

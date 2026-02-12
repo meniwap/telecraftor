@@ -8,15 +8,23 @@ from telecraft.client.stickers import StickerSetRef, build_input_sticker_set
 from telecraft.tl.generated.functions import (
     ChannelsDeleteHistory,
     ChannelsDeleteParticipantHistory,
+    ChannelsExportMessageLink,
+    ChannelsGetAdminLog,
     ChannelsReadHistory,
+    ChannelsReorderUsernames,
     ChannelsReportAntiSpamFalsePositive,
     ChannelsSetBoostsToUnblockRestrictions,
+    ChannelsSetDiscussionGroup,
     ChannelsSetEmojiStickers,
     ChannelsSetStickers,
     ChannelsToggleAntiSpam,
     ChannelsToggleParticipantsHidden,
+    ChannelsTogglePreHistoryHidden,
+    ChannelsToggleSignatures,
+    ChannelsToggleSlowMode,
     ChannelsUpdateColor,
     ChannelsUpdateEmojiStatus,
+    ChannelsUpdateUsername,
 )
 
 if TYPE_CHECKING:
@@ -157,11 +165,175 @@ class ChannelSettingsAPI:
             timeout=timeout,
         )
 
+    async def toggle_signatures(
+        self,
+        channel: PeerRef,
+        enabled: bool = True,
+        *,
+        profiles_enabled: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if profiles_enabled else 0
+        return await self._raw.invoke_api(
+            ChannelsToggleSignatures(
+                flags=flags,
+                signatures_enabled=bool(enabled),
+                profiles_enabled=True if profiles_enabled else None,
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+            ),
+            timeout=timeout,
+        )
+
+    async def toggle_prehistory_hidden(
+        self,
+        channel: PeerRef,
+        enabled: bool,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsTogglePreHistoryHidden(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                enabled=bool(enabled),
+            ),
+            timeout=timeout,
+        )
+
+    async def set_discussion_group(
+        self,
+        channel: PeerRef,
+        group: PeerRef,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsSetDiscussionGroup(
+                broadcast=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                group=await resolve_input_channel(self._raw, group, timeout=timeout),
+            ),
+            timeout=timeout,
+        )
+
+    async def update_username(
+        self,
+        channel: PeerRef,
+        username: str = "",
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsUpdateUsername(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                username=str(username),
+            ),
+            timeout=timeout,
+        )
+
+    async def reorder_usernames(
+        self,
+        channel: PeerRef,
+        usernames: list[str],
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsReorderUsernames(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                order=[str(item) for item in usernames],
+            ),
+            timeout=timeout,
+        )
+
+    async def update_slow_mode(
+        self,
+        channel: PeerRef,
+        seconds: int,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsToggleSlowMode(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                seconds=int(seconds),
+            ),
+            timeout=timeout,
+        )
+
+
+class ChannelAdminLogAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def list(
+        self,
+        channel: PeerRef,
+        *,
+        q: str | None = None,
+        events_filter: Any | None = None,
+        admins: list[Any] | None = None,
+        max_id: int = 0,
+        min_id: int = 0,
+        limit: int = 100,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if q is not None:
+            flags |= 1
+        if events_filter is not None:
+            flags |= 2
+        if admins is not None:
+            flags |= 4
+        return await self._raw.invoke_api(
+            ChannelsGetAdminLog(
+                flags=flags,
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                q=str(q) if q is not None else None,
+                events_filter=events_filter,
+                admins=list(admins) if admins is not None else None,
+                max_id=int(max_id),
+                min_id=int(min_id),
+                limit=int(limit),
+            ),
+            timeout=timeout,
+        )
+
+
+class ChannelLinksAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def message(
+        self,
+        channel: PeerRef,
+        msg_id: int,
+        *,
+        grouped: bool = False,
+        thread: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if grouped:
+            flags |= 1
+        if thread:
+            flags |= 2
+        return await self._raw.invoke_api(
+            ChannelsExportMessageLink(
+                flags=flags,
+                grouped=True if grouped else None,
+                thread=True if thread else None,
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                id=int(msg_id),
+            ),
+            timeout=timeout,
+        )
+
 
 class ChannelsAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
         self.settings = ChannelSettingsAPI(raw)
+        self.admin_log = ChannelAdminLogAPI(raw)
+        self.links = ChannelLinksAPI(raw)
 
     async def read_history(
         self,

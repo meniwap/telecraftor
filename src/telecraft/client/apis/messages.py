@@ -3,15 +3,72 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
+from telecraft.client.apis._utils import resolve_input_peer
 from telecraft.client.peers import PeerRef
+from telecraft.tl.generated.functions import (
+    MessagesDeleteScheduledMessages,
+    MessagesGetScheduledHistory,
+    MessagesGetUnreadMentions,
+    MessagesGetUnreadReactions,
+    MessagesReadMentions,
+    MessagesReadReactions,
+    MessagesSendScheduledMessages,
+)
 
 if TYPE_CHECKING:
     from telecraft.client.mtproto import MtprotoClient
 
 
+class MessagesScheduledAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def list(self, peer: PeerRef, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            MessagesGetScheduledHistory(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                hash=0,
+            ),
+            timeout=timeout,
+        )
+
+    async def send_now(
+        self,
+        peer: PeerRef,
+        msg_ids: int | list[int],
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        ids = [int(msg_ids)] if isinstance(msg_ids, int) else [int(x) for x in msg_ids]
+        return await self._raw.invoke_api(
+            MessagesSendScheduledMessages(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=ids,
+            ),
+            timeout=timeout,
+        )
+
+    async def delete(
+        self,
+        peer: PeerRef,
+        msg_ids: int | list[int],
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        ids = [int(msg_ids)] if isinstance(msg_ids, int) else [int(x) for x in msg_ids]
+        return await self._raw.invoke_api(
+            MessagesDeleteScheduledMessages(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=ids,
+            ),
+            timeout=timeout,
+        )
+
+
 class MessagesAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
+        self.scheduled = MessagesScheduledAPI(raw)
 
     async def send(
         self,
@@ -238,6 +295,110 @@ class MessagesAPI:
 
     async def mark_read(self, peer: PeerRef, *, max_id: int = 0, timeout: float = 20.0) -> Any:
         return await self._raw.mark_read(peer, max_id=max_id, timeout=timeout)
+
+    async def unread_mentions(
+        self,
+        peer: PeerRef,
+        *,
+        offset_id: int = 0,
+        add_offset: int = 0,
+        limit: int = 100,
+        max_id: int = 0,
+        min_id: int = 0,
+        top_msg_id: int | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if top_msg_id is not None else 0
+        return await self._raw.invoke_api(
+            MessagesGetUnreadMentions(
+                flags=flags,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                top_msg_id=int(top_msg_id) if top_msg_id is not None else None,
+                offset_id=int(offset_id),
+                add_offset=int(add_offset),
+                limit=int(limit),
+                max_id=int(max_id),
+                min_id=int(min_id),
+            ),
+            timeout=timeout,
+        )
+
+    async def read_mentions(
+        self,
+        peer: PeerRef,
+        *,
+        top_msg_id: int | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if top_msg_id is not None else 0
+        return await self._raw.invoke_api(
+            MessagesReadMentions(
+                flags=flags,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                top_msg_id=int(top_msg_id) if top_msg_id is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+    async def unread_reactions(
+        self,
+        peer: PeerRef,
+        *,
+        offset_id: int = 0,
+        add_offset: int = 0,
+        limit: int = 100,
+        max_id: int = 0,
+        min_id: int = 0,
+        top_msg_id: int | None = None,
+        saved_peer_id: PeerRef | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if top_msg_id is not None:
+            flags |= 1
+        saved_peer = None
+        if saved_peer_id is not None:
+            flags |= 2
+            saved_peer = await resolve_input_peer(self._raw, saved_peer_id, timeout=timeout)
+        return await self._raw.invoke_api(
+            MessagesGetUnreadReactions(
+                flags=flags,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                top_msg_id=int(top_msg_id) if top_msg_id is not None else None,
+                saved_peer_id=saved_peer,
+                offset_id=int(offset_id),
+                add_offset=int(add_offset),
+                limit=int(limit),
+                max_id=int(max_id),
+                min_id=int(min_id),
+            ),
+            timeout=timeout,
+        )
+
+    async def read_reactions(
+        self,
+        peer: PeerRef,
+        *,
+        top_msg_id: int | None = None,
+        saved_peer_id: PeerRef | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if top_msg_id is not None:
+            flags |= 1
+        saved_peer = None
+        if saved_peer_id is not None:
+            flags |= 2
+            saved_peer = await resolve_input_peer(self._raw, saved_peer_id, timeout=timeout)
+        return await self._raw.invoke_api(
+            MessagesReadReactions(
+                flags=flags,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                top_msg_id=int(top_msg_id) if top_msg_id is not None else None,
+                saved_peer_id=saved_peer,
+            ),
+            timeout=timeout,
+        )
 
     async def history(
         self,

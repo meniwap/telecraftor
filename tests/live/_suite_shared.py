@@ -138,6 +138,47 @@ def is_private_or_not_found_error(err: Exception) -> bool:
     )
 
 
+def is_chat_write_forbidden_error(err: Exception) -> bool:
+    return "CHAT_WRITE_FORBIDDEN" in str(err).upper()
+
+
+def is_schema_decode_mismatch_error(err: Exception) -> bool:
+    msg = str(err)
+    upper = msg.upper()
+    return (
+        "UNKNOWN CONSTRUCTOR ID" in upper
+        or "RECEIVER LOOP CRASHED" in upper
+        or type(err).__name__ in {"RpcSenderError", "TLCodecError"}
+    )
+
+
+async def create_temp_write_peer(
+    *,
+    client: Client,
+    ctx: Any,
+    resource_ids: dict[str, object],
+    key_prefix: str,
+) -> str:
+    created = await client.chats.create_channel(
+        title=f"tc-live-{key_prefix}-{ctx.run_id}",
+        about="Telecraft live writable peer",
+        broadcast=False,
+        megagroup=True,
+        timeout=ctx.cfg.timeout,
+    )
+    cid = extract_channel_id(created)
+    if cid is None:
+        raise RuntimeError("Failed to create temporary writable channel")
+    peer = f"channel:{cid}"
+    resource_ids[f"{key_prefix}_peer"] = peer
+
+    async def _cleanup() -> None:
+        await client.chats.delete_channel(peer, timeout=ctx.cfg.timeout)
+
+    ctx.add_cleanup(_cleanup)
+    return peer
+
+
 async def finalize_run(
     *,
     client: Client,

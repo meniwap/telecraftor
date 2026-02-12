@@ -14,8 +14,10 @@ from telecraft.client import (
     Client,
     DocumentRef,
     GiftRef,
+    GroupCallRef,
     NotifyTarget,
     StickerSetRef,
+    TakeoutScopes,
 )
 
 MATRIX_PATH = Path("tests/meta/v2_method_matrix.yaml")
@@ -238,6 +240,18 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
         return {"inline_message": "abc"}
     if param_name == "users":
         return ["user:2"]
+    if param_name == "items":
+        return ["item-a", "item-b"]
+    if param_name == "item_ids":
+        return [1, 2]
+    if param_name == "usernames":
+        return ["u1", "u2"]
+    if param_name == "call_ref":
+        return GroupCallRef.from_parts(1, 2)
+    if param_name == "scopes":
+        return TakeoutScopes()
+    if param_name == "token_or_graph_obj":
+        return "graph-token"
     if param_name == "paths":
         return ["/tmp/a.bin", "/tmp/b.bin"]
     if param_name == "captions":
@@ -292,6 +306,7 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
         "phone_number",
         "action",
         "rank",
+        "method",
         "name",
         "slug",
         "shortcut",
@@ -316,10 +331,15 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
 
 
 FORWARDED_ARG_ALIASES: dict[str, tuple[str, ...]] = {
+    "call_ref": ("call", "peer"),
     "ids": ("id",),
     "inline_message_id": ("id",),
+    "item_ids": ("completed", "incompleted"),
     "msg_ids": ("id",),
     "msg_id": ("id",),
+    "method": ("custom_method",),
+    "query_obj": ("query",),
+    "reason": ("option",),
     "tx_ids": ("id",),
     "ref": ("stargift",),
     "refs": ("stargift",),
@@ -335,6 +355,8 @@ FORWARDED_ARG_ALIASES: dict[str, tuple[str, ...]] = {
     "story_id": ("id",),
     "target": ("peer",),
     "peer_target": ("peer",),
+    "token_or_graph_obj": ("token",),
+    "usernames": ("order",),
     "work_hours_obj_or_none": ("business_work_hours",),
 }
 
@@ -348,7 +370,18 @@ def _matches_forwarded_value(expected: Any, actual: Any) -> bool:
         return True
     if _is_sequence_value(expected) and _is_sequence_value(actual):
         return len(expected) == len(actual)
-    if isinstance(expected, (GiftRef, StickerSetRef, DocumentRef, NotifyTarget, ChatlistRef)):
+    if isinstance(
+        expected,
+        (
+            GiftRef,
+            GroupCallRef,
+            StickerSetRef,
+            DocumentRef,
+            NotifyTarget,
+            ChatlistRef,
+            TakeoutScopes,
+        ),
+    ):
         # Ref/helper values are intentionally converted to TL input objects.
         return actual is not None
     return False

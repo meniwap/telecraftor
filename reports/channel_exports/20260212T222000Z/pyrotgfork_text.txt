@@ -1,0 +1,870 @@
+[1] 2024-04-18T06:27:22+00:00
+Channel created
+
+[2] 2024-04-18T06:27:48+00:00
+Welcome to @Pyrogram Fork's chat
+
+Rules:
+• Speak English and stay on-topic
+• Learn from docs before asking
+
+• Topic: • discussions about intended usages with Pyrogram •
+
+Logo Credits:
+• @PyrogramModNews
+• @RoBot
+
+Fork of Pyrogram. Elegant, modern and asynchronous Telegram MTProto API framework in Python for users and bots
+
+• Changes in this Pyrogram Fork
+• Type Language Differ
+• TL Schema Explorer
+
+[3] 2024-04-18T06:35:26+00:00
+Channel photo updated
+
+[4] 2024-04-18T06:36:30+00:00
+Channel name was changed to «Pyrogram TG Fork»
+
+[8] 2024-04-18T14:31:11+00:00
+TelegramPlayGround/pyrogram on 2024-04-18T16:30:51+02:00
+
+a2b47f9800: rebrand formatting at 2024-04-18T16:30:51+02:00
+
+[13] 2024-04-18T17:14:02+00:00
+TelegramPlayGround/pyrogram
+
+46a3b2d348: MessageOrigin at 2024-04-18T18:31:15+02:00 ( ±5 +6 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[14] 2024-04-19T09:32:46+00:00
+TelegramPlayGround/pyrogram
+
+fca83f7f5c: Breaking Change: Remove the deprecated properties at 2024-04-19T11:08:28+02:00 ( ±1 +0 -0 )
+18094f4d1b: Return service message if possible in case of promote_chat_member at 2024-04-19T11:32:22+02:00 ( ±1 +0 -0 )
+9f5bb60645: Affempt (3) to fix restrict_chat_member at 2024-04-19T11:32:37+02:00 ( ±2 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[15] 2024-04-19T12:38:55+00:00
+TelegramPlayGround/pyrogram
+
+5f55b7040d: Add users_shared and chat_shared filters
+
+Fix documentation of filters.media at 2024-04-19T14:15:09+02:00 ( ±2 +0 -0 )
+f5433f282a: Add MessageImportInfo at 2024-04-19T14:19:40+02:00 ( ±3 +1 -0 )
+55f1c3fc49: Fix some code-documentation at 2024-04-19T14:38:22+02:00 ( ±2 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[16] 2024-04-19T14:35:59+00:00
+TelegramPlayGround/pyrogram
+
+9872a483e8: Fix (unexpected end of data) UnicodeDecodeError in Str
+
+Fixes Mayuri-Chan/pyrofork#65 at 2024-04-19T16:35:52+02:00 ( ±1 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[17] 2024-04-19T17:05:19+00:00
+TelegramPlayGround/pyrogram
+
+ec4866f869: Add get_stickers to get stickerset from short_name at 2024-04-19T19:03:39+02:00 ( ±5 +2 -0 )
+715b2c3e4d: Add gifted_premium to Message at 2024-04-19T19:05:04+02:00 ( ±5 +1 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[18] 2024-04-19T17:37:36+00:00
+TelegramPlayGround/pyrogram
+
+f3a36c4e6d: Fix Documentation Mistake
+
+and Bump Version at 2024-04-19T19:37:29+02:00 ( ±4 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[19] 2024-04-19T17:37:46+00:00
+TelegramPlayGround/pyrogram
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[20] 2024-04-19T17:49:42+00:00
+TelegramPlayGround/pyrogram
+
+3b0c337c7e: DocGen: Update documentation at 2024-04-19T17:49:32Z ( ±0 +3000 -0 )
+https://telegramplayground.github.io/pyrogram/
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[21] 2024-04-20T05:30:54+00:00
+TelegramPlayGround/pyrogram
+
+087d5f29b8: Support both Message and CallbackQuery in filters.group and filters.channel
+
+From #1391 at 2024-04-20T05:36:15+02:00 ( ±2 +0 -0 )
+fb118f95d1: Support previous arguments for BC #20400
+
+disable_web_page_preview=True -> link_preview_options=LinkPreviewOptions(is_disabled=True)
+reply_to_message_id=1 -> ReplyParameters(message_id=1) at 2024-04-20T06:58:30+02:00 ( ±6 +0 -0 )
+5225deea95: Add callback_data_with_password to InlineKeyboardButton at 2024-04-20T07:01:19+02:00 ( ±2 +0 -0 )
+511702d4a7: Add password parameter to request_callback_answer and Message.click
+
+Git-Origin-Commit-Id: bfa7e4ca3 at 2024-04-20T07:26:00+02:00 ( ±3 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[22] 2024-04-20T07:58:37+00:00
+TelegramPlayGround/pyrogram
+
+848bc86447: Add BC parameters to remaining methods
+
+Follow-Up: fb118f9 at 2024-04-20T09:56:03+02:00 ( ±23 +0 -0 )
+4f2584f7c0: Bump Version at 2024-04-20T09:58:29+02:00 ( ±2 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[23] 2024-04-20T07:58:46+00:00
+TelegramPlayGround/pyrogram
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[24] 2024-04-20T08:10:09+00:00
+TelegramPlayGround/pyrogram
+
+3f461130d6: DocGen: Update documentation at 2024-04-20T08:09:58Z ( ±0 +3000 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[25] 2024-04-20T09:13:28+00:00
+TelegramPlayGround/pyrogram
+
+2267f4c793: Add trigger and watch emoji animations in send_chat_action and reply_chat_action at 2024-04-20T11:00:26+02:00 ( ±4 +0 -0 )
+eb8f32ca18: Add support for message.link in discussion reply messages at 2024-04-20T11:12:17+02:00 ( ±1 +0 -0 )
+0d5152b4c7: Add documentation
+
+and Bump Version at 2024-04-20T11:13:18+02:00 ( ±2 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[26] 2024-04-20T09:13:31+00:00
+TelegramPlayGround/pyrogram
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[27] 2024-04-20T09:24:50+00:00
+TelegramPlayGround/pyrogram
+
+6f98a4e729: DocGen: Update documentation at 2024-04-20T09:24:40Z ( ±0 +3000 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[28] 2024-04-21T16:21:15+00:00
+TelegramPlayGround/pyrogram
+
+c54ef83622: Fix condition when parsing banned chats at 2024-04-21T14:35:22+02:00 ( ±1 +0 -0 )
+5b08e3267e: Return service message if possible in case of add_chat_members
+Make the user_ids parameter optional in add_chat_members at 2024-04-21T14:37:33+02:00 ( ±1 +0 -0 )
+3441687f31: Add some of the missing parameters in the create_chat methods at 2024-04-21T14:38:01+02:00 ( ±4 +0 -0 )
+84a9738ec5: Update ChatMemberUpdatedHandler to support UpdateBotStopped updates at 2024-04-21T17:48:01+02:00 ( ±4 +0 -0 )
+c5bf6f82a3: ability to specify our own interactions in send_chat_action at 2024-04-21T18:17:18+02:00 ( ±3 +0 -0 )
+4d656b7325: Update Community Link
+and Bump Version at 2024-04-21T18:21:07+02:00 ( ±3 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[29] 2024-04-21T16:21:18+00:00
+TelegramPlayGround/pyrogram
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[30] 2024-04-21T16:33:27+00:00
+TelegramPlayGround/pyrogram
+
+0714841f81: DocGen: Update documentation at 2024-04-21T16:33:17Z ( ±0 +3000 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[34] 2024-04-24T02:59:17+00:00
+TelegramPlayGround/pyrogram
+
+ef4609cb4e: Update API Scheme to Layer 178
+
+Git-Origin-Commit-Id: ac15990 at 2024-04-24T04:32:10+02:00 ( ±1 +0 -0 )
+58416aa8a8: Add is_channel to search_global and search_global_count at 2024-04-24T04:55:33+02:00 ( ±2 +0 -0 )
+0041ffd8a7: Update attributes of Chat and ChatReactions at 2024-04-24T04:58:45+02:00 ( ±3 +0 -0 )
+5529637014: Bump Version at 2024-04-24T04:59:10+02:00 ( ±1 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[40] 2024-04-24T12:10:18+00:00
+new issue #17 by  hudvaska
+Repeated Connection Lost/Bot doesn't start
+
+[43] 2024-04-24T12:47:39+00:00
+TelegramPlayGround/pyrogram
+
+c945c1f437: d51eef3 at 2024-04-24T14:46:39+02:00 ( ±2 +0 -0 )
+4d311c732a: https://t.me/pyrogramchat/614800 at 2024-04-24T14:47:19+02:00 ( ±1 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[44] 2024-04-24T13:13:43+00:00
+💬 New comment on pyrogram#17 Repeated Connection Lost/Bot doesn't start
+by @annihilatorrrr
+
+true, these is the real issue with this pyro
+
+[52] 2024-04-25T16:14:07+00:00
+TelegramPlayGround/pyrogram
+
+e7654c9fad: Add edit_cached_media method at 2024-04-25T16:30:20+02:00 ( ±4 +1 -0 )
+536c2fa92e: Fix bug with forward fliters
+
+Follow-Up: 46a3b2d at 2024-04-25T16:30:30+02:00 ( ±1 +0 -0 )
+d06c6a104e: https://t.me/pyrogramchat/614800 at 2024-04-25T16:32:06+02:00 ( ±1 +0 -0 )
+15e8f31e99: documentatation fix at 2024-04-25T17:36:12+02:00 ( ±1 +0 -0 )
+a64e70c06e: Added new functions (#19)
+
+set_bot_name
+get_bot_name
+set_bot_info_description
+get_bot_info_description
+set_bot_info_short_description
+get_bot_info_short_description at 2024-04-25T18:13:46+02:00 ( ±3 +6 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[56] 2024-04-25T20:32:25+00:00
+💬 New comment on pyrogram#17 Repeated Connection Lost/Bot doesn't start
+by @hudvaska
+
+I believe the bot would have recovered if it was possible to. I'm still not sure what the causes of the connection lost were but I dont think it was network issues as weird as that may sound. I also forgot to say this in the issue (I thought I included it, sorry) but that message was repeating every 30 seconds to minute. Seemed like it was continiously trying to connect/reconnect.
+
+[60] 2024-04-27T03:07:51+00:00
+TelegramPlayGround/pyrogram
+
+00e99c4bd5: attempt to fix build at 2024-04-25T19:34:12+02:00 ( ±2 +0 -0 )
+563da9a08e: Add search_chats method at 2024-04-26T20:12:40+02:00 ( ±3 +1 -0 )
+56997dbe8a: Fix unused bugs in get_reply_message_parameters at 2024-04-26T21:42:08+02:00 ( ±1 +0 -0 )
+2429389d79: Update API scheme to layer 179. at 2024-04-26T21:54:04+02:00 ( ±4 +0 -0 )
+212701a9bd: Support sending Poll question and options with entities support
+
+Server only seems to allow CUSTOM_EMOJI entities at the moment. at 2024-04-27T05:02:51+02:00 ( ±3 +0 -0 )
+d2f69a6773: Bump Version at 2024-04-27T05:07:44+02:00 ( ±2 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[62] 2024-04-27T03:19:56+00:00
+TelegramPlayGround/pyrogram
+
+db12fcd825: DocGen: Update documentation at 2024-04-27T03:19:46Z ( ±0 +3000 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[68] 2024-04-30T17:12:21+00:00
+TelegramPlayGround/pyrogram
+
+dc132bb1d7: Fix bug in poll unparse at 2024-04-27T06:11:04+02:00 ( ±1 +0 -0 )
+06ceb3d232: Add reverse parameter to get_chat_history at 2024-04-27T12:13:44+02:00 ( ±2 +0 -0 )
+44d47c7041: Try to Fix _parse for Expired Media at 2024-04-27T12:27:11+02:00 ( ±4 +0 -0 )
+89f6dc708c: Add get_collectible_item_info
+(KurimuzonAkuma/pyrogram#45) at 2024-04-27T14:34:40+02:00 ( ±4 +2 -0 )
+bf4bb78e3d: Add revoke_messages to ban_chat_member at 2024-04-28T04:53:37+02:00 ( ±3 +0 -0 )
+cd17bf4d70: Fix for copy_message in case of Poll at 2024-04-28T10:52:55+02:00 ( ±1 +0 -0 )
+14cff9333f: Fix missing await at one place at 2024-04-28T16:38:28+02:00 ( ±1 +0 -0 )
+2ebe36e20b: Fix edge case in Pinned Recent Action
+
+KurimuzonAkuma/pyrogram#49 at 2024-04-30T18:04:03+02:00 ( ±1 +0 -0 )
+be8b2d52f0: Add full_name to Chat and User at 2024-04-30T18:56:25+02:00 ( ±3 +0 -0 )
+57089014e5: Bump Version at 2024-04-30T19:12:09+02:00 ( ±2 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[70] 2024-04-30T17:24:30+00:00
+TelegramPlayGround/pyrogram
+
+b30d33e3a3: DocGen: Update documentation at 2024-04-30T17:24:19Z ( ±0 +3000 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[71] 2024-05-01T12:16:37+00:00
+TelegramPlayGround/pyrogram
+
+0909fff64d: Update API scheme to layer 179. at 2024-05-01T14:11:24+02:00 ( ±1 +0 -0 )
+b845b12dd7: Bump Version at 2024-05-01T14:16:30+02:00 ( ±1 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[73] 2024-05-01T12:28:23+00:00
+TelegramPlayGround/pyrogram
+
+132e31812c: DocGen: Update documentation at 2024-05-01T12:28:13Z ( ±0 +3000 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[74] 2024-05-05T15:11:24+00:00
+TelegramPlayGround/pyrogram
+
+bf2dcbb3a3: Fix condition for captions in copy_media_group
+
+https://t.me/pyrogramchat/615594 at 2024-05-05T05:52:42+02:00 ( ±1 +0 -0 )
+981ebd271c: Fix type hint at 2024-05-05T05:56:30+02:00 ( ±1 +0 -0 )
+66b5a34b87: fix sleep optimize condition andfor new methods at 2024-05-05T13:47:25+02:00 ( ±1 +0 -0 )
+785ed3d300: Attempt 4 at fixing message_thread_id parameter at 2024-05-05T13:47:41+02:00 ( ±1 +0 -0 )
+330a198f1f: Fix except error in send_message
+
+Ref: https://core.telegram.org/constructor/InputMediaWebpage at 2024-05-05T13:48:38+02:00 ( ±1 +0 -0 )
+406b0e0dd1: Added the field quote of type TextQuote to Message
+
+which contains the part of the replied message text or caption that is quoted in the current message. at 2024-05-05T17:07:55+02:00 ( ±4 +1 -0 )
+c58b688fb5: Bump Version at 2024-05-05T17:11:17+02:00 ( ±1 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[80] 2024-05-06T15:22:27+00:00
+TelegramPlayGround/pyrogram
+
+ff9e58c68a: Fixed nonetype has nothing like date. (#21) at 2024-05-06T15:37:26+05:30 ( ±1 +0 -0 )
+a8dacd1aea: Fix stop_poll method at 2024-05-06T15:13:23+02:00 ( ±1 +0 -0 )
+02c726e534: Added the field via_join_request to the class ChatMemberUpdated. at 2024-05-06T16:46:17+02:00 ( ±2 +0 -0 )
+6a46d7c70c: Added the max_reaction_count to the Chat at 2024-05-06T16:51:05+02:00 ( ±2 +0 -0 )
+09247fd184: Custom Emoji in Polls at 2024-05-06T17:16:32+02:00 ( ±6 +1 -0 )
+6df06ff3ff: Update API scheme to Layer 179 from TDLib at 2024-05-06T17:18:40+02:00 ( ±1 +0 -0 )
+2646b98dd1: Bump Version at 2024-05-06T17:22:20+02:00 ( ±1 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[96] 2024-05-12T13:00:26+00:00
+TelegramPlayGround/pyrogram
+
+37327b4a82: Fix parameter names in copy_message at 2024-05-09T06:54:25+02:00 ( ±2 +0 -0 )
+6a08fef515: Rename parameter names according to TDLib at 2024-05-09T07:07:18+02:00 ( ±4 +0 -0 )
+79a143fde9: Fix bug in Chat parsing for BotReaction update at 2024-05-10T16:36:17+02:00 ( ±2 +0 -0 )
+69aaccf8fb: Add view_messages  and  bound methods to Message at 2024-05-10T16:59:27+02:00 ( ±4 +1 -0 )
+1a10b1a324: Improve documentation for profile_photo methods at 2024-05-11T15:29:02+02:00 ( ±5 +0 -0 )
+279a684edc: maybe Fix bug at 2024-05-11T19:31:42+02:00 ( ±2 +0 -0 )
+173d254f3b: Add load_group_call_participants method at 2024-05-12T14:21:30+02:00 ( ±5 +3 -0 )
+2e00a09d86: Add get_chat_sponsored_messages at 2024-05-12T14:57:00+02:00 ( ±4 +2 -0 )
+8307cd216b: Update Pyrogram to v2.1.31 at 2024-05-12T15:00:19+02:00 ( ±2 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[98] 2024-05-12T13:12:38+00:00
+TelegramPlayGround/pyrogram
+
+7efa8e6a8f: DocGen: Update documentation at 2024-05-12T13:12:28Z ( ±0 +3000 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[118] 2024-05-24T09:09:53+00:00
+TelegramPlayGround/pyrogram
+
+2804d8cd09: Support for Chat Video Type at 2024-05-14T19:33:56+02:00 ( ±4 +0 -0 )
+80900541c0: Handle FLOOD_PREMIUM_WAIT at 2024-05-14T21:36:56+02:00 ( ±2 +0 -0 )
+f738262bb1: Fix link_preview_options bug with edit_message_text (#24) at 2024-05-18T15:39:58+02:00 ( ±1 +0 -0 )
+a8ec0701c5: Fix bug in parsing TextQuote and ExternalReplyInfo at 2024-05-22T13:41:26+02:00 ( ±3 +0 -0 )
+04b6c65a91: update MIN_CHANNEL_ID (#28)
+20c1a1eb54: Update Pyrogram to v2.1.32.1 at 2024-05-24T11:09:43+02:00 ( ±3 +0 -0 )
+
+Changes Since Last Release
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[120] 2024-05-24T09:21:57+00:00
+TelegramPlayGround/pyrogram
+
+af239a27fa: DocGen: Update documentation at 2024-05-24T09:21:46Z ( ±0 +3000 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[121] 2024-05-24T12:56:25+00:00
+TelegramPlayGround/pyrogram
+
+c5cc6f897a: Add topic filter
+
+Co-authored-by: KurimuzonAkuma <KurimuzonAkuma@users.noreply.github.com> at 2024-05-24T14:50:13+02:00 ( ±1 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[125] 2024-05-26T12:38:04+00:00
+TelegramPlayGround/pyrogram
+
+7492d7e050: Add link_preview_options to Client at 2024-05-24T18:31:34+02:00 ( ±6 +0 -0 )
+7492d7e050: Add link_preview_options to Client at 2024-05-24T18:31:34+02:00 ( ±6 +0 -0 )
+db9b1a1015: refactor(mime_types): added new file extensions at 2024-05-26T05:20:49+02:00 ( ±1 +0 -0 )
+e003dec1f5: Add invoice to Message and ExternalReplyInfo at 2024-05-26T14:37:49+02:00 ( ±6 +1 -0 )
+48e14a6d0b: Update API scheme on Layer 181 at 2024-05-28T14:45:42+02:00 ( ±2 +0 -0 )
+4842ef08ee: Fix bug at 2024-05-28T20:27:06+02:00 ( ±1 +0 -0 )
+e9167ec8df: Fix bug in TextQuote parsing at 2024-05-28T21:49:32+02:00 ( ±1 +0 -0 )
+7fb94d9b8f: Added EXPANDABLE_BLOCKQUOTE in MessageEntityType at 2024-05-28T21:49:39+02:00 ( ±6 +0 -0 )
+3eddb9a5eb: Added the field effect_id to the  Message. at 2024-05-28T21:54:07+02:00 ( ±2 +0 -0 )
+10a85aaec7: Added the field show_caption_above_media to the  Message. at 2024-05-28T22:04:26+02:00 ( ±2 +0 -0 )
+0f2507b2ca: Add show_caption_above_media at 2024-05-29T09:34:57+02:00 ( ±12 +0 -0 )
+28d40f77e1: Add message_effect_id to send* methods at 2024-05-29T09:57:13+02:00 ( ±18 +0 -0 )
+3f9b18ba6c: Update Pyrogram to v2.1.32.2 at 2024-05-29T09:58:06+02:00 ( ±1 +0 -0 )
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[140] 2024-06-01T15:52:44+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.32.5 --force-reinstall.
+
+637c5b590: Add the fetch_replies parameter to Client
+c44ea5202: Add get_message_effects to get the list of available message effects
+030978d68: Write update state to session only if Client.skip_updates = False
+450391b3b: refactor(session): replace recursion with loop and add backoff
+2dfdcaf99: Added show_caption_above_media to   send_cached_media, send_animation, send_photo, send_video, copy_message, and edit_message_caption, edit_cached_media
+36e7f7624: Add message_effect_id to remaining bound Methods
+d0b4d373d: Tried to Patch all backward incompatible changes made in this fork. Now, all code that works with the Pyrogram==2.0.106 should work correctly, with minor warnings, which need not be fixed.
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[141] 2024-06-06T15:10:16+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.32.6 --force-reinstall.
+
+beta release
+
+993890561: Bug Fixes (#32)
+b11fcfe3c: Invoice high-level support (#33)
+faea7557b: Fixing bug with BlockQuote entity parser (#31)
+19ac66f49: Improve documentation of methods.
+bbd208cb4: Add send_web_app_custom_request
+d465190b4: Add Hashtag Search methods
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[142] 2024-06-09T18:50:33+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.32.7 --force-reinstall.
+
+1078d07a4: Add translate (#39)
+f6e3e92c7: add three more methods for phone calls. (#37)
+a1da2c502: Add on_story updates in High Level
+822f38acb: Add ShippingQuery and answer_shipping_query
+c85c94251: Attempt to fix docs-build
+8bb36ed50: feat(connectivity): support connections in the replIT environment
+d7301e104: Add invite_group_call_participants method (#35)
+939bfb374: Add create_invoice_link Update documentation of pay button
+16224c2f8: [payments] fix amount of LabeledPrice to int (#34)
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[143] 2024-06-20T05:08:28+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.32.9 --force-reinstall.
+
+c74fcf5b5: Add unknown_errors
+ec3a96bf0: Add business_connection_id parameter in the methods edit_message_caption, edit_message_media, edit_message_reply_markup, edit_message_text, stop_poll, Message.edit_text, Message.edit_media, Message.edit_reply_markup, CallbackQuery.edit_message_text, CallbackQuery.edit_message_media, CallbackQuery.edit_message_reply_markup, Poll.stop.
+af1293cf0: Add UpdateBusinessBotCallbackQuery in callback_query handler
+dce309938: Update API Scheme to Layer 182
+34266515e: Added support for InputMessageContent classes, according to BOT API.
+983d396a1: Implement non-blocking TCP connection (KurimuzonAkuma/pyrogram#71)
+c5e9aaabb: Improve documentation of some methods
+e4f3e7a70: Add index on usernames.id
+1dd4fa01a: Fix condition in parsing Story
+38b99b69f: Add ChatBackground type (#40)
+b19aaa0b7: Fix typos.
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[144] 2024-07-07T10:41:50+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.32.12 --force-reinstall.
+
+5f73557ca: Add RefundedPayment
+671f73a97: Update API scheme to Layer 184
+0d3680284: Fix spelling mistake in documentation
+2799992fe: paid_media (#48)
+394792709: Add get_stories to get story information from identifiers (#47)
+eecadbc6e: Add self_destruct filter
+48152df99: Rename hashtag methods
+f63b0c899: Add message thread filter
+567609f2b: Fix regex filter for PreCheckoutQuery handler
+78316b274: Added the field can_send_paid_media to the class Chat.
+1936f0940: Added support for launching Web Apps via t.me link in the class MenuButtonWebApp.
+7641d3958: Add unknown_errors and fix a documentation mistake
+15d92e6c5: Update API schema to Layer 183
+8fc35765d: Add unknown_error
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[145] 2024-07-16T15:14:15+00:00
+🔥 TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.32.13 --force-reinstall.
+
+2f9518146: Dynamic session ReStart + restart optimizations (#56)
+39fe8268b: Fix documentation mistakes
+b6605d259: Fixes for error message scrapper (#53)
+d0aad9d23: add update_status, delete_account methods (#51)
+3e33eec72: Fix condition when parsing banned chats
+9d375f752: Add new method transfer_chat_ownership (#49)
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[146] 2024-07-17T14:13:59+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.32.14 --force-reinstall.
+
+08f32293a: Rename chat_ttl to message_auto_delete_time, according to BOT API
+033bf9262: steal fixes from pyroblack
+8bdfea372: Fix NameError (#59)
+98ec92684: Fix documentation mistake
+0595b3229: Add is_automatic_forward to Message (#54)
+7097e0d2c: Attempt to patch off an inconsistent behaviour (#52)
+3d2aa8b06: Add missing parameters to search_messages and search_messages_count (#50)
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[148] 2024-07-24T17:23:22+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.32.15 --force-reinstall.
+
+c0db4cbc4: Documentation Improvements (#66)
+5af68c35c: Update filters.via_bot
+cdf9040d8: Fix documentation mistake
+898288ad0: Add get_active_sessions
+e82e8381e: Fix documentation mistakes and MReBrand (#63)
+1636e377c: Fix condition for parsing chats, in on_chat_member_updated
+961243f1d: fix: no response after re-connect / while re-connecting
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[149] 2024-08-01T13:52:16+00:00
+🔥 TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.33.1 --force-reinstall.
+
+Telegram Browser, Mini App Store, Gifting Stars and More
+
+4b25a80f5: Update API Scheme to Layer 185 (#68)
+e9fe111f4: Improve documentation of protect_content.
+7478494f7: Add Instant View Support for documentation
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[150] 2024-08-02T17:04:12+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.33.2 --force-reinstall.
+
+cae9fbe9c: Add missing attributes to Chat
+b6fad5329: Add terminate_all_other_sessions
+7ee56064b: Add terminate_session
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[151] 2024-08-16T08:49:15+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.33.3 --force-reinstall.
+
+50b766b10: change the type of Reaction
+13c8ec1e4: Update documentation
+a79611330: Service Messages (#73)
+aa56b7c08: Improve documentation from BOT API 7.9
+24c3a1f7c: fix errors in scrapping
+ef43c8343: Add new unknown errors
+d7a156707: Add add_paid_message_reaction
+c9d63cc6f: Fix (iabw) parsing reactions
+e01d5e67d: Add ReactionTypePaid
+528d3109a: Update to Layer 186 from TDLib
+4424cee3c: Added the field until_date to the class ChatMember for members with an active subscription.
+4dc4ec61e: Added the ability to send paid media to any chat.
+066a99b94: Update to Layer 186
+044d7da15: (fix): parsing entities present in the original message
+c39545f77: Add chat_list to the methods get_dialogs and get_dialogs_count
+c7476f2eb: Fix condition check in bound methods
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[152] 2024-08-19T13:17:03+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.33.4 --force-reinstall.
+
+d11d3dfb6: Add can_enable_paid_reaction to Chat
+d40767a5d: (feat): Fix return type of get_messages based on various conditions
+21950d39a: Add link property to Story
+fe996b733: (fix): link property of Message
+03db13d38: (feat): Fix get_messages with /m/ type of links
+aabf74051: Add DraftMessage type
+fc3b63fe8: Fix documentation of enumerations
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[153] 2024-09-06T17:12:00+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.33.7 --force-reinstall.
+
+54f065a45: Added the field prize_star_count to the classes GiveawayCreated, Giveaway, GiveawayWinners
+8e89af40e: Added the field is_star_giveaway to the class GiveawayCompleted.
+f76509148: Added the ability to specify a payload in send_paid_media
+dc618eced: Update API Scheme to Layer 187
+1a7d9a23a: Try to return the service message (when applicable) in the set_chat_photo
+5111b7409: Add methods get_payment_form and  send_payment_form (#89)
+a8f470315: fix: private filter support in CallbackQuery (#87)
+635b268aa: Fix stop infinite loops in reply_to (#83)
+f083f6188: Ignore PersistentTimestamp errors
+2d2372c3f: Extract recovering gaps into a separate method
+832d1d891: Fix save_file in case client.me is None
+e3873ecc3: Fix type annotation on Message.reply_document (#83)
+0e1010078: (fix): docs compiler Enums documentation
+ae966a61c: Add fields to ChatInviteLink
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[154] 2024-10-05T16:19:18+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.33.8 --force-reinstall.
+
+8ba4ebd24: Add alternative_videos  to Message
+f9fafc4eb: Update documentation
+8af4cfb63: Update API Scheme to Layer 189
+20f4f3c8f: (fix): restarting of session on OsError
+163155e93: Fix missing parameters in reply_poll
+21f13ec47: Update API Scheme to Layer 189
+249957dab: Add connected_website and write_access_allowed to Message
+abf199b52: Improve documentation of types
+c24e6bc32: Fix documentation for send_poll and reply_poll
+29f8e2766: probably
+558ec7aa0: Add copy_text support in InlineKeyboardButton
+f786ca4b7: Update unknown_errors (#94)
+30e506d59: Update API Scheme to Layer 188
+ab58617f6: Temporary fix for another edge case
+0835877aa: Add emoji to send_sticker and reply_sticker.
+1bc323382: Return list of photos and videos instead of bool in send_payment_form
+b2b5cb090: Temporary fix for an edge case
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[155] 2024-10-14T13:31:04+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.33.11 --force-reinstall.
+
+fc27f9af6: Add Message.star bound method
+0b7bd9f26: Fix yanr NoneType error
+00fc92d62: Add toggle_forum_topic_is_pinned method
+eeec73b90: Update documentation for get_nearby_chats
+f0da2e651: Update API Scheme to Layer 190
+060ab377e: [630-152289-152456]  (#99)
+4e325a63d: Fix get_stories types (KurimuzonAkuma/pyrogram#97)
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[156] 2024-10-25T09:44:39+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.33.12 --force-reinstall.
+
+changes
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[157] 2024-11-16T07:59:26+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.34 --force-reinstall.
+
+changes
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[158] 2024-11-17T14:27:04+00:00
+TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.1.35 --force-reinstall.
+
+changes
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[160] 2024-12-24T15:24:23+00:00
+Thank you for creating Pyrogram, You will be missed. Thank you again for your invaluable contributions to the open-source Telegram Community.
+
+ changes: I have re-branded and removed references of docs.pyrogram.org from this fork ✌️ Hope it is fine 👌 .. let us see for how long this fork would sustain 😉
+
+ TelegramPlayGround/pyrogram: Install with pip uninstall -y pyrogram && pip install pyrotgfork==2.2.1 --force-reinstall.
+
+ If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[161] 2025-01-03T17:31:39+00:00
+TelegramPlayGround/pyrogram: Install with pip install pyrotgfork==2.2.4 --force-reinstall.
+
+changes
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[162] 2025-01-25T19:54:24+00:00
+TelegramPlayGround/pyrogram: Install with pip install pyrotgfork==2.2.5 --force-reinstall.
+
+changes (There are 2 breaking changes in this release)
+
+4bc566e: Add UpgradedGift and change return type of some methods. (#134)
+0673ba9: Fix reaction documentation, according to Layer 196
+1dd095c: Fix subscription_period in create_invoice_link
+0870553: Add get_owned_star_count method to return the number of stars owned by the current user account
+4ca8aff: Add support for paid_media and thumbnail in download_media  (#105)
+0582930: Update Telegram API errors (#139)
+fa38483: Fix ChatShared parsing in some cases (#140)
+7cf1625: minor fix for refunded_payment (#142)
+4a40f16: Update API schme to Layer 198
+74ab511: handlers: fix typing and docs (#143)
+05badbf: Changed types in UpgradedGift and UserGift, according to Layer 197.
+b6a9607: Add get_similar_bots to return a list of bots similar to the given bot.
+3f82c5d: Add gift_count to Chat
+❌‼️851b174: 💣 Add new_video_start_timestamp in forward_messages and the bound method. ‼️❌
+9a1e04f: Add cover and start_timestamp in send_video and InputPaidMediaVideo
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[163] 2025-02-07T17:17:39+00:00
+TelegramPlayGround/pyrogram: Install with pip install pyrotgfork==2.2.6 --force-reinstall.
+
+minor fixes and improvements
+
+b3ebea5: Add message_thread_id=1 for General ForumTopic
+758f2d2: Rewrite get_messages method (#145)
+366d337: Update markdown.py: Fix Blockquote. (#147)
+2261daf: Add message.content property
+98dc270: Add unknown_errors
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[164] 2025-02-13T15:08:15+00:00
+TelegramPlayGround/pyrogram: Install with pip install pyrotgfork==2.2.7 --force-reinstall.
+
+ChangeLog
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[165] 2025-02-20T11:21:53+00:00
+TelegramPlayGround/pyrogram: Install with pip install pyrotgfork==2.2.8 --force-reinstall.
+
+fix three mistakes in previous release
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[166] 2025-03-08T08:00:28+00:00
+TelegramPlayGround/pyrogram: Install with pip install pyrotgfork==2.2.9 --force-reinstall.
+
+ChangeLog
+
+- Rename UserGift to ReceivedGift
+- Add download bound method to the class ExternalReplyInfo
+- document about breaking change
+- Update API Scheme to Layer 200, from TDLib (tdlib/td@f5462e3)
+- Fix field documentation (tdlib/td@e4608b7)
+- Add the paid_message_star_count to Chat and User
+- Add paid_message_star_count to Message
+- Add is_pinned to UserGift
+- Added the class InlineQueryResultGame.
+- Added the bound methods ChosenInlineResult.edit_message_text, ChosenInlineResult.edit_message_caption, ChosenInlineResult.edit_message_media and ChosenInlineResult.edit_message_reply_markup.
+- Renamed the fields thumb_url, thumb_width, and thumb_height in the classes InlineQueryResultArticle, InlineQueryResultContact, InlineQueryResultDocument, InlineQueryResultLocation, and InlineQueryResultVenue to thumbnail_url, thumbnail_width, and thumbnail_height respectively.
+- Renamed the field thumb_url in the classes InlineQueryResultPhoto and InlineQueryResultVideo to thumbnail_url.
+- Added the field animation_mime_type and renamed the fields thumb_url and thumb_mime_type in the classes InlineQueryResultAnimation to thumbnail_url and thumbnail_mime_type respectively.
+- Fixed a bug with _client being None in ChosenInlineResultHandler.
+
+If you found any issue or have any suggestions, feel free to make an issue on github or reply to this message.
+
+[167] 2025-04-13T04:51:51+00:00
+TelegramPlayGround/pyrogram: Install with pip install pyrotgfork==2.2.10 --force-reinstall.
+
+a2f79e0: Add delete_chat_history
+d0aee73: Try to return the service message (if possible) in set_chat_title
+81b2853: Add media in ExternalReplyInfo / Add MessageOriginType as enum instead of str / Make User.block/unblock/get_common_chats async / Raise instead of log in copy_message
+b2b636a: Add the method send_screenshot_notification
+f867143: Partially Revert ddad27a
+1ea5e79: Refactor Photo to return all sizes instead of only the largest
+5da49e9: Add BusinessBotRights
+79bb27c: Add get_business_account_star_balance
+0fbea52: Rename paid_message_star_count to paid_star_count, in Message
+4b09cfc: Add PaidMessagePriceChanged
+733780a: Add PaidMessagesRefunded
+Compare all Changes
+and more..!
+
+If you found any issue or have any suggestions, feel free to make an issue on github.
+
+[169] 2025-05-09T04:00:54+00:00
+TelegramPlayGround/pyrogram: Install with pip install pyrotgfork==2.2.12 --force-reinstall
+
+de34a02: Add some errors to known errors
+663678e: Update API Scheme to Layer 203, from TDesktop
+6c35611: Stories-9.0
+63f7633: Add has_automatic_translation to Chat
+
+Compare all Changes
+and more..!
+
+If you found any issue or have any suggestions, feel free to make an issue on github.
+
+[170] 2025-08-13T03:28:01+00:00
+TelegramPlayGround/pyrogram: Install with
+pip install pyrotgfork==2.2.13 --force-reinstall
+pip install pyrotgfork==2.2.14 --force-reinstall
+pip install pyrotgfork==2.2.15 --force-reinstall
+
+c253e6e: Add admin_privileges in Chat
+99227a3: (fix): pin message parsing
+b14b7b6: Add mime_type in reply_document and send_document
+dbe10f5: Fix set_chat_photo parameters
+15081f8: Fix Str typings
+93b93e7: Update Emoji (#181)
+db7f55e: Fix condition for MessageImportInfo
+b5f02e6: Update API Scheme to Layer 205 (#187)
+49b4ba1: Update Pyrogram to v2.2.13
+1e5d325: Update API Scheme to Layer 209
+1f056a1: Add some errors to known errors
+bf83f57: (fix): type hinting on raw base types
+aa9b848: (fix): AttributeError
+2a99702: (fix): Type Hinting of pin_chat_message
+4c17824: Update API scheme to Layer 210
+53d30e9: Fix get_chat_history method to work properly with min_id and max_id
+019df5a: (fix): NameError
+eecca8a: Update Pyrogram to v2.2.14
+ad9738c: (fix): RuntimeError (#189)
+12cb4e2: Update Pyrogram to v2.2.15
+
+Compare all Changes
+and more..!
+
+If you found any issue or have any suggestions, feel free to make an issue on github.
+
+[175] 2025-09-18T06:57:11+00:00
+TelegramPlayGround/pyrogram: Install with
+pip install pyrotgfork==2.2.16 --force-reinstall
+
+84c823b: Update API scheme AGAIN to Layer 211,
+fc838cf: Fix Message.date timezone conversion causing logical errors in time comparison (#193)
+8ac84cd: (FIX): get_dialogs.py (#195)
+6a0ed47: API 9.2 (#191)
+2963419: Update reply_* methods to support direct_messages_topic_id
+b446247: Add 1 unknown_error
+b6b37c2: Update API scheme on layer 212.
+6e30299: Update API scheme on layer 213.
+40af55c: Update API scheme on layer 214.
+aab6514: feat(pyrogram.filters): support filters.regex for ChosenInlineResult
+210d92c: fix: get_chat_photo and its download logic. (#201)
+ce150d9: fix: drop unnecessary high level parsing of messages in get_chat_photo (#203)
+b491401: Add album_ids to Story
+0768beb: (fix): Copy video_cover and video_start_timestamp in copy_message
+e8ed29d: Add INVOICE_INVALID to unknown errors
+ca7d979: (fix): Change raw/base docs types generation to get proper typehints
+
+Compare all Changes
+and more..!
+
+If you found any issue or have any suggestions, feel free to make an issue on github.
+
+[176] 2025-12-12T17:22:15+00:00
+TelegramPlayGround/pyrogram: Install with
+pip install pyrotgfork==2.2.17 --force-reinstall
+
+4836dc6: fix: set_chat_permissions method miss permission handle (#204)
+261d7bc: feat(Chat): Enhance full_name property with Chat.title fallback. (#206)
+86d0fc1: (feat): Add offset_date and offset_message_id in get_dialogs and search_global
+a20bde3: Update unknown_errors (#207)
+
+4a284b7: Update API scheme to layer 217
+a991b45: Fix file pointer position before returning file
+e6fb7b9: Improve documentation of various types
+1a5a2ab: fix copy_message with photo deprecated parameters (#210)
+fbc340f: Update API scheme on layer 217
+6198d41: Update API scheme on layer 218
+10fab8e: Update Checklist and get_send_as_chats for new Layer
+b174283: Update API scheme to layer 219.
+a9d4cc6: Update API scheme to layer 220.
+c4940dd: Update types to Layer 219
+84ebb7e: Update types to Layer 216
+3a1b48d: Add Python 3.14 support
+7cabedc: allow to specify chat_id in get_inline_bot_results
+2084b37: (fix): edit_media for Videos
+e3daa50: Update GiftedPremium type to layer 217
+e9d0f7a: Add some errors to known errors
+6b521b4: fix: set description correctly when send InlineQueryResultAnimation
+2da2329: Add generic return type for method invoke
+fe83e15: fix(security): sanitize file names to prevent path traversal
+97980a2: another attempt to fix get_forum_topics method
+
+Compare all Changes
+and more..!
+
+If you found any issue or have any suggestions, feel free to make an issue on github.
+

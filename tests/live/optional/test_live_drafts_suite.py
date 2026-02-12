@@ -8,7 +8,6 @@ import pytest
 from telecraft.client import Client
 from tests.live._suite_shared import (
     create_temp_write_peer,
-    extract_message_id,
     finalize_run,
     is_chat_write_forbidden_error,
     resolve_or_create_audit_peer,
@@ -18,7 +17,7 @@ from tests.live._suite_shared import (
 pytestmark = [pytest.mark.live, pytest.mark.live_optional]
 
 
-async def _run_games_suite(client: Client, ctx: Any, reporter: Any) -> None:
+async def _run_drafts_suite(client: Client, ctx: Any, reporter: Any) -> None:
     await client.connect(timeout=ctx.cfg.timeout)
     results: list[Any] = []
     resource_ids: dict[str, object] = {}
@@ -28,13 +27,13 @@ async def _run_games_suite(client: Client, ctx: Any, reporter: Any) -> None:
         client=client,
         status="START",
         step="run",
-        details=f"run_id={ctx.run_id} lane=optional-games",
+        details=f"run_id={ctx.run_id} lane=optional-drafts",
     )
 
-    async def step_games_roundtrip() -> str:
+    async def step_drafts_roundtrip() -> str:
         peer = str(reporter.audit_peer)
         try:
-            out = await client.games.roll_dice(peer, timeout=ctx.cfg.timeout)
+            await client.drafts.save(peer, text=f"draft {ctx.run_id}", timeout=ctx.cfg.timeout)
         except Exception as e:  # noqa: BLE001
             if not is_chat_write_forbidden_error(e):
                 raise
@@ -42,20 +41,19 @@ async def _run_games_suite(client: Client, ctx: Any, reporter: Any) -> None:
                 client=client,
                 ctx=ctx,
                 resource_ids=resource_ids,
-                key_prefix="games",
+                key_prefix="drafts",
             )
-            out = await client.games.roll_dice(peer, timeout=ctx.cfg.timeout)
+            await client.drafts.save(peer, text=f"draft {ctx.run_id}", timeout=ctx.cfg.timeout)
 
-        msg_id = extract_message_id(out)
-        if msg_id is None:
-            raise RuntimeError("games.roll_dice did not return message id")
-        resource_ids["games_peer"] = peer
-        resource_ids["dice_msg_id"] = msg_id
-        return f"peer={peer} dice_msg_id={msg_id}"
+        current = await client.drafts.get(peer, timeout=ctx.cfg.timeout)
+        await client.drafts.clear(peer, timeout=ctx.cfg.timeout)
+        resource_ids["draft_peer"] = peer
+        resource_ids["draft_get_type"] = type(current).__name__
+        return f"peer={peer} draft_get={type(current).__name__}"
 
     await run_step(
-        name="games.roundtrip",
-        fn=step_games_roundtrip,
+        name="drafts.roundtrip",
+        fn=step_drafts_roundtrip,
         client=client,
         reporter=reporter,
         results=results,
@@ -70,9 +68,9 @@ async def _run_games_suite(client: Client, ctx: Any, reporter: Any) -> None:
     )
 
 
-def test_games__send__roundtrip_live(
+def test_drafts__save__roundtrip_live(
     client_v2: Client,
     live_context: Any,
     audit_reporter: Any,
 ) -> None:
-    asyncio.run(_run_games_suite(client_v2, live_context, audit_reporter))
+    asyncio.run(_run_drafts_suite(client_v2, live_context, audit_reporter))

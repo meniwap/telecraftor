@@ -1,0 +1,1474 @@
+[1] 2023-11-26T20:05:23+00:00
+Channel created
+
+[4] 2023-11-26T20:25:16+00:00
+🔥Welcome to my channel!
+
+A full list of changes can be found in the commit history on the 🐙 github.
+
+Put stars, I'm waiting for your pull-requests! 👨‍💻
+
+git: https://github.com/KurimuzonAkuma/kurigram/tree/dev
+
+Installing the latest dev version: pip install https://github.com/KurimuzonAkuma/kurigram/archive/dev.zip --force-reinstall
+
+Installing the latest stable version: pip install kurigram --force-reinstall
+
+Support:
+kurimuzonakuma.ton - TON 💎
+TCbZ7CSpTvTJ6rno2eoWWYBx7hmYF75wk3 - USDT (TRC20) 💰
+Banned... 😭 - CryptoBot 🦋
+https://t.me/xrocket?start=inv_15cUGLLK9WTeVqE - xRocket TON 🚀
+https://t.me/xrocket?start=inv_iKYwB0dsK05ynIe - xRocket USDT 🚀
+
+Chat: @kurigram_chat
+Docs: docs.kurigram.icu
+
+[6] 2023-11-27T16:05:05+00:00
+Здесь могла быть ваша реклама!
+
+Продам гараж.
+
+[7] 2023-11-28T07:51:19+00:00
+Now you can use @KurigramBot inline mode like original one!
+
+[12] 2023-11-29T20:58:20+00:00
+💧 Pyrogram fork updated to v2.0.106.18 👍
+
+- Add requested_chat_id to Message object
+- Add new keyboard buttons
+- Add ProfileColor enum
+
+• Update with pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.0.106.18 --force-reinstall
+
+[13] 2023-11-30T07:39:26+00:00
+💧 Pyrogram fork updated to v2.0.106.19 👍
+
+- Fix typehints for enums
+- Changed requested_chat_id to requested_chat
+- Remove url uploading from send_story/edit_story
+
+• Update with pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.0.106.19 --force-reinstall
+
+[14] 2023-11-30T22:07:45+00:00
+💧 Pyrogram fork updated to v2.0.106.20 👍
+
+- Update layer to 167
+- Update methods and types to new layer
+
+• Update with pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.0.106.20 --force-reinstall
+
+Thanks @i_amg_leb for motivation! (donate) 🥰🥰🥰
+
+[15] 2023-11-30T22:08:50+00:00
+Fun fact: media_group_id field has been a string for 6 years!
+
+[16] 2023-12-02T11:35:53+00:00
+💧 Pyrogram fork updated to v2.0.106.21 👍
+
+- Refactor folders
+- Add get_similar_channels to high-lvl
+- Update topics parsing
+- Some bugfixes
+
+• Update with pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.0.106.21 --force-reinstall
+
+[17] 2023-12-10T15:33:36+00:00
+Thanks guys, it's really nice to see something like this 🥰🥰🥰
+
+https://t.me/pyrogramchat/601018
+
+[18] 2023-12-18T14:22:40+00:00
+💧 Pyrogram fork updated to v2.1.0 👍
+
+Changelog:
+- Back to normal versioning
+- Fix some bugs
+- Update some methods description
+- Refactor ChatColor
+- Return bool from update_color instead of Chat
+- Remove StorySkipped, StoryDeleted, MessageStory types
+- Remove edit_story method (replaced with edit_story_caption, edit_story_media, edit_story_privacy)
+- Add docstrings for storage class
+- Add is_premium to Sticker
+- Add forum filter
+- Add missing schedule_date to edit_message methods
+- Add edit_hidden field to Message object
+- Add topic_id to read_mentions and read_reactions method
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.0 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[19] 2023-12-23T21:25:03+00:00
+💧 Pyrogram fork updated to v2.1.1 👍
+
+Changelog:
+- Add support for multiple reactions in send_reaction
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.1 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[20] 2023-12-23T21:25:14+00:00
+💧 Pyrogram fork updated to v2.1.2 👍
+
+Changelog:
+- Update API schema to Layer 169
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.2 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[21] 2023-12-24T08:00:05+00:00
+💧 Pyrogram fork updated to v2.1.3 👍
+
+Changelog:
+- Ignore KeyError in get_dialogs and get_folders
+- Fix requested chats
+- Fix message.download in case of Story
+- Add max_quantity to request_peer buttons
+- Rename is_participants_hidden to is_members_hidden
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.3 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[22] 2023-12-25T19:21:56+00:00
+💧 Pyrogram fork updated to v2.1.4 👍
+
+Changelog:
+- Added filters requested_chat and story (#18)
+- Add missing optional to some methods description
+- Add missing attributes to the Giveaway type
+- Add some errors to known errors
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.4 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[23] 2023-12-27T21:58:37+00:00
+💧 Pyrogram fork updated to v2.1.5 👍
+
+Changelog:
+- Raise exception if auth key not found
+- Add GiveawayResult type
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.5 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[24] 2023-12-30T11:56:38+00:00
+💧 Pyrogram fork updated to v2.1.6 👍
+
+Changelog:
+- Refactor download_media
+- Revert changes related to the Story.download
+- Add invert_media parameter to send_message method
+- Add new method send_web_page
+- Update some methods and types description
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.6 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[25] 2023-12-31T17:58:50+00:00
+💧 Pyrogram fork updated to v2.1.7 👍
+
+Changelog:
+- Update API schema to Layer 170
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.7 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[26] 2023-12-31T21:17:20+00:00
+Happy New Year My Dear Podpischiksh! 🥳🥳🥳
+
+[27] 2024-01-02T11:24:04+00:00
+💧 Pyrogram fork updated to v2.1.8 👍
+
+Changelog:
+- Add support for self-destructing voice notes
+- Add invert_media parameter to Message.reply_text method
+- Update description of some methods
+- Add missing attributes to the WebPage type
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.8 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[28] 2024-01-02T11:27:25+00:00
+I would really appreciate it if you could give this channel a boost 🥰🥰🥰
+
+https://t.me/kurigram_news?boost
+
+[30] 2024-01-04T12:30:19+00:00
+💧 Pyrogram fork updated to v2.1.9 👍
+
+Changelog:
+- Update usable-by in send_reaction
+- Add missing attributes to the Chat type
+- Update description of some methods
+- Add new method set_chat_ttl
+- Add max_quantity parameter to KeyboardButton constructor
+- Add new methods join/leave_folder
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.9 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[31] 2024-01-04T20:09:11+00:00
+💧 Pyrogram fork updated to v2.1.10 👍
+
+Changelog:
+- Fix update_folder method
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.10 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[32] 2024-01-13T16:54:34+00:00
+💧 Pyrogram fork updated to v2.1.11 👍
+
+Changelog:
+- Fix message.topic parsing in some cases
+- Remove blockquote unparsing from markdown parser
+- Add FloodWait except to media download (#19)
+- Fix message.story parsing in some cases
+- Remove export_story_link method (replaced with story.link property)
+- Make Storage class an abstract base class
+- Allow to specify a language pack
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.11 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[33] 2024-01-30T09:10:35+00:00
+💧 Pyrogram fork updated to v2.1.12
+
+Changelog:
+- Update API schema to Layer 172
+- Fix vectors deserialization for new layer
+- Make url parameter optional for send_web_page
+- Add reply_web_page bound method
+- Add some errors to known errors
+- Add support for self-destructing video notes
+- Add protect_content parameter to reply_document method
+- Fix session not getting saved to media_sessions in save_file method. (#20)
+- Rename some attributes
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.12 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[34] 2024-02-16T14:59:19+00:00
+💧 Pyrogram fork updated to v2.1.13
+
+Changelog:
+- Update API schema to Layer 174
+- Increase watchdog interval to 15 minutes
+- Fix MyBoost parsing
+- Move emoji argument above story_id
+- Fix history TTL Service Message Parse (#21)
+- Fix increment_story_views
+- Add toggle_join_to_send method (#22)
+- Fix send_audio not working as expected (#23)
+- Fix ConnectionResetError when only ping task (#24)
+- Various improvements
+- Add deleted parameter to ForumTopic class
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.13 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[35] 2024-02-29T12:08:04+00:00
+💧 Pyrogram fork updated to v2.1.14
+
+Changelog:
+- Add Str.html and Str.markdown typing (#26)
+- Add new method check_username
+- Add RequestedChats type
+- Fix message parsing in case of reply to story
+- Update reply filter to work with stories
+- Add is_contact_require_premium attribute to User class
+- Add system_lang_code to Client and missing enums to SentCodeType (#27)
+- Add init_connection_params parameter to Client class
+- Add support for ApplyBoost service messages
+- Add new parameters to send_code method
+- Add raw attribute to Message class
+- Add raw attribute to Story class
+- Add ttl_seconds attribute to Voice and VideoNote class
+- Fix parameter descriptions
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.14 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[36] 2024-03-08T13:27:11+00:00
+💧 Pyrogram fork updated to v2.1.15
+
+Changelog:
+- Fix get_folders
+- Add show_above_text to Message.edit bound method
+- Add quotes to markdown
+- Add custom emojis to markdown
+- Update check_username method
+- Add skip_updates parameter to Client class
+- Fix message parsing in case of reply from private chat
+- Fix max_concurrent_transmissions typing (#31)
+- Allow to specify a limit to message cache size
+- Recover updates in date ascending order
+- Update API schema to Layer 176
+- Add business_info attribute to Chat type
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.15 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[37] 2024-03-23T15:22:31+00:00
+💧 Pyrogram fork updated to v2.1.16
+
+Changelog:
+- Remove unnecessary types from docs compiler
+- Fix recovering gaps in case of private channel
+- Add color attribute to Folder
+- Add new toggle_folder_tags method
+- Fix get_folders
+- Refactor download_media
+- Refactor sqlite storage
+- Add missing methods to docs compiler
+- Add hide_sender_name and hide_captions parameters to forward
+- Add no_sound parameter to send_video methods
+- Add new get_stickers method
+- Add sender_boost_count attribute to Message class
+- Add new get_scheduled_messages method
+- Add typehints to all of the decorators classes (#34)
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.16 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[38] 2024-03-31T22:09:29+00:00
+The fork will no longer be supported.
+
+Thank you all for being with me until this time.
+
+[40] 2024-04-20T13:15:15+00:00
+🔥 Pyrogram fork updated to v2.1.17
+
+Changelog:
+- Renamed ttl_seconds to view_once in send_video_note and send_voice
+- Add is_public parameter to set_profile_photo and minor fixes (#35)
+- Fix get_scheduled_messages
+- Update API schema to Layer 177
+- Add birthday attribute to Chat class
+- Add new update_birthday method
+- Add some errors to known errors
+- Fix create_forum_topic example
+- Renamed some parameters of GiftCode class
+- Add new check_gift_code method
+- Add suport for slug to join/leave folder
+- Add support for business bots
+- Fix wrong typehint for message_id in vote_poll method
+- Add personal_channel and personal_channel_message attributes to Chat class
+- Add update_personal_channel and get_personal_channels methods
+- Fixed some documentation mistakes
+- Add raw attribute to Chat and User class
+
+Install or update with:
+pip install git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.17 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[41] 2024-05-11T13:12:13+00:00
+🔥 Pyrogram fork updated to v2.1.18
+
+Changelog:
+- Add min_id and max_id arguments to get_chat_history method (#42)
+- Update API schema to Layer 179
+- Fix edit_inline_media
+- Update python.yml
+- Fix miss service message for MessageActionChatJoinedByRequest (#48)
+- Fix edge-case when pinned action is MessageActionHistoryClear (#49)
+- Add get_call_members method
+- Fix reply_media_group
+- Add topic filter
+- Fix stop_poll method
+- Fix requested_chats
+- Add view_messages method
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.18.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[42] 2024-05-26T16:25:26+00:00
+🔥 Pyrogram fork updated to v2.1.19
+
+Changelog:
+- Update API schema
+- Fix copy methods spoilers
+- Rename increment_story_views to view_stories
+- Add view_once parameter to send_photo
+- Add via_join_request attribute to ChatMemberUpdated class
+- Update MIN_CHANNEL_ID
+- Handle FloodPremiumWait error (#64)
+- Add force_full parameter in get_chat method
+- Add support for clicking web app and user profile buttons
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.19.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[43] 2024-05-31T22:49:54+00:00
+🔥 Pyrogram fork updated to v2.1.20
+
+Changelog:
+- Add some errors to known errors
+- Update API schema to Layer 181
+- Update methods to new layer
+- Add get_available_effects method
+- Remove business handlers
+- Write update state to session only if Client.skip_updates = False
+- Add high level support for pre-checkout queries and service messages for successful payments (#67)
+- Add Invoice type
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.20.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[44] 2024-06-01T08:15:35+00:00
+🔥 Pyrogram fork updated to v2.1.21
+
+Changelog:
+- Fix expandable blockquote
+- Fix docs typing for AvailableEffect
+- Add entities to send_poll
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.21.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[45] 2024-06-03T21:32:23+00:00
+We reached 200 stars on github!
+
+Thank you guys 🥳🥳🥳
+
+[47] 2024-06-30T15:01:08+00:00
+🔥 Pyrogram fork updated to v2.1.22
+
+Changelog:
+- Add search_posts method
+- Add new enums to SentCodeType class
+- Add support for deleting scheduled messages
+- Add send_invoice and refund_star_payment method
+- Add index on usernames.id
+- Implement non-blocking TCP connection (#71)
+- Fix sending no-sound videos in media group & sending media as videos by default in send_video (#72)
+- Update API schema to Layer 182
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.22.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[48] 2024-07-25T07:13:51+00:00
+🔥 Pyrogram fork updated to v2.1.23
+
+Ha! Not today 😉
+
+The channel currently has 500 subscribers already... 🥲
+If @KSecurityRobot wasn't here, my channel would be filled with thousands of bots, thanks to him! (Yes, a little advertisement).
+
+I just want to say thank you guys!
+
+[49] 2024-07-30T12:26:50+00:00
+🔥 Pyrogram fork updated to v2.1.23
+
+Changelog:
+- Update API schema to Layer 184
+- Add self_destruction filter
+- Fix stories types and obscure behavior (#77)
+- Added offset_id parameter in search_messages method (#78)
+- Change Exception to Unauthorized when auth key not found
+- Fix a bug with get_session (#76)
+- Rename update_personal_channel to set_personal_channel
+- Fix connection to proxy (#80)
+- Fix story_ids description in get_stories
+- Update Makefile
+- Fix RequestInfo docstrings
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.23.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[50] 2024-08-06T23:23:25+00:00
+🔥 Pyrogram fork updated to v2.1.24
+
+Changelog:
+- Update API schema to Layer 185
+- Add missing attributes to User class
+- Merge ChatPreview with Chat and add missing attributes
+- Add ActiveSessions class and session methods
+- Add reset_sessions method
+- Fix typo in Chat class
+- Add search_contacts, set_account_ttl and get_account_ttl method
+- Add some errors to known errors
+- Add missing attributes to Dialog class and get_dialogs method
+- Add delete_chat_history method
+- Replace folder_id parameter with from_archive in get_dialogs method
+- Add paid media support
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.24.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[51] 2024-08-22T14:21:55+00:00
+🔥 Pyrogram fork updated to v2.1.25
+
+Changelog:
+- Update API schema to Layer 186
+- Add get_privacy and set_privacy method
+- Add get_payment_form and send_payment_form method
+- Add some errors to known errors
+- Fix paid media messages
+- Fix parsing paid reactions
+- Add send_paid_reaction method
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.25.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[52] 2024-08-27T13:52:42+00:00
+🔥 Pyrogram fork updated to v2.1.26
+
+Changelog:
+- Add create_invoice_link method
+- Refactor *_payment_form
+- Add support for pay button
+- Fix type annotation on Message.reply_document (#83)
+- Add support for animated chat photos in get_chat_photos
+- Fix save_file in case client.me is None
+- Add business_connection_id parameter to send_paid_media method
+- Fix inline_message_id for ChosenInlineResultHandler (pyrogram#1345)
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.26.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[53] 2024-08-28T06:33:57+00:00
+🔥 Pyrogram fork updated to v2.1.27
+
+Changelog:
+- Fix animation parsing (sorry)
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.27.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[54] 2024-09-05T19:27:35+00:00
+Wow... We reached 300 stars on github 🤩
+
+[55] 2024-09-07T09:11:38+00:00
+🔥 Pyrogram fork updated to v2.1.28
+
+Changelog:
+- Extract recovering gaps into a separate method
+- Ignore PersistentTimestamp errors
+- Fix get_chat_photos
+- Return message instead of bool in set_chat_photo
+- Refactor parsing message
+- Restart client after receiving unknown constructor
+- Fix send_cached_media (#85)
+- Add new decorators
+- Fix retracting story reaction
+- Update API schema to Layer 187
+- Update methods and types for new layer
+- Update set_account_ttl description
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.28.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[56] 2024-10-07T09:29:51+00:00
+🔥 Pyrogram fork updated to v2.1.29
+
+Changelog:
+- Fix send_media_group (#87)
+- Return list of photos and videos instead of bool in send_payment_form
+- Remove get_nearby_chats method
+- Update API schema to Layer 189
+- Add missing caption_entities parameters and utils.parse_text_entities calls (#96)
+- Fix incorrect return type for start_bot method. (#91)
+- Add copy_text to InlineKeyboardButton (#92)
+- Add alternative_videos to Message
+- Add get_star_gifts method
+- Add send_star_gift method
+- Add convert_star_gift method
+- Add show_star_gift and hide_star_gift method
+- Add get_user_star_gifts method
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.29.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[57] 2024-10-11T16:40:48+00:00
+Put ⭐️ if you can't be manipulated.
+
+[62] 2024-10-14T11:24:49+00:00
+🔥 Pyrogram fork updated to v2.1.30
+
+Changelog:
+- Add file_name param on InputMedia (#88)
+- Fix get_stories types (#97)
+- Update python.yml
+- Update setup.py
+- Add pin/unpin_forum_topic method
+- Merge UserStarGift into StarGift
+- Add star_gift in Message
+- Add star_gift filter
+- Update API schema to Layer 190
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.30.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[63] 2024-10-23T21:41:02+00:00
+Do I need to post anything here other than changelogs? 🤔
+
+[64] 2024-10-24T18:37:38+00:00
+⚠️ Breaking change update:
+- Renamed giveaway types and added some service messages to Message b31be17
+- Rename show_above_text parameter to show_caption_above_media b5c83aa
+
+Version not bumped yet.
+
+[65] 2024-11-02T17:36:16+00:00
+🔥 Pyrogram fork updated to v2.1.31
+
+⚠️ Breaking changes:
+- Rename show_above_text parameter to show_caption_above_media (b5c83aa)
+- Renamed giveaway types and added some service messages to Message (b31be17)
+- Refactor stories methods (0cc1b82)
+
+Changelog:
+- Fix usable by in pin/unpin_forum_topic method
+- Raise exception if auth key not found
+- Add topic support in search_messages
+- Fix ChosenInlineResult
+- Add topic support in search_messages_count
+- Add support for public polls
+- Added new bot methods
+- Update some types description
+- Add forward_media_group method
+- Fix StarGift caption parsing
+- Add update_usernames to storage
+- Update API schema to Layer 192
+- Add allow_paid_broadcast parameter to send methods
+- Temporary fix for resolving some peers (@youtube)
+- Update description of edit media methods
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.31.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[66] 2024-11-03T11:27:45+00:00
+🔥 Pyrogram fork updated to v2.1.32
+
+Changelog:
+- Fix 'Chats' object is not iterable
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.32.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[67] 2024-11-13T05:24:26+00:00
+Hi everyone! 👋
+
+There won't be any updates on the fork for a while. I'm currently in the hospital. I'll be back as soon as possible!
+
+Boost channel
+Support me
+
+[68] 2024-12-02T07:55:02+00:00
+🔥 Pyrogram fork updated to v2.1.33
+
+Changelog:
+- Add expand_inline_bytes to utils
+- Takeout condition optimization (#110)
+- Fixes in giveaways (#104)
+- Update API schema to Layer 194
+- Remove id parameter from reset_sessions
+- Add reply_to_story_id parameter to send_inline_bot_result
+- Add emoji and caption parameter to send_sticker
+- Update resolve_peer.py (#113)
+- Add usable-by label to set_chat_ttl
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.33.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[70] 2024-12-17T22:25:16+00:00
+🔥 Pyrogram fork updated to v2.1.34
+
+Changelog:
+- Update API schema to Layer 195
+- Add some errors to known errors
+- Add get_owned_bots method
+- Add filters support for raw handler
+- Add QR Login support
+- Update Note label for some methods
+
+Install or update with:
+pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.34.zip --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[71] 2024-12-21T20:56:22+00:00
+There are so many of you, thank you guys! 🥰
+
+[73] 2024-12-23T20:31:01+00:00
+Something is happening...
+
+https://github.com/pyrogram/pyrogram/pull/477#event-15751223882
+
+[74] 2024-12-23T21:08:37+00:00
+NOOOOO
+
+[75] 2024-12-23T21:09:28+00:00
+HE ALSO DELETED CHAT
+
+[76] 2024-12-23T21:21:23+00:00
+Should I do the same....
+
+[77] 2024-12-23T21:23:43+00:00
+Just kidding, relax ❤️
+
+[78] 2024-12-23T22:02:44+00:00
+https://t.me/pyrogram/49
+
+Thanks for this project, you're a legend.
+We're gonna miss you.
+
+[79] 2024-12-24T06:48:08+00:00
+Due to the main repository being archived, we are announcing a contest to showcase your creativity:
+
+❓ How to Enter?
+Come up with a name for the fork to be published on PyPI.
+
+🏆 What are the prizes?
+The winner with the best name suggestion will receive ⭐️100 stars or a star gift
+
+🗓 Deadline:
+Do it before 15:00 (UTC)
+
+[84] 2025-01-08T18:42:07+00:00
+🔥 Kurigram updated to v2.1.36
+
+⚠️ Breaking changes:
+- Refactor gifts (788677b)
+- Rename icon_emoji_id to custom_emoji_id in forum topic types (6f82ba)
+
+Changelog:
+- Extend show_caption_above_media to applicable methods (#122)
+- Add add_to_gifs method (#124)
+- Update API schema to Layer 196
+- Update StarGift type to new layer
+- Add get_stars_balance method
+- Add BotVerification type
+- Fix documentation link in readme
+
+Install or update with:
+pip install kurigram==v2.1.36 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+[85] 2025-01-21T10:56:57+00:00
+🔥 Kurigram updated to v2.1.37
+
+Changelog:
+- Fix get_stars_balance typehint
+- Fix description in send_gift
+- Fix on_purchased_paid_media decorator
+- Add support for downloading paid_media with download_media
+- Add support for downloading stripped thumbnail with download_media
+- Add some errors to known errors (#128)
+- Add media areas support for stories
+- Add some missing fields to Story class
+
+Install or update with:
+pip3 install kurigram==v2.1.37 --force-reinstall
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[86] 2025-01-26T21:40:41+00:00
+Hello everyone 🤕
+
+You may have noticed that layer 198 is out and there is still no update for it.
+It's hard for me to ask for help. It's very hard. The situation is very difficult and I don't know what to do. I need to raise a fucking $3000 dollars...
+If you are willing and able to support me, any help would be invaluable.
+
+I am scared, but I believe in you, in the kindness and strength of the people around me. I sincerely thank each and every one of you for your understanding. Thank you to everyone who reads this post. Thank you for being you. Any support from you is very much welcomed.
+
+Thank you for everything.
+
+[87] 2025-02-06T17:34:14+00:00
+🔥 Kurigram updated to v2.1.38
+
+⚠️ Breaking changes:
+- Remove coroutine param from run method (a7afa32)
+- Update gifts to new layer (469e13b)
+
+Changelog:
+- Update API schema to Layer 198
+- Update EmojiStatus to new layer
+- Decrease default value of MAX_MESSAGE_CACHE_SIZE
+- Fix update_folders method (#131)
+- Fix infinite connection to a proxy if it was invalid. (#132)
+- Properly handle BytesIO.name in guess_mime_type (#133)
+- Fix datetime typehint
+- Add note to delete_messages method
+- Refactor mime_type assignment in edit_inline_media
+- Return None instead of empty strings in ActiveSession
+- Add wear bound method to Gift class
+- Add message.content property
+- Fix story chat parsing
+- Add some errors to known errors
+
+Install or update with:
+pip3 install kurigram==v2.1.38
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[88] 2025-02-06T17:36:47+00:00
+I would also like to thank everyone who helped me... We've already raised 40%! Thank you all so much, it really means a lot to me ❤️❤️❤️
+
+[89] 2025-02-16T13:11:42+00:00
+🔥 Kurigram updated to v2.1.39
+
+⚠️ Breaking changes:
+- Remove sync support (074f917)
+
+Changelog:
+- Update thumb typehints (#134)
+- Add copy_media_group bound method to Message (#137)
+- Fix run description
+- Add support for links in resolve_peer
+- Add links and pinned support to get_messages
+- Fix max_message_cache_size description in Client
+- Fix markdown parsing
+- Attempt to fix connection error
+- Fix InlineKeyboardButton parsing
+- Update API schema to Layer 199
+- Fix documentation mistakes
+- Video_cover and video_timestamp (#141)
+- Fix gifts parsing
+- Add some errors to known errors
+
+Install or update with:
+pip3 install kurigram==v2.1.39
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[91] 2025-02-16T14:23:05+00:00
+You did it! Thank you all so much, I love you all so much 😭🫶
+
+I just helped a man out and he closed the remaining 40% of the collection... I am in big shock right now and I still can't believe it.
+
+Thank you all, guys 😭
+
+[92] 2025-03-05T09:30:12+00:00
+🎉 Giveaway Finished! 🎉
+
+Winners received the following gifts:
+1. Spy Agaric #64484 - Telegram Link 1 Tickets
+
+[93] 2025-03-06T06:04:32+00:00
+Those people who participate in the giveaway, send me a screenshot and your ton address in dm, after the end of the giveaway I will return the fee
+
+[94] 2025-03-20T16:32:35+00:00
+🏆 The channel has almost reached 1000 subscribers!
+
+Thank you so much for staying with me all this time! It motivates me a lot and I am very pleased and surprised to see this number 🫠
+
+[95] 2025-03-20T17:39:45+00:00
+🎉 Giveaway Finished! 🎉
+
+Winners received the following gifts:
+1. Lunar Snake #23017 - Telegram Link
+
+[98] 2025-03-26T11:00:02+00:00
+🖥 Reliable hosting for your projects!
+
+Aéza is a hosting provider that always knows what it takes to launch a successful project on the web!
+
+The secret to success is...
+
+⌛ Powerful processors of the latest generations with a frequency of up to 5.7 GHz - forget about "Loading..."
+
+✅ High uptime: SLA 99.8%, because you should be resting and the code should be working!
+
+👨‍💻 Support you can always count on - any time of the day.
+
+Join aéza now and get 15% cashback (valid for 24h from the moment of registration)
+
+[100] 2025-04-01T06:29:34+00:00
+Thanks everyone for using Kurigram! The project has become one of the most appreciated fork of Pyrogram and I'm thankful to everyone who supported it. Thank you!
+
+You might have noticed that there have been no updates for quite some time and that's because the project hasn't had any use to me anymore and I no longer have time to maintain it or conduct further developments. An option to continue the project would be to hand it over to someone else.
+
+That being said, I'm announcing that the development of the project has stopped. The project is therefore no longer maintained or supported, the repositories have been archived and the related group chats have been closed. The reason this announcement has arrived with such delay is that I was pondering whether to resume the development at some point, but I ultimately decided to sunset the project.
+
+Thanks again for your appreciation and support! It has been a nice journey and I hope everyone has enjoyed creating things with Kurigram.
+
+[101] 2025-04-12T22:58:21+00:00
+🔥 Kurigram updated to v2.2.0
+
+Changelog:
+- Fix return type in get_messages
+- Add video_cover and video_start_timestamp to Video (#144)
+- Add video_start_timestamp to forward_messages (#146)
+- Add get_story_views method
+- Fix parsing pinned message in Chat
+- Add ChatSettings
+- Refactor FullChat parsing
+- Add fetch_replies/topics/messages
+- Attempt to fix handler is closed
+- Revert "Remove sync support"
+- Add links support for get_stories
+- Fix get_stories typehints
+- Refactor loop
+- Revert #132
+- Update API schema to Layer 201
+- Fix copy_message description
+- Add get/set_global_privacy_settings method
+- Refactor privacy_rule
+- Change raw/base types generation to get proper typehints (#151)
+- Add some errors to known errors
+And more!
+
+Install or update with:
+pip3 install kurigram==2.2.0
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[102] 2025-04-12T22:58:24+00:00
+And thank you all for 500 stars on github 🤢
+
+[103] 2025-05-07T21:42:08+00:00
+🔥 Kurigram updated to v2.2.1
+
+Changelog:
+- Fix parsing story in Chat
+- Make methods.utilities.idle use a proper logger (#162)
+- Add pyrogram version to session logs
+- Fix #159
+
+Install or update with:
+pip3 install kurigram==2.2.1
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[104] 2025-05-07T21:42:08+00:00
+🔥 Kurigram updated to v2.2.2
+
+Changelog:
+- Fix InputPrivacyRuleAllowChats
+- Refactor gift methods
+- Fix MessagesFilter
+- Separate business handlers
+- Fix WebPage docs
+- Add usable-by in decorators
+- Add get_business_account_gifts and get_business_account_star_balance method
+- Update API schema to Layer 202
+- Update call discard reasons
+- Add delete_business_messages method
+- Fix business connection parsing
+- Add StartHandler (#105)
+- Add ConnectHandler
+- Add StopHandler
+- Add missing InputMessageContent types
+- Fix InputInvoiceMessageContent typing
+- Fix PreCheckoutQuery.info parsing (#169)
+- Somewhat proper exports for static type checkers (#164)
+- Migrate to pyproject.toml
+- Add some errors to known errors
+
+Install or update with:
+pip3 install kurigram==2.2.2
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[105] 2025-05-11T14:23:26+00:00
+🔥 Kurigram updated to v2.2.3
+
+Changelog:
+- Update API schema to Layer 203
+- Update types to new layer
+- Add missing parameters in forward_story and Slightly Improve documentation (#170)
+- Add search_gifts_for_resale method
+- Add send_resold_gift method
+- Add set_gift_resale_price method
+- Add Gift.buy bound method
+- Fix message.copy if message contains game
+- Add url support for paid media
+
+Install or update with:
+pip3 install kurigram==2.2.3
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[106] 2025-05-28T08:33:05+00:00
+🔥 Kurigram updated to v2.2.4
+
+Changelog:
+- Fix chat parsing if user is banned
+- Add some errors to known errors
+- Fix Gift.transfer example
+- Fix IndexError when send/transfer/upgrade gift
+- Fix gift bound methods
+- Change message id to link in Gift.transfer
+- Update deprecated examples
+- Refactor message parsing to utils.parse_messages
+- Add transfer_business_account_stars method
+- Fix 'ChatForbidden' object has no attribute 'admin_rights'
+- Attempt to refactor folders
+- Fix message parsing in send_media_group (#177)
+- Revert "Somewhat proper exports for static type checkers (#164)
+- Add get_gift_upgrade_preview method
+
+Install or update with:
+pip3 install kurigram==2.2.4
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[107] 2025-05-31T21:28:39+00:00
+Seems like my GPU died... :(
+
+Reinstalling the drivers helped, at least for now.
+
+[111] 2025-06-12T07:20:15+00:00
+🔥 Kurigram updated to v2.2.5
+
+Changelog:
+- Fix saved gift id parsing in methods
+- Remove emoji module
+- Fix Message.content type
+- Update API schema to Layer 204
+- Fix Message.link for private chats
+- Add set_chat_discussion_group method
+- Remove emoji from init
+- Fix Message.link
+- Update some errors description
+- Fix Sticker parsing
+- Add ChatType.FORUM and ChatType.DIRECT enum
+- Add global link preview options to Client (#183)
+- Add reverse parameter in get_chat_history (#167)
+- Fix get_folders, create_folder, edit_folder
+- Make sure owned_gift_id is str, instead of converting it (#182)
+- Add support for direct messages
+- Add get_direct_messages_chat_topic_history method
+
+Install or update with:
+pip3 install kurigram==2.2.5
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[112] 2025-06-12T21:27:15+00:00
+🔥 Kurigram updated to v2.2.6
+
+Changelog:
+- Add some missing fields to Chat and User
+- Add verification_status parameter in Chat and User
+- Fix PaymentForm parsing
+- Fix forward_messages and forward_media_group
+
+Install or update with:
+pip3 install kurigram==2.2.6
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[113] 2025-07-13T14:29:48+00:00
+🔥 Kurigram updated to v2.2.7
+
+Changelog:
+- Fix return type docstring in Message.delete() (#186)
+- Return bool instead of int in Message.delete()
+- Add translate_text and translate_message_text method
+- Add MONOFORUM_FILTER_INVALID error to known errors
+- Add some direct messages methods
+- Fix set_direct_messages_chat_topic_is_marked_as_unread example description
+- Load plugins before connecting to telegram
+- Add session in connect/disconnect handler
+- Fix link_preview_options in send_message
+- Add link_preview_options in send_web_page method
+- Fix set_pinned_gifts example
+- Fix VerificationStatus parsing
+- New bound method for Gift type (#188)
+- Improve gaps recovering
+- Update API schema to Layer 207
+- Fix Message.reactions argument typing (#190)
+- Add missing attributes in MessageReactions type
+- Add checklist support
+- Add can_send_unpaid_messages param in DirectTopic
+- Add Unsupported to known errors
+- Refactor get/send_payment_form methods
+- Increase the maximum number of options in a poll to 12
+- Add missing fields to Sticker class
+
+Install or update with:
+pip3 install kurigram==2.2.7
+
+If you found any issue or suggestions, feel free to make an issue on github or send message in chat
+
+Boost channel
+Support me
+
+[114] 2025-08-01T14:27:12+00:00
+Finally... I've completely solved this problem. Thanks again, guys, I don't know what I would have done without you 🤗
+
+I'll think of a way to return the favor someday 😉
+
+[115] 2025-08-25T11:15:14+00:00
+🔥 Kurigram updated to v2.2.9
+
+Changelog:
+- Add some errors to known errors
+- Update API schema to Layer 211
+- Add star_count param in send_resold_gift
+- Add star_count param in upgrade_gift
+- Add star_count param in Gift.buy bound method
+- Add star_count param in Gift.buy/upgrade bound method
+- Update pin_chat_message method's return type (#196)
+- Make authorization confirmations cleaner (#193)
+- Warn user if a video note will be treated as a video (#201)
+- Fix restarting of session on OsError (#90)
+- Refactor folder methods
+- Add STARGIFT_RESELL_CURRENCY_NOT_ALLOWED to known errors
+- Add some errors to known errors
+- Fix VerificationStatus parsing in ChatInvite case (#208)
+- Add fetch_stickers client parameter (#207)
+- Add USER_DISALLOWED_STARGIFTS error to known errors
+- Fix recover_gaps
+- Fix recv method to handle uninitialized reader
+- Rename resale count parameters in Gift class
+- Fix parsing business location
+- Extract recover gaps from client
+- Fix ChannelInvalid on fetching replies
+- Add owned_gift_id property to Gift class
+- Handle asyncio.CancelledError and add timeout to connection.recv()
+- Fix get_chat_history method to work properly with min_id and max_id (#203)
+- Add GiftedTon class
+- Add suggested posts support
+- Add gift_premium_with_stars method
+- Fix AUTH_KEY_UNREGISTERED description
+- Add set_inactive_session_ttl method
+- Fix QRLogin
+- Add bot support in get_stars_balance
+- Use owned_gift_id instead of message_id in Gift bound methods
+- Add new_owner_chat_id to Gift.buy
+- Add get_web_app_link_url and get_web_app_url method
+- Add ability to parse full user in User class
+- Fix send_video video cover in case of file_id
+- Update set_profile_photo and add set_bot_profile_photo method
+- Fix parse direct messages for bots (#213)
+- Support BotAPI 9.2
+- Refactor datetime_to_timestamp to handle timedelta
+- Added support for setting email during authorization
+- Notify user that he should pay for authorization
+- Add linked_chat_id and direct_messages_chat_id to Chat class
+- Refactor get_peer_id and get_peer_type
+- Fix set_slow_mode usable by
+- Make get_raw_peer_id work with int objects
+- Add view_once parameter in send_video
+- Refactor connection 🥰🔥
+- Add clear_handlers parameter in stop/restart methods
+- Refactor get_chat_history method (#209)
+- Add retry_delay in invoke method
+
+Install or update with:
+pip3 install kurigram==2.2.9
+
+If you found any issue or suggestions, feel free to make an issue on github, send message in chat or channel direct messages
+
+Boost channel
+Support me
+
+[116] 2025-09-05T09:05:55+00:00
+🔥 Kurigram updated to v2.2.10
+
+Changelog:
+- Add some errors to known errors
+- Update API schema to Layer 214
+- Change log level to debug for recovery gaps if skip_updates enabled
+- Return InputPeerEmpty if "empty" passed in resolve_peer
+- Fix TCPFull marker set
+- Merge memory and file storage
+- Use server address from session instead of hardcoded ips
+- Add obj_to_jsonvalue to utils
+- Fix 'NoneType' object has no attribute 'id' in get_dialogs
+- Sync time on client start
+- Add type hints for abstract methods in Storage class
+- Fix CHANNEL_PRIVATE when parsing direct chat topic
+
+If you found any issue or suggestions, feel free to make an issue on github, send message in chat or channel direct messages
+
+Boost channel
+Support me
+
+[117] 2025-09-05T09:05:57+00:00
+After updating, to improve ping, it is recommended to call await app.set_dc() to update the address of the nearest data center in session
+
+[118] 2025-09-19T18:28:15+00:00
+🔥 Kurigram updated to v2.2.11
+
+Changelog:
+- Update methods and types to layer 214
+- Fix AttributeError in get_dialogs
+- Add get_ton_balance method
+- Add locked_until_date to Gift
+- Fix server time (#217)
+- Add protect_content in Message.reply_photo (#216)
+- Fix GiftPurchaseLimit parsing
+- Add INVOICE_INVALID to known errors
+- Add support for gift collections
+- Fix get_session (#220)
+- Update STARGIFT_EXPORT_IN_PROGRESS description
+- Add last_read_inbox_message_id and last_read_outbox_message_id to Dialog (#225)
+- Refactor resolve_peer
+
+If you found any issue or suggestions, feel free to make an issue on github, send message in chat or channel direct messages
+
+Boost channel
+Support me
+
+[119] 2025-09-19T20:00:35+00:00
+🔥 Kurigram updated to v2.2.12
+
+Changelog:
+- Fix request_callback_answer
+
+If you found any issue or suggestions, feel free to make an issue on github, send message in chat or channel direct messages
+
+Boost channel
+Support me
+
+[120] 2025-10-10T11:58:26+00:00
+🔥 Kurigram updated to v2.2.13
+
+Changelog:
+- Fix getattr some service messages
+- Add add_profile_audio, remove_profile_audio, set_profile_audio_position, get_chat_audios method
+- Fix qrlogin
+- Dont use cached config in get_dc_option
+- Add recaptcha_token in invoke
+- Update ChatTheme
+- Add get_main_web_app method
+- Add open_web_app method
+- Rename ChatPrivileges to ChatAdministratorRights
+- Update ChatPermissions
+- Update examples with deprecated reply_to_message_id
+- Update add_chat_members method return type
+- Support filters.regex for ChosenInlineResult (#243)
+
+If you found any issue or suggestions, feel free to make an issue on github, send message in chat or channel direct messages
+
+Boost channel
+Support me
+
+[123] 2025-11-09T13:45:13+00:00
+🔥 Kurigram updated to v2.2.14
+
+Changelog:
+- Update API schema to Layer 216
+- Fix gift methods
+- Update types to layer 216
+- Fix get_upgraded_gift_value_info
+- Update type compiler template
+- Add set_contact_note, drop_gift_original_details and suggest_birthday method.
+- Add personal and public photo in chat and user class
+- Fix upgraded gift parsing
+- Add generic return type for method invoke (#252)
+- Fix some folder bound methods
+- Fix get_gift_upgrade_preview example
+- Fix show_above_text in InputTextMessageContent
+- Fix nosound video note parsing
+- Fix edit_story_caption in case of missing entities
+- Fix FoundContacts type hints
+- Fix send_resold_gift docs
+- Add some errors to known errors
+- Add Python 3.14 support
+- Add edit_user_star_subscription and edit_star_subscription method
+- Add reuse_star_subscription method
+- Add host param to Gift class
+- Add media areas to edit_story_media
+- Fix get_dialogs() is returning incomplete list
+
+If you found any issue or suggestions, feel free to make an issue on github, send message in chat or channel direct messages
+
+Boost channel
+Support me
+
+[127] 2025-12-29T14:24:07+00:00
+🔥 Kurigram updated to v2.2.16
+
+Changelog:
+- Add missing ChatPrivileges import
+- Add some errors to known errors
+- fix: set description correctly when send InlineQueryResultAnimation (#262)
+- Update README.md
+- fix: copy_media_group return parsing
+- Fix suggested post parsing
+- Change docs theme to shibuya
+- Update methods and types to layer 217
+- Add support for request_title, request_name, request_username and request_photo (#263)
+- Update API schema to Layer 220
+- Typing/add optional handler filters and command filter prefixes (#268)
+- Export base class Handler (#251)
+- Update methods and types to layer 218
+- Refactor Message bound methods
+- Update methods and types to layer 220
+- Fix Message.reply_* behavior
+- Add Message.edit_live_location and Message.stop_live_location bound method
+
+If you found any issue or suggestions, feel free to make an issue on github, send message in chat or channel direct messages
+
+Boost channel
+Support me
+
+[128] 2025-12-29T14:36:04+00:00
+https://t.me/nft/SnakeBox-93788
+
+[130] 2025-12-31T21:00:27+00:00
+Finally.
+
+[131] 2025-12-31T21:02:27+00:00
+Happy New Year 🍬
+
+[132] 2025-12-31T21:12:50+00:00
+Why dislikes? Are you tired of this year too? :)
+
+[137] 2026-01-01T11:00:23+00:00
+Выбор дополнительных победителей (в количестве 1):
+
+🏆 Победитель:
+1. Ahmed (@ahmed_ali243)
+
+✔️Проверить результаты
+
+[140] 2026-01-01T12:53:58+00:00
+Congratulations to the winner!
+
+[142] 2026-01-02T19:31:59+00:00
+We are expanding the Tonkeeper ecosystem and are pleased to announce the upcoming integration of kurigram focused on flexibility and modern Telegram workflows.
+
+This integration will allow developers and teams to create closer and more native connections between Telegram applications and the TON infrastructure- from automating interactions to new forms of Web3 services within the messenger.
+
+Stay tuned for updates — more tools, more features, and an even more convenient experience with TON are coming soon.
+
+[143] 2026-01-26T21:00:00+00:00
+🎂
+
+[144] 2026-01-28T12:38:40+00:00
+🔥 Kurigram updated to v2.2.18
+
+Changelog:
+- fix: LinkPreviewOptions for InputTextMessageContent
+- feat: Add Message.approve/reject_gift_purchase_offer
+- fix: gift.total_upgraded_count and gift.max_upgraded_count
+- fix: Message.is_from_auction parsing
+- Update API schema to Layer 221
+- ⚠️ Unify gift purchase offer class and parameter names
+- Add summarize_message method
+- feat: make Message.summarize.translate_to_language_code optional
+- Update set_upgraded_gift_colors description
+- ⚠️ Refactor Gift class
+- Fix Gift.can_send_purchase_offer param
+- Fix gift owner parsing
+- Fix received and action gift parsing
+- Add Gift.last_resale_currency and Gift.last_resale_amount
+- Add Gift.origin
+- Fix Gift.minimum_offer_star_count attribute name
+- ⚠️ Rename GiftCode to PremiumGiftCode, refactor and update to new layer
+- Fix PremiumGiftCode parsing
+- Rename Message.gift_code to premium_gift_code
+- Add overloads for download_media method to support in-memory and file download options (#275)
+- Fix suggest_birthday description
+- Always write update state to storage (read commit description)
+
+If you found any issue or suggestions, feel free to make an issue on github, send message in chat or channel direct messages
+
+Boost channel
+Support me
+
