@@ -46,6 +46,9 @@ METHOD_PARAM_OVERRIDES: dict[tuple[str, str, str], Any] = {
     ("polls", "vote", "options"): [0],
     ("profile", "delete_photos", "photo_ids"): [(1, 2)],
     ("media", "send_sticker", "sticker_file_reference"): b"ref",
+    ("messages.sponsored", "view", "random_id"): b"rid",
+    ("messages.sponsored", "click", "random_id"): b"rid",
+    ("messages.sponsored", "report", "random_id"): b"rid",
 }
 OPTIONAL_REQUIRED_PARAMS: dict[tuple[str, str], set[str]] = {
     ("stars.transactions", "by_id"): {"tx_ids"},
@@ -191,6 +194,8 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
         return "channel:1"
     if param_name in {"user", "from_peer"}:
         return "user:1"
+    if param_name == "bot":
+        return "user:1"
     if param_name == "to_peer":
         return "user:2"
     if param_name == "ref":
@@ -268,6 +273,8 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
         return "/tmp"
     if param_name in {"msg_ids", "folder_ids"}:
         return [1, 2]
+    if param_name == "documents":
+        return [1, 2]
     if param_name in {
         "chat_id",
         "user_id",
@@ -301,6 +308,9 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
         "nanos",
         "score",
         "form_id",
+        "sub_chain_id",
+        "album_id",
+        "random_id",
     }:
         return 1
     if param_name in {"latitude", "longitude"}:
@@ -329,8 +339,24 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
         "emoticon",
         "charge_id",
         "result_id",
+        "prepared_id",
+        "passkey_id",
+        "button_text",
+        "params",
     }:
         return "x"
+    if param_name == "data":
+        return b"x"
+    if param_name == "payload":
+        return {"a": 1}
+    if param_name == "theme":
+        return "🔥"
+    if param_name == "block":
+        return b"block-data"
+    if param_name == "credential":
+        return object()
+    if param_name == "available_reactions":
+        return object()
     if param_name == "birthday":
         return object()
     if param_name == "tab":
@@ -367,17 +393,21 @@ FORWARDED_ARG_ALIASES: dict[str, tuple[str, ...]] = {
     "invoice_media": ("invoice_media",),
     "inline_message_id": ("id",),
     "item_ids": ("completed", "incompleted"),
-    "msg_ids": ("id",),
+    "msg_ids": ("id", "msg_id"),
     "msg_id": ("id",),
     "reply_to_msg_id": ("reply_to",),
     "result_id": ("id",),
     "method": ("custom_method",),
     "query_obj": ("query",),
     "reason": ("option",),
+    "params": ("data",),
+    "payload": ("data",),
     "text": ("message",),
+    "theme": ("emoticon", "slug", "theme"),
     "tx_ids": ("id",),
     "ref": ("stargift",),
     "refs": ("stargift",),
+    "users": ("id", "users"),
     "privacy": ("private",),
     "peers": ("id", "folder_peers"),
     "document": ("id",),
@@ -393,6 +423,8 @@ FORWARDED_ARG_ALIASES: dict[str, tuple[str, ...]] = {
     "target": ("peer",),
     "peer_target": ("peer",),
     "token_or_graph_obj": ("token",),
+    "passkey_id": ("id",),
+    "prepared_id": ("id",),
     "usernames": ("order",),
     "work_hours_obj_or_none": ("business_work_hours",),
 }
@@ -405,6 +437,17 @@ def _is_sequence_value(value: Any) -> bool:
 def _matches_forwarded_value(expected: Any, actual: Any) -> bool:
     if actual == expected:
         return True
+    if isinstance(expected, dict):
+        if isinstance(actual, str):
+            try:
+                return json.loads(actual) == expected
+            except Exception:  # noqa: BLE001
+                return False
+        if isinstance(actual, (bytes, bytearray)):
+            try:
+                return json.loads(bytes(actual).decode("utf-8")) == expected
+            except Exception:  # noqa: BLE001
+                return False
     if _is_sequence_value(expected) and _is_sequence_value(actual):
         return len(expected) == len(actual)
     if isinstance(

@@ -7415,5 +7415,837 @@
     ],
     "introduced_in": "v4.0",
     "deprecation_target": null
+  },
+  {
+    "namespace": "account.gift_themes",
+    "method": "list",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.music",
+    "method": "save",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.music",
+    "method": "saved_ids",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.music.saved",
+    "method": "by_id",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.music.saved",
+    "method": "list",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.paid_messages",
+    "method": "revenue",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.paid_messages",
+    "method": "toggle_exception",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.passkeys",
+    "method": "delete",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.passkeys",
+    "method": "init_registration",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.passkeys",
+    "method": "list",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.passkeys",
+    "method": "register",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "account.profile_tab",
+    "method": "set",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "calls.conference",
+    "method": "broadcast",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "calls.conference",
+    "method": "decline_invite",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "calls.conference",
+    "method": "delete_participants",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "calls.conference",
+    "method": "invite",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "calls.group.chain",
+    "method": "blocks",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "channels",
+    "method": "check_search_posts_flood",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "channels.search_posts",
+    "method": "check_flood",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "channels.settings",
+    "method": "restrict_sponsored",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "contacts.requirements",
+    "method": "to_contact",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "discovery.sponsored",
+    "method": "peers",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "gifts.saved",
+    "method": "pin_to_top",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.attach_menu",
+    "method": "bot",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.attach_menu",
+    "method": "bots",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.attach_menu",
+    "method": "toggle_bot",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.chat_theme",
+    "method": "set",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.fact_checks",
+    "method": "delete",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.fact_checks",
+    "method": "edit",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.fact_checks",
+    "method": "get",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.inline.prepared",
+    "method": "get",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.inline.prepared",
+    "method": "save",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.saved_tags",
+    "method": "defaults",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.saved_tags",
+    "method": "update",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.sponsored",
+    "method": "click",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.sponsored",
+    "method": "get",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.sponsored",
+    "method": "report",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.sponsored",
+    "method": "view",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.suggested_posts",
+    "method": "approve",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.suggested_posts",
+    "method": "reject",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.web",
+    "method": "request_main",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.web",
+    "method": "request_main_fullscreen",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages.web",
+    "method": "request_simple",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "premium.boosts",
+    "method": "apply",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "premium.boosts",
+    "method": "list",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "premium.boosts",
+    "method": "my",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "premium.boosts",
+    "method": "status",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "premium.boosts",
+    "method": "user",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "reactions",
+    "method": "recent",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "reactions.chat",
+    "method": "set_available",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "reactions.defaults",
+    "method": "set",
+    "stability": "experimental",
+    "tier": "live_optional",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "stories.albums",
+    "method": "stories",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.2",
+    "deprecation_target": null
   }
 ]

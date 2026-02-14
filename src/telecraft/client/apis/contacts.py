@@ -3,15 +3,30 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from telecraft.client.apis._utils import resolve_input_user
 from telecraft.client.peers import PeerRef
+from telecraft.tl.generated.functions import UsersGetRequirementsToContact
 
 if TYPE_CHECKING:
     from telecraft.client.mtproto import MtprotoClient
 
 
+class ContactsRequirementsAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def to_contact(self, users: Sequence[PeerRef], *, timeout: float = 20.0) -> Any:
+        payload = [await resolve_input_user(self._raw, user, timeout=timeout) for user in users]
+        return await self._raw.invoke_api(
+            UsersGetRequirementsToContact(id=payload),
+            timeout=timeout,
+        )
+
+
 class ContactsAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
+        self.requirements = ContactsRequirementsAPI(raw)
 
     async def list(self, *, timeout: float = 20.0) -> list[Any]:
         return await self._raw.get_contacts(timeout=timeout)

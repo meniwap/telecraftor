@@ -21,6 +21,7 @@ from telecraft.tl.generated.functions import (
     PaymentsReorderStarGiftCollections,
     PaymentsSaveStarGift,
     PaymentsToggleChatStarGiftNotifications,
+    PaymentsToggleStarGiftsPinnedToTop,
     PaymentsTransferStarGift,
     PaymentsUpdateStarGiftCollection,
     PaymentsUpdateStarGiftPrice,
@@ -194,6 +195,22 @@ class GiftsSavedAPI:
             PaymentsUpdateStarGiftPrice(
                 stargift=input_ref,
                 resell_amount=StarsAmount(amount=int(amount), nanos=int(nanos)),
+            ),
+            timeout=timeout,
+        )
+
+    async def pin_to_top(
+        self,
+        peer: PeerRef,
+        refs: Sequence[GiftRef],
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        stargift = [await _gift_ref_to_input(self._raw, ref, timeout=timeout) for ref in refs]
+        return await self._raw.invoke_api(
+            PaymentsToggleStarGiftsPinnedToTop(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                stargift=stargift,
             ),
             timeout=timeout,
         )

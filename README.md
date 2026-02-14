@@ -22,7 +22,7 @@ await client.close()
 ```
 
 Namespaces:
-- `client.messages`
+- `client.messages` (`client.messages.scheduled`, `client.messages.web`, `client.messages.discussion`, `client.messages.receipts`, `client.messages.effects`, `client.messages.sent_media`, `client.messages.gifs`, `client.messages.paid_reactions`, `client.messages.inline`, `client.messages.inline.prepared`, `client.messages.history_import`, `client.messages.chat_theme`, `client.messages.suggested_posts`, `client.messages.fact_checks`, `client.messages.sponsored`, `client.messages.saved_tags`, `client.messages.attach_menu`)
 - `client.search`
 - `client.drafts`
 - `client.reports`
@@ -35,7 +35,7 @@ Namespaces:
 - `client.dialogs` (`client.dialogs.pinned`, `client.dialogs.unread`, `client.dialogs.filters`)
 - `client.stickers` (`client.stickers.sets`, `client.stickers.search`, `client.stickers.recent`, `client.stickers.favorites`, `client.stickers.emoji`)
 - `client.topics` (`client.topics.forum`)
-- `client.reactions`
+- `client.reactions` (`client.reactions.defaults`, `client.reactions.chat`)
 - `client.privacy` (`client.privacy.global_settings`)
 - `client.notifications` (`client.notifications.reactions`, `client.notifications.contact_signup`)
 - `client.games` (`client.games.scores`)
@@ -44,12 +44,13 @@ Namespaces:
 - `client.gifts` (`client.gifts.saved`, `client.gifts.resale`, `client.gifts.unique`)
 - `client.business` (`client.business.links`, `client.business.profile`, `client.business.quick_replies`)
 - `client.chatlists` (`client.chatlists.invites`, `client.chatlists.updates`, `client.chatlists.suggestions`)
-- `client.stories` (`client.stories.capabilities`, `client.stories.feed`)
-- `client.channels` (`client.channels.settings`)
+- `client.stories` (`client.stories.capabilities`, `client.stories.feed`, `client.stories.links`, `client.stories.views`, `client.stories.reactions`, `client.stories.stealth`, `client.stories.peers`, `client.stories.albums`)
+- `client.channels` (`client.channels.settings`, `client.channels.search_posts`)
 - `client.stats` (`client.stats.channels`, `client.stats.graph`, `client.stats.public_forwards`)
-- `client.discovery` (`client.discovery.channels`, `client.discovery.bots`)
-- `client.account` (`client.account.sessions`, `client.account.web_sessions`, `client.account.content`, `client.account.ttl`, `client.account.terms`, `client.account.themes`, `client.account.wallpapers`)
-- `client.calls` (`client.calls.group`, `client.calls.stream`, `client.calls.conference`)
+- `client.discovery` (`client.discovery.channels`, `client.discovery.bots`, `client.discovery.sponsored`)
+- `client.account` (`client.account.sessions`, `client.account.web_sessions`, `client.account.content`, `client.account.ttl`, `client.account.terms`, `client.account.themes`, `client.account.wallpapers`, `client.account.profile_tab`, `client.account.gift_themes`, `client.account.music`, `client.account.music.saved`, `client.account.paid_messages`, `client.account.passkeys`)
+- `client.calls` (`client.calls.group`, `client.calls.group.chain`, `client.calls.stream`, `client.calls.conference`)
+- `client.premium` (`client.premium.boosts`)
 - `client.takeout` (`client.takeout.messages`, `client.takeout.media`)
 - `client.webapps`
 - `client.todos`
@@ -208,6 +209,34 @@ python -m pytest tests/live/optional/test_live_webapps_suite.py -vv -s \
   --run-live \
   --live-runtime sandbox \
   --live-webapps
+```
+
+Premium lane (opt-in):
+
+```bash
+python -m pytest tests/live/optional/test_live_premium_boosts_readonly_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-premium
+```
+
+Sponsored lane (opt-in, admin-bound):
+
+```bash
+python -m pytest tests/live/optional/test_live_channels_sponsored_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-sponsored \
+  --live-admin
+```
+
+Passkeys lane (opt-in):
+
+```bash
+python -m pytest tests/live/optional/test_live_passkeys_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-passkeys
 ```
 
 Enable paid gifts/stars lane explicitly (never on by default):

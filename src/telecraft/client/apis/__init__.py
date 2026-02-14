@@ -3,8 +3,14 @@ from __future__ import annotations
 from .account import (
     AccountAPI,
     AccountContentAPI,
+    AccountGiftThemesAPI,
     AccountIdentityAPI,
+    AccountMusicAPI,
+    AccountMusicSavedAPI,
+    AccountPaidMessagesAPI,
+    AccountPasskeysAPI,
     AccountPersonalChannelAPI,
+    AccountProfileTabAPI,
     AccountSessionsAPI,
     AccountTermsAPI,
     AccountThemesAPI,
@@ -14,13 +20,19 @@ from .account import (
 )
 from .admin import AdminAPI
 from .business import BusinessAPI, BusinessLinksAPI, BusinessProfileAPI, BusinessQuickRepliesAPI
-from .calls import CallsAPI, CallsConferenceAPI, CallsGroupAPI, CallsStreamAPI
-from .channels import ChannelAdminLogAPI, ChannelLinksAPI, ChannelsAPI, ChannelSettingsAPI
+from .calls import CallsAPI, CallsConferenceAPI, CallsGroupAPI, CallsGroupChainAPI, CallsStreamAPI
+from .channels import (
+    ChannelAdminLogAPI,
+    ChannelLinksAPI,
+    ChannelsAPI,
+    ChannelsSearchPostsAPI,
+    ChannelSettingsAPI,
+)
 from .chatlists import ChatlistInvitesAPI, ChatlistsAPI, ChatlistSuggestionsAPI, ChatlistUpdatesAPI
 from .chats import ChatsAPI
-from .contacts import ContactsAPI
+from .contacts import ContactsAPI, ContactsRequirementsAPI
 from .dialogs import DialogsAPI, DialogsFiltersAPI, DialogsPinnedAPI, DialogsUnreadAPI
-from .discovery import DiscoveryAPI, DiscoveryBotsAPI, DiscoveryChannelsAPI
+from .discovery import DiscoveryAPI, DiscoveryBotsAPI, DiscoveryChannelsAPI, DiscoverySponsoredAPI
 from .drafts import DraftsAPI
 from .folders import FoldersAPI
 from .games import GamesAPI, GameScoresAPI
@@ -35,15 +47,22 @@ from .gifts import (
 from .media import MediaAPI
 from .messages import (
     MessagesAPI,
+    MessagesAttachMenuAPI,
+    MessagesChatThemeAPI,
     MessagesDiscussionAPI,
     MessagesEffectsAPI,
+    MessagesFactChecksAPI,
     MessagesGifsAPI,
     MessagesHistoryImportAPI,
     MessagesInlineAPI,
+    MessagesInlinePreparedAPI,
     MessagesPaidReactionsAPI,
     MessagesReceiptsAPI,
+    MessagesSavedTagsAPI,
     MessagesScheduledAPI,
     MessagesSentMediaAPI,
+    MessagesSponsoredAPI,
+    MessagesSuggestedPostsAPI,
     MessagesWebAPI,
 )
 from .notifications import (
@@ -63,7 +82,8 @@ from .polls import PollsAPI
 from .presence import PresenceAPI
 from .privacy import PrivacyAPI, PrivacyGlobalSettingsAPI
 from .profile import ProfileAPI
-from .reactions import ReactionsAPI
+from .premium import PremiumAPI, PremiumBoostsAPI
+from .reactions import ReactionsAPI, ReactionsChatAPI, ReactionsDefaultsAPI
 from .reports import ReportsAPI
 from .saved import (
     SavedAPI,
@@ -105,8 +125,14 @@ from .webapps import WebAppsAPI
 __all__ = [
     "AccountAPI",
     "AccountContentAPI",
+    "AccountGiftThemesAPI",
     "AccountIdentityAPI",
+    "AccountMusicAPI",
+    "AccountMusicSavedAPI",
+    "AccountPaidMessagesAPI",
+    "AccountPasskeysAPI",
     "AccountPersonalChannelAPI",
+    "AccountProfileTabAPI",
     "AccountSessionsAPI",
     "AccountTermsAPI",
     "AccountThemesAPI",
@@ -121,9 +147,11 @@ __all__ = [
     "CallsAPI",
     "CallsConferenceAPI",
     "CallsGroupAPI",
+    "CallsGroupChainAPI",
     "CallsStreamAPI",
     "ChannelAdminLogAPI",
     "ChannelLinksAPI",
+    "ChannelsSearchPostsAPI",
     "ChannelSettingsAPI",
     "ChannelsAPI",
     "ChatlistInvitesAPI",
@@ -132,6 +160,7 @@ __all__ = [
     "ChatlistsAPI",
     "ChatsAPI",
     "ContactsAPI",
+    "ContactsRequirementsAPI",
     "DialogsAPI",
     "DialogsFiltersAPI",
     "DialogsPinnedAPI",
@@ -139,6 +168,7 @@ __all__ = [
     "DiscoveryAPI",
     "DiscoveryBotsAPI",
     "DiscoveryChannelsAPI",
+    "DiscoverySponsoredAPI",
     "DraftsAPI",
     "FoldersAPI",
     "GameScoresAPI",
@@ -151,15 +181,22 @@ __all__ = [
     "GiftsUniqueAPI",
     "MediaAPI",
     "MessagesAPI",
+    "MessagesAttachMenuAPI",
+    "MessagesChatThemeAPI",
     "MessagesDiscussionAPI",
     "MessagesEffectsAPI",
+    "MessagesFactChecksAPI",
     "MessagesGifsAPI",
     "MessagesHistoryImportAPI",
     "MessagesInlineAPI",
+    "MessagesInlinePreparedAPI",
     "MessagesPaidReactionsAPI",
     "MessagesReceiptsAPI",
+    "MessagesSavedTagsAPI",
     "MessagesScheduledAPI",
     "MessagesSentMediaAPI",
+    "MessagesSponsoredAPI",
+    "MessagesSuggestedPostsAPI",
     "MessagesWebAPI",
     "NotificationsAPI",
     "NotificationsContactSignupAPI",
@@ -174,8 +211,12 @@ __all__ = [
     "PresenceAPI",
     "PrivacyAPI",
     "PrivacyGlobalSettingsAPI",
+    "PremiumAPI",
+    "PremiumBoostsAPI",
     "ProfileAPI",
     "ReactionsAPI",
+    "ReactionsChatAPI",
+    "ReactionsDefaultsAPI",
     "ReportsAPI",
     "SavedAPI",
     "SavedDialogsAPI",

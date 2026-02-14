@@ -1,26 +1,37 @@
 from __future__ import annotations
 
+import json
 import secrets
 from collections.abc import AsyncIterator, Sequence
 from typing import TYPE_CHECKING, Any
 
-from telecraft.client.apis._utils import resolve_input_peer
+from telecraft.client.apis._utils import resolve_input_peer, resolve_input_user
 from telecraft.client.messages import build_input_reply_to_message, build_input_reply_to_story
 from telecraft.client.peers import PeerRef
 from telecraft.client.stickers import DocumentRef, build_input_document
+from telecraft.client.sponsored import build_sponsored_option, build_sponsored_random_id
 from telecraft.tl.generated.functions import (
     MessagesCheckHistoryImportPeer,
+    MessagesClickSponsoredMessage,
+    MessagesDeleteFactCheck,
     MessagesDeleteScheduledMessages,
+    MessagesEditFactCheck,
+    MessagesGetAttachMenuBot,
+    MessagesGetAttachMenuBots,
     MessagesGetAvailableEffects,
+    MessagesGetDefaultTagReactions,
     MessagesGetDiscussionMessage,
+    MessagesGetFactCheck,
     MessagesGetMessageEditData,
     MessagesGetMessageReadParticipants,
+    MessagesGetPreparedInlineMessage,
     MessagesGetMessagesViews,
     MessagesGetOutboxReadDate,
     MessagesGetPaidReactionPrivacy,
     MessagesGetReplies,
     MessagesGetSavedGifs,
     MessagesGetScheduledHistory,
+    MessagesGetSponsoredMessages,
     MessagesGetUnreadMentions,
     MessagesGetUnreadReactions,
     MessagesGetWebPagePreview,
@@ -29,20 +40,77 @@ from telecraft.tl.generated.functions import (
     MessagesReadMessageContents,
     MessagesReadReactions,
     MessagesReportMessagesDelivery,
+    MessagesReportSponsoredMessage,
+    MessagesRequestMainWebView,
+    MessagesRequestSimpleWebView,
     MessagesSaveGif,
+    MessagesSavePreparedInlineMessage,
     MessagesSearchSentMedia,
+    MessagesSetChatTheme,
     MessagesSendInlineBotResult,
     MessagesSendMedia,
     MessagesSendMessage,
     MessagesSendPaidReaction,
     MessagesSendScheduledMessages,
     MessagesSendScreenshotNotification,
+    MessagesToggleBotInAttachMenu,
     MessagesTogglePaidReactionPrivacy,
+    MessagesToggleSuggestedPostApproval,
+    MessagesUpdateSavedReactionTag,
+    MessagesViewSponsoredMessage,
 )
-from telecraft.tl.generated.types import InputMediaWebPage, InputMessagesFilterEmpty
+from telecraft.tl.generated.types import (
+    DataJson,
+    InputChatTheme,
+    InputChatThemeEmpty,
+    InputChatThemeUniqueGift,
+    InputMediaWebPage,
+    InputMessagesFilterEmpty,
+    TextWithEntities,
+)
 
 if TYPE_CHECKING:
     from telecraft.client.mtproto import MtprotoClient
+
+
+def _as_data_json(value: Any | None) -> DataJson | None:
+    if value is None:
+        return None
+    if isinstance(value, DataJson):
+        return value
+    if isinstance(value, str):
+        return DataJson(data=value)
+    if isinstance(value, dict):
+        return DataJson(data=json.dumps(value, ensure_ascii=False, separators=(",", ":")))
+    return DataJson(data=str(value))
+
+
+def _as_text_with_entities(text: Any, entities: Sequence[Any] | None = None) -> Any:
+    if hasattr(text, "TL_NAME"):
+        return text
+    return TextWithEntities(
+        text=str(text),
+        entities=list(entities) if entities is not None else [],
+    )
+
+
+def _build_input_chat_theme(theme: Any) -> Any:
+    if hasattr(theme, "TL_NAME"):
+        return theme
+    if isinstance(theme, str):
+        value = theme.strip()
+        if not value:
+            return InputChatThemeEmpty()
+        if value.startswith("gift:"):
+            slug = value.split(":", 1)[1].strip()
+            return InputChatThemeUniqueGift(slug=slug)
+        return InputChatTheme(emoticon=value)
+    if isinstance(theme, dict):
+        if "slug" in theme:
+            return InputChatThemeUniqueGift(slug=str(theme["slug"]))
+        if "emoticon" in theme:
+            return InputChatTheme(emoticon=str(theme["emoticon"]))
+    return theme
 
 
 class MessagesScheduledAPI:
@@ -222,6 +290,107 @@ class MessagesWebAPI:
             url,
             text=text,
             optional=True,
+            timeout=timeout,
+        )
+
+    async def request_main(
+        self,
+        peer: PeerRef,
+        bot: PeerRef,
+        *,
+        platform: str = "android",
+        start_param: str | None = None,
+        theme_params: Any | None = None,
+        compact: bool = False,
+        fullscreen: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if theme_params is not None:
+            flags |= 1
+        if start_param is not None:
+            flags |= 2
+        if compact:
+            flags |= 1 << 7
+        if fullscreen:
+            flags |= 1 << 8
+        return await self._raw.invoke_api(
+            MessagesRequestMainWebView(
+                flags=flags,
+                compact=True if compact else None,
+                fullscreen=True if fullscreen else None,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                bot=await resolve_input_user(self._raw, bot, timeout=timeout),
+                start_param=str(start_param) if start_param is not None else None,
+                theme_params=_as_data_json(theme_params),
+                platform=str(platform),
+            ),
+            timeout=timeout,
+        )
+
+    async def request_simple(
+        self,
+        bot: PeerRef,
+        *,
+        platform: str = "android",
+        url: str | None = None,
+        start_param: str | None = None,
+        theme_params: Any | None = None,
+        from_switch_webview: bool = False,
+        from_side_menu: bool = False,
+        compact: bool = False,
+        fullscreen: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if theme_params is not None:
+            flags |= 1
+        if from_switch_webview:
+            flags |= 1 << 1
+        if from_side_menu:
+            flags |= 1 << 2
+        if url is not None:
+            flags |= 1 << 3
+        if start_param is not None:
+            flags |= 1 << 4
+        if compact:
+            flags |= 1 << 7
+        if fullscreen:
+            flags |= 1 << 8
+        return await self._raw.invoke_api(
+            MessagesRequestSimpleWebView(
+                flags=flags,
+                from_switch_webview=True if from_switch_webview else None,
+                from_side_menu=True if from_side_menu else None,
+                compact=True if compact else None,
+                fullscreen=True if fullscreen else None,
+                bot=await resolve_input_user(self._raw, bot, timeout=timeout),
+                url=str(url) if url is not None else None,
+                start_param=str(start_param) if start_param is not None else None,
+                theme_params=_as_data_json(theme_params),
+                platform=str(platform),
+            ),
+            timeout=timeout,
+        )
+
+    async def request_main_fullscreen(
+        self,
+        peer: PeerRef,
+        bot: PeerRef,
+        *,
+        platform: str = "android",
+        start_param: str | None = None,
+        theme_params: Any | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self.request_main(
+            peer,
+            bot,
+            platform=platform,
+            start_param=start_param,
+            theme_params=theme_params,
+            compact=False,
+            fullscreen=True,
             timeout=timeout,
         )
 
@@ -580,9 +749,43 @@ class MessagesPaidReactionsAPI:
         )
 
 
+class MessagesInlinePreparedAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def save(
+        self,
+        result: Any,
+        user: PeerRef,
+        *,
+        peer_types: Sequence[Any] | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if peer_types is not None else 0
+        return await self._raw.invoke_api(
+            MessagesSavePreparedInlineMessage(
+                flags=flags,
+                result=result,
+                user_id=await resolve_input_user(self._raw, user, timeout=timeout),
+                peer_types=list(peer_types) if peer_types is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+    async def get(self, bot: PeerRef, prepared_id: str, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            MessagesGetPreparedInlineMessage(
+                bot=await resolve_input_user(self._raw, bot, timeout=timeout),
+                id=str(prepared_id),
+            ),
+            timeout=timeout,
+        )
+
+
 class MessagesInlineAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
+        self.prepared = MessagesInlinePreparedAPI(raw)
 
     async def send_result(
         self,
@@ -683,6 +886,247 @@ class MessagesHistoryImportAPI:
         )
 
 
+class MessagesChatThemeAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def set(self, peer: PeerRef, theme: Any, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            MessagesSetChatTheme(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                theme=_build_input_chat_theme(theme),
+            ),
+            timeout=timeout,
+        )
+
+
+class MessagesSuggestedPostsAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def approve(
+        self,
+        peer: PeerRef,
+        msg_id: int,
+        *,
+        schedule_date: int | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if schedule_date is not None else 0
+        return await self._raw.invoke_api(
+            MessagesToggleSuggestedPostApproval(
+                flags=flags,
+                reject=None,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                msg_id=int(msg_id),
+                schedule_date=int(schedule_date) if schedule_date is not None else None,
+                reject_comment=None,
+            ),
+            timeout=timeout,
+        )
+
+    async def reject(
+        self,
+        peer: PeerRef,
+        msg_id: int,
+        *,
+        reject_comment: str = "",
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 << 1
+        if reject_comment:
+            flags |= 1 << 2
+        return await self._raw.invoke_api(
+            MessagesToggleSuggestedPostApproval(
+                flags=flags,
+                reject=True,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                msg_id=int(msg_id),
+                schedule_date=None,
+                reject_comment=str(reject_comment) if reject_comment else None,
+            ),
+            timeout=timeout,
+        )
+
+
+class MessagesFactChecksAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def get(
+        self,
+        peer: PeerRef,
+        msg_ids: int | Sequence[int],
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        ids = [int(msg_ids)] if isinstance(msg_ids, int) else [int(item) for item in msg_ids]
+        return await self._raw.invoke_api(
+            MessagesGetFactCheck(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                msg_id=ids,
+            ),
+            timeout=timeout,
+        )
+
+    async def edit(
+        self,
+        peer: PeerRef,
+        msg_id: int,
+        text: Any,
+        *,
+        entities: Sequence[Any] | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            MessagesEditFactCheck(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                msg_id=int(msg_id),
+                text=_as_text_with_entities(text, entities),
+            ),
+            timeout=timeout,
+        )
+
+    async def delete(self, peer: PeerRef, msg_id: int, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            MessagesDeleteFactCheck(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                msg_id=int(msg_id),
+            ),
+            timeout=timeout,
+        )
+
+
+class MessagesSponsoredAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def get(
+        self,
+        peer: PeerRef,
+        *,
+        msg_id: int | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if msg_id is not None else 0
+        return await self._raw.invoke_api(
+            MessagesGetSponsoredMessages(
+                flags=flags,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                msg_id=int(msg_id) if msg_id is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+    async def view(self, random_id: bytes | bytearray | str | Any, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            MessagesViewSponsoredMessage(random_id=build_sponsored_random_id(random_id)),
+            timeout=timeout,
+        )
+
+    async def click(
+        self,
+        random_id: bytes | bytearray | str | Any,
+        *,
+        media: bool = False,
+        fullscreen: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if media:
+            flags |= 1
+        if fullscreen:
+            flags |= 2
+        return await self._raw.invoke_api(
+            MessagesClickSponsoredMessage(
+                flags=flags,
+                media=True if media else None,
+                fullscreen=True if fullscreen else None,
+                random_id=build_sponsored_random_id(random_id),
+            ),
+            timeout=timeout,
+        )
+
+    async def report(
+        self,
+        random_id: bytes | bytearray | str | Any,
+        option: bytes | bytearray | str | Any,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            MessagesReportSponsoredMessage(
+                random_id=build_sponsored_random_id(random_id),
+                option=build_sponsored_option(option),
+            ),
+            timeout=timeout,
+        )
+
+
+class MessagesSavedTagsAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def defaults(self, *, hash: int = 0, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            MessagesGetDefaultTagReactions(hash=int(hash)),
+            timeout=timeout,
+        )
+
+    async def update(
+        self,
+        reaction: Any,
+        *,
+        title: str | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if title is not None else 0
+        return await self._raw.invoke_api(
+            MessagesUpdateSavedReactionTag(
+                flags=flags,
+                reaction=reaction,
+                title=str(title) if title is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+
+class MessagesAttachMenuAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def bots(self, *, hash: int = 0, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            MessagesGetAttachMenuBots(hash=int(hash)),
+            timeout=timeout,
+        )
+
+    async def bot(self, bot: PeerRef, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            MessagesGetAttachMenuBot(bot=await resolve_input_user(self._raw, bot, timeout=timeout)),
+            timeout=timeout,
+        )
+
+    async def toggle_bot(
+        self,
+        bot: PeerRef,
+        *,
+        enabled: bool = True,
+        write_allowed: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if write_allowed else 0
+        return await self._raw.invoke_api(
+            MessagesToggleBotInAttachMenu(
+                flags=flags,
+                write_allowed=True if write_allowed else None,
+                bot=await resolve_input_user(self._raw, bot, timeout=timeout),
+                enabled=bool(enabled),
+            ),
+            timeout=timeout,
+        )
+
+
 class MessagesAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
@@ -696,6 +1140,12 @@ class MessagesAPI:
         self.paid_reactions = MessagesPaidReactionsAPI(raw)
         self.inline = MessagesInlineAPI(raw)
         self.history_import = MessagesHistoryImportAPI(raw)
+        self.chat_theme = MessagesChatThemeAPI(raw)
+        self.suggested_posts = MessagesSuggestedPostsAPI(raw)
+        self.fact_checks = MessagesFactChecksAPI(raw)
+        self.sponsored = MessagesSponsoredAPI(raw)
+        self.saved_tags = MessagesSavedTagsAPI(raw)
+        self.attach_menu = MessagesAttachMenuAPI(raw)
 
     async def send(
         self,

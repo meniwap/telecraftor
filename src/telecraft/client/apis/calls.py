@@ -21,19 +21,24 @@ from telecraft.tl.generated.functions import (
     PhoneConfirmCall,
     PhoneCreateConferenceCall,
     PhoneCreateGroupCall,
+    PhoneDeclineConferenceCallInvite,
+    PhoneDeleteConferenceCallParticipants,
     PhoneDiscardCall,
     PhoneDiscardGroupCall,
     PhoneEditGroupCallParticipant,
     PhoneEditGroupCallTitle,
     PhoneExportGroupCallInvite,
     PhoneGetGroupCall,
+    PhoneGetGroupCallChainBlocks,
     PhoneGetGroupCallStreamRtmpUrl,
     PhoneGetGroupParticipants,
+    PhoneInviteConferenceCallParticipant,
     PhoneInviteToGroupCall,
     PhoneJoinGroupCall,
     PhoneJoinGroupCallPresentation,
     PhoneLeaveGroupCall,
     PhoneLeaveGroupCallPresentation,
+    PhoneSendConferenceCallBroadcast,
     PhoneToggleGroupCallRecord,
     PhoneToggleGroupCallSettings,
 )
@@ -88,9 +93,34 @@ async def _to_participant(
     return participant
 
 
+class CallsGroupChainAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def blocks(
+        self,
+        call_ref: GroupCallRef | Any,
+        sub_chain_id: int,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            PhoneGetGroupCallChainBlocks(
+                call=await _to_call_ref(call_ref),
+                sub_chain_id=int(sub_chain_id),
+                offset=int(offset),
+                limit=int(limit),
+            ),
+            timeout=timeout,
+        )
+
+
 class CallsGroupAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
+        self.chain = CallsGroupChainAPI(raw)
 
     async def create(
         self,
@@ -573,6 +603,73 @@ class CallsConferenceAPI:
                 reason=reason,
                 connection_id=int(connection_id),
             ),
+            timeout=timeout,
+        )
+
+    async def delete_participants(
+        self,
+        call_ref: GroupCallRef | Any,
+        ids: Sequence[int],
+        block: bytes | bytearray,
+        *,
+        only_left: bool = False,
+        kick: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if only_left:
+            flags |= 1
+        if kick:
+            flags |= 2
+        return await self._raw.invoke_api(
+            PhoneDeleteConferenceCallParticipants(
+                flags=flags,
+                only_left=True if only_left else None,
+                kick=True if kick else None,
+                call=await _to_call_ref(call_ref),
+                ids=[int(item) for item in ids],
+                block=bytes(block),
+            ),
+            timeout=timeout,
+        )
+
+    async def broadcast(
+        self,
+        call_ref: GroupCallRef | Any,
+        block: bytes | bytearray,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            PhoneSendConferenceCallBroadcast(
+                call=await _to_call_ref(call_ref),
+                block=bytes(block),
+            ),
+            timeout=timeout,
+        )
+
+    async def invite(
+        self,
+        call_ref: GroupCallRef | Any,
+        user: PeerRef,
+        *,
+        video: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if video else 0
+        return await self._raw.invoke_api(
+            PhoneInviteConferenceCallParticipant(
+                flags=flags,
+                video=True if video else None,
+                call=await _to_call_ref(call_ref),
+                user_id=await resolve_input_user(self._raw, user, timeout=timeout),
+            ),
+            timeout=timeout,
+        )
+
+    async def decline_invite(self, msg_id: int, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            PhoneDeclineConferenceCallInvite(msg_id=int(msg_id)),
             timeout=timeout,
         )
 
