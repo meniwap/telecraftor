@@ -11,9 +11,11 @@ from telecraft.client.account import (
     build_input_theme,
     build_input_wallpaper,
 )
-from telecraft.client.apis._utils import resolve_input_peer
+from telecraft.client.apis._utils import resolve_input_channel, resolve_input_peer
 from telecraft.client.peers import PeerRef
 from telecraft.tl.generated.functions import (
+    AccountCheckUsername,
+    AccountDeleteAccount,
     AccountGetAuthorizations,
     AccountGetContentSettings,
     AccountGetMultiWallPapers,
@@ -30,8 +32,13 @@ from telecraft.tl.generated.functions import (
     AccountResetWebAuthorizations,
     AccountSaveWallPaper,
     AccountSetContentSettings,
+    AccountUpdateBirthday,
+    AccountUpdatePersonalChannel,
+    AccountUpdateStatus,
+    AccountUpdateUsername,
     AccountUploadWallPaper,
     AuthResetAuthorizations,
+    ChannelsGetAdminedPublicChannels,
     HelpAcceptTermsOfService,
     HelpGetTermsOfServiceUpdate,
     MessagesGetDefaultHistoryTtl,
@@ -356,6 +363,77 @@ class AccountWallpapersAPI:
         )
 
 
+class AccountIdentityAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def check_username(self, username: str, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            AccountCheckUsername(username=str(username)),
+            timeout=timeout,
+        )
+
+    async def update_username(self, username: str, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            AccountUpdateUsername(username=str(username)),
+            timeout=timeout,
+        )
+
+    async def update_status(self, offline: bool, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            AccountUpdateStatus(offline=bool(offline)),
+            timeout=timeout,
+        )
+
+    async def update_birthday(self, birthday: Any, *, timeout: float = 20.0) -> Any:
+        flags = 1 if birthday is not None else 0
+        return await self._raw.invoke_api(
+            AccountUpdateBirthday(flags=flags, birthday=birthday if birthday is not None else None),
+            timeout=timeout,
+        )
+
+    async def delete_account(
+        self,
+        reason: str,
+        *,
+        password: Any | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if password is not None else 0
+        return await self._raw.invoke_api(
+            AccountDeleteAccount(
+                flags=flags,
+                reason=str(reason),
+                password=password,
+            ),
+            timeout=timeout,
+        )
+
+
+class AccountPersonalChannelAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def set(self, channel: PeerRef, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            AccountUpdatePersonalChannel(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+            ),
+            timeout=timeout,
+        )
+
+    async def candidates(self, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsGetAdminedPublicChannels(
+                flags=4,
+                by_location=None,
+                check_limit=None,
+                for_personal=True,
+            ),
+            timeout=timeout,
+        )
+
+
 class AccountAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
@@ -366,3 +444,5 @@ class AccountAPI:
         self.terms = AccountTermsAPI(raw)
         self.themes = AccountThemesAPI(raw)
         self.wallpapers = AccountWallpapersAPI(raw)
+        self.identity = AccountIdentityAPI(raw)
+        self.personal_channel = AccountPersonalChannelAPI(raw)

@@ -11,9 +11,12 @@ from .calls import (
 )
 from .chatlists import ChatlistRef
 from .client import Client
+from .folders import FolderAssignment
 from .gifts import GiftRef
+from .messages import ReplyToMessageRef, ReplyToStoryRef
 from .mtproto import ClientInit
 from .notifications import NotifyTarget
+from .payments import InvoiceRef, StarsAmountRef
 from .peers import Peer, PeerRef, PeerType
 from .privacy import PrivacyKey, PrivacyRuleBuilder
 from .reports import ReportReasonBuilder
@@ -31,6 +34,7 @@ __all__ = [
     "GiftRef",
     "GroupCallJoinParams",
     "GroupCallRef",
+    "InvoiceRef",
     "JoinAsRef",
     "NotifyTarget",
     "Peer",
@@ -39,8 +43,12 @@ __all__ = [
     "PhoneCallRef",
     "PrivacyKey",
     "PrivacyRuleBuilder",
+    "ReplyToMessageRef",
+    "ReplyToStoryRef",
     "ReportReasonBuilder",
+    "FolderAssignment",
     "StickerSetRef",
+    "StarsAmountRef",
     "TakeoutScopes",
     "TakeoutSessionRef",
     "ThemeRef",
