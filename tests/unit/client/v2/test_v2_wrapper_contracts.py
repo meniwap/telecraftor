@@ -13,8 +13,10 @@ from telecraft.client import (
     ChatlistRef,
     Client,
     DocumentRef,
+    FolderAssignment,
     GiftRef,
     GroupCallRef,
+    InvoiceRef,
     NotifyTarget,
     StickerSetRef,
     TakeoutScopes,
@@ -256,6 +258,10 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
         return ["/tmp/a.bin", "/tmp/b.bin"]
     if param_name == "captions":
         return ["a", "b"]
+    if param_name == "assignments":
+        return [FolderAssignment.of("user:1", 1), FolderAssignment.of("channel:1", 0)]
+    if param_name == "form_id_msg_id_or_invoice":
+        return InvoiceRef.by_message("user:1", 1)
     if param_name == "path":
         return "/tmp/sample.bin"
     if param_name == "dest":
@@ -287,6 +293,12 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
         "sticker_access_hash",
         "gift_id",
         "saved_id",
+        "effect_id",
+        "read_max_id",
+        "count",
+        "send_paid_messages_stars",
+        "amount",
+        "nanos",
         "score",
         "form_id",
     }:
@@ -298,6 +310,10 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
         "title",
         "about",
         "query",
+        "url",
+        "username",
+        "reason",
+        "message",
         "question",
         "explanation",
         "first_name",
@@ -311,8 +327,20 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
         "slug",
         "shortcut",
         "emoticon",
+        "charge_id",
+        "result_id",
     }:
         return "x"
+    if param_name == "birthday":
+        return object()
+    if param_name == "tab":
+        return object()
+    if param_name == "stories":
+        return [1, 2]
+    if param_name == "invoice_media":
+        return object()
+    if param_name == "option":
+        return b"option"
     if param_name == "options":
         return ["yes", "no"]
     if param_name == "photo_ids":
@@ -331,18 +359,27 @@ def _default_value(namespace: str, method: str, param_name: str) -> Any:
 
 
 FORWARDED_ARG_ALIASES: dict[str, tuple[str, ...]] = {
+    "assignments": ("folder_peers",),
     "call_ref": ("call", "peer"),
     "ids": ("id",),
+    "effect_id": ("effect",),
+    "form_id_msg_id_or_invoice": ("invoice",),
+    "invoice_media": ("invoice_media",),
     "inline_message_id": ("id",),
     "item_ids": ("completed", "incompleted"),
     "msg_ids": ("id",),
     "msg_id": ("id",),
+    "reply_to_msg_id": ("reply_to",),
+    "result_id": ("id",),
     "method": ("custom_method",),
     "query_obj": ("query",),
     "reason": ("option",),
+    "text": ("message",),
     "tx_ids": ("id",),
     "ref": ("stargift",),
     "refs": ("stargift",),
+    "privacy": ("private",),
+    "peers": ("id", "folder_peers"),
     "document": ("id",),
     "document_ids": ("document_id",),
     "filter_id": ("id",),
@@ -375,6 +412,7 @@ def _matches_forwarded_value(expected: Any, actual: Any) -> bool:
         (
             GiftRef,
             GroupCallRef,
+            InvoiceRef,
             StickerSetRef,
             DocumentRef,
             NotifyTarget,
@@ -387,13 +425,70 @@ def _matches_forwarded_value(expected: Any, actual: Any) -> bool:
     return False
 
 
+def _iter_nested_values(root: Any, *, max_depth: int = 4) -> list[Any]:
+    values: list[Any] = []
+    stack: list[tuple[Any, int]] = [(root, 0)]
+    seen: set[int] = set()
+
+    while stack:
+        value, depth = stack.pop()
+        value_id = id(value)
+        if value_id in seen:
+            continue
+        seen.add(value_id)
+        values.append(value)
+
+        if depth >= max_depth:
+            continue
+        if isinstance(value, (str, bytes, bytearray, int, float, bool, type(None))):
+            continue
+
+        if _is_sequence_value(value):
+            for item in value:
+                stack.append((item, depth + 1))
+            continue
+
+        if isinstance(value, dict):
+            for item in value.values():
+                stack.append((item, depth + 1))
+            continue
+
+        maybe_dict = getattr(value, "__dict__", None)
+        if isinstance(maybe_dict, dict):
+            for item in maybe_dict.values():
+                stack.append((item, depth + 1))
+
+        slots = getattr(type(value), "__slots__", ())
+        if isinstance(slots, str):
+            slots = (slots,)
+        for slot in slots:
+            if slot.startswith("_"):
+                continue
+            if hasattr(value, slot):
+                stack.append((getattr(value, slot), depth + 1))
+
+    return values
+
+
 def _arg_forwarded(raw: SpyRaw, name: str, value: Any) -> bool:
     candidate_names = (name,) + FORWARDED_ARG_ALIASES.get(name, ())
 
     for call in raw.calls:
+        containers = [*call.args, *call.kwargs.values()]
         for candidate in candidate_names:
             if candidate in call.kwargs and _matches_forwarded_value(value, call.kwargs[candidate]):
                 return True
+            for container in containers:
+                for nested in _iter_nested_values(container):
+                    if isinstance(nested, dict):
+                        if candidate in nested and _matches_forwarded_value(
+                            value, nested[candidate]
+                        ):
+                            return True
+                    if hasattr(nested, candidate) and _matches_forwarded_value(
+                        value, getattr(nested, candidate)
+                    ):
+                        return True
         if any(_matches_forwarded_value(value, arg) for arg in call.args):
             return True
         if any(_matches_forwarded_value(value, kw) for kw in call.kwargs.values()):

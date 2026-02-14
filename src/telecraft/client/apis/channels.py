@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from telecraft.client.apis._utils import resolve_input_channel, resolve_input_peer
+from telecraft.client.apis._utils import (
+    resolve_input_channel,
+    resolve_input_peer,
+    resolve_input_peer_or_self,
+)
 from telecraft.client.peers import PeerRef
 from telecraft.client.stickers import StickerSetRef, build_input_sticker_set
 from telecraft.tl.generated.functions import (
@@ -10,20 +14,27 @@ from telecraft.tl.generated.functions import (
     ChannelsDeleteParticipantHistory,
     ChannelsExportMessageLink,
     ChannelsGetAdminLog,
+    ChannelsGetMessageAuthor,
     ChannelsReadHistory,
     ChannelsReorderUsernames,
     ChannelsReportAntiSpamFalsePositive,
+    ChannelsSearchPosts,
     ChannelsSetBoostsToUnblockRestrictions,
     ChannelsSetDiscussionGroup,
     ChannelsSetEmojiStickers,
+    ChannelsSetMainProfileTab,
     ChannelsSetStickers,
     ChannelsToggleAntiSpam,
+    ChannelsToggleAutotranslation,
+    ChannelsToggleJoinRequest,
+    ChannelsToggleJoinToSend,
     ChannelsToggleParticipantsHidden,
     ChannelsTogglePreHistoryHidden,
     ChannelsToggleSignatures,
     ChannelsToggleSlowMode,
     ChannelsUpdateColor,
     ChannelsUpdateEmojiStatus,
+    ChannelsUpdatePaidMessagesPrice,
     ChannelsUpdateUsername,
 )
 
@@ -259,6 +270,85 @@ class ChannelSettingsAPI:
             timeout=timeout,
         )
 
+    async def toggle_join_to_send(
+        self,
+        channel: PeerRef,
+        enabled: bool,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsToggleJoinToSend(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                enabled=bool(enabled),
+            ),
+            timeout=timeout,
+        )
+
+    async def toggle_join_request(
+        self,
+        channel: PeerRef,
+        enabled: bool,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsToggleJoinRequest(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                enabled=bool(enabled),
+            ),
+            timeout=timeout,
+        )
+
+    async def toggle_autotranslation(
+        self,
+        channel: PeerRef,
+        enabled: bool,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsToggleAutotranslation(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                enabled=bool(enabled),
+            ),
+            timeout=timeout,
+        )
+
+    async def update_paid_messages_price(
+        self,
+        channel: PeerRef,
+        send_paid_messages_stars: int,
+        *,
+        broadcast_messages_allowed: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if broadcast_messages_allowed else 0
+        return await self._raw.invoke_api(
+            ChannelsUpdatePaidMessagesPrice(
+                flags=flags,
+                broadcast_messages_allowed=True if broadcast_messages_allowed else None,
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                send_paid_messages_stars=int(send_paid_messages_stars),
+            ),
+            timeout=timeout,
+        )
+
+    async def set_main_profile_tab(
+        self,
+        channel: PeerRef,
+        tab: Any,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsSetMainProfileTab(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                tab=tab,
+            ),
+            timeout=timeout,
+        )
+
 
 class ChannelAdminLogAPI:
     def __init__(self, raw: MtprotoClient) -> None:
@@ -380,6 +470,58 @@ class ChannelsAPI:
             ChannelsDeleteParticipantHistory(
                 channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
                 participant=await resolve_input_peer(self._raw, participant, timeout=timeout),
+            ),
+            timeout=timeout,
+        )
+
+    async def search_posts(
+        self,
+        *,
+        query: str = "",
+        hashtag: str | None = None,
+        offset_rate: int = 0,
+        offset_peer: PeerRef | str = "self",
+        offset_id: int = 0,
+        limit: int = 50,
+        allow_paid_stars: int | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if hashtag is not None:
+            flags |= 1
+        if query:
+            flags |= 2
+        if allow_paid_stars is not None:
+            flags |= 4
+        return await self._raw.invoke_api(
+            ChannelsSearchPosts(
+                flags=flags,
+                hashtag=str(hashtag) if hashtag is not None else None,
+                query=str(query) if query else None,
+                offset_rate=int(offset_rate),
+                offset_peer=await resolve_input_peer_or_self(
+                    self._raw,
+                    offset_peer,
+                    timeout=timeout,
+                ),
+                offset_id=int(offset_id),
+                limit=int(limit),
+                allow_paid_stars=int(allow_paid_stars) if allow_paid_stars is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+    async def message_author(
+        self,
+        channel: PeerRef,
+        msg_id: int,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsGetMessageAuthor(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                id=int(msg_id),
             ),
             timeout=timeout,
         )

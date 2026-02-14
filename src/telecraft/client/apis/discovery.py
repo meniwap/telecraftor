@@ -6,7 +6,10 @@ from telecraft.client.apis._utils import resolve_input_peer_or_self
 from telecraft.client.peers import PeerRef
 from telecraft.tl.generated.functions import (
     BotsGetBotRecommendations,
+    BotsGetPopularAppBots,
     ChannelsGetChannelRecommendations,
+    ChannelsGetGroupsForDiscussion,
+    ChannelsGetLeftChannels,
     MessagesGetPeerSettings,
 )
 from telecraft.tl.generated.types import InputPeerEmpty, InputUserSelf
@@ -36,6 +39,12 @@ class DiscoveryChannelsAPI:
     async def for_peer(self, peer: PeerRef | str, *, timeout: float = 20.0) -> Any:
         return await self.recommended(peer=peer, timeout=timeout)
 
+    async def left(self, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(ChannelsGetLeftChannels(offset=0), timeout=timeout)
+
+    async def groups_for_discussion(self, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(ChannelsGetGroupsForDiscussion(), timeout=timeout)
+
 
 class DiscoveryBotsAPI:
     def __init__(self, raw: MtprotoClient) -> None:
@@ -49,6 +58,18 @@ class DiscoveryBotsAPI:
 
     async def for_peer(self, peer: PeerRef | str, *, timeout: float = 20.0) -> Any:
         return await self.recommended(peer=peer, timeout=timeout)
+
+    async def popular_apps(
+        self,
+        *,
+        offset: str = "",
+        limit: int = 20,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            BotsGetPopularAppBots(offset=str(offset), limit=int(limit)),
+            timeout=timeout,
+        )
 
 
 class DiscoveryAPI:

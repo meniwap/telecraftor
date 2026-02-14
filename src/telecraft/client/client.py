@@ -20,6 +20,7 @@ from telecraft.client.apis import (
     MediaAPI,
     MessagesAPI,
     NotificationsAPI,
+    PaymentsAPI,
     PeersAPI,
     PollsAPI,
     PresenceAPI,
@@ -97,6 +98,7 @@ class Client:
         self.reactions = ReactionsAPI(self.raw)
         self.privacy = PrivacyAPI(self.raw)
         self.notifications = NotificationsAPI(self.raw)
+        self.payments = PaymentsAPI(self.raw)
         self.business = BusinessAPI(self.raw)
         self.stories = StoriesAPI(self.raw)
         self.chatlists = ChatlistsAPI(self.raw)

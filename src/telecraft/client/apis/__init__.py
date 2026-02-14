@@ -3,6 +3,8 @@ from __future__ import annotations
 from .account import (
     AccountAPI,
     AccountContentAPI,
+    AccountIdentityAPI,
+    AccountPersonalChannelAPI,
     AccountSessionsAPI,
     AccountTermsAPI,
     AccountThemesAPI,
@@ -22,13 +24,39 @@ from .discovery import DiscoveryAPI, DiscoveryBotsAPI, DiscoveryChannelsAPI
 from .drafts import DraftsAPI
 from .folders import FoldersAPI
 from .games import GamesAPI, GameScoresAPI
-from .gifts import GiftsAPI, GiftsResaleAPI, GiftsSavedAPI, GiftsUniqueAPI
+from .gifts import (
+    GiftsAPI,
+    GiftsCollectionsAPI,
+    GiftsNotificationsAPI,
+    GiftsResaleAPI,
+    GiftsSavedAPI,
+    GiftsUniqueAPI,
+)
 from .media import MediaAPI
-from .messages import MessagesAPI, MessagesScheduledAPI
+from .messages import (
+    MessagesAPI,
+    MessagesDiscussionAPI,
+    MessagesEffectsAPI,
+    MessagesGifsAPI,
+    MessagesHistoryImportAPI,
+    MessagesInlineAPI,
+    MessagesPaidReactionsAPI,
+    MessagesReceiptsAPI,
+    MessagesScheduledAPI,
+    MessagesSentMediaAPI,
+    MessagesWebAPI,
+)
 from .notifications import (
     NotificationsAPI,
     NotificationsContactSignupAPI,
     NotificationsReactionsAPI,
+)
+from .payments import (
+    PaymentsAPI,
+    PaymentsFormsAPI,
+    PaymentsGiftCodesAPI,
+    PaymentsInvoiceAPI,
+    PaymentsStarsAPI,
 )
 from .peers import PeersAPI
 from .polls import PollsAPI
@@ -56,7 +84,17 @@ from .stickers import (
     StickerSearchAPI,
     StickerSetsAPI,
 )
-from .stories import StoriesAPI, StoriesCapabilitiesAPI, StoriesFeedAPI
+from .stories import (
+    StoriesAlbumsAPI,
+    StoriesAPI,
+    StoriesCapabilitiesAPI,
+    StoriesFeedAPI,
+    StoriesLinksAPI,
+    StoriesPeersAPI,
+    StoriesReactionsAPI,
+    StoriesStealthAPI,
+    StoriesViewsAPI,
+)
 from .takeout import TakeoutAPI, TakeoutMediaAPI, TakeoutMessagesAPI
 from .todos import TodosAPI
 from .topics import TopicsAPI, TopicsForumAPI
@@ -67,6 +105,8 @@ from .webapps import WebAppsAPI
 __all__ = [
     "AccountAPI",
     "AccountContentAPI",
+    "AccountIdentityAPI",
+    "AccountPersonalChannelAPI",
     "AccountSessionsAPI",
     "AccountTermsAPI",
     "AccountThemesAPI",
@@ -104,15 +144,31 @@ __all__ = [
     "GameScoresAPI",
     "GamesAPI",
     "GiftsAPI",
+    "GiftsCollectionsAPI",
+    "GiftsNotificationsAPI",
     "GiftsResaleAPI",
     "GiftsSavedAPI",
     "GiftsUniqueAPI",
     "MediaAPI",
     "MessagesAPI",
+    "MessagesDiscussionAPI",
+    "MessagesEffectsAPI",
+    "MessagesGifsAPI",
+    "MessagesHistoryImportAPI",
+    "MessagesInlineAPI",
+    "MessagesPaidReactionsAPI",
+    "MessagesReceiptsAPI",
     "MessagesScheduledAPI",
+    "MessagesSentMediaAPI",
+    "MessagesWebAPI",
     "NotificationsAPI",
     "NotificationsContactSignupAPI",
     "NotificationsReactionsAPI",
+    "PaymentsAPI",
+    "PaymentsFormsAPI",
+    "PaymentsGiftCodesAPI",
+    "PaymentsInvoiceAPI",
+    "PaymentsStarsAPI",
     "PeersAPI",
     "PollsAPI",
     "PresenceAPI",
@@ -143,8 +199,14 @@ __all__ = [
     "StickerSetsAPI",
     "StickersAPI",
     "StoriesAPI",
+    "StoriesAlbumsAPI",
     "StoriesCapabilitiesAPI",
     "StoriesFeedAPI",
+    "StoriesLinksAPI",
+    "StoriesPeersAPI",
+    "StoriesReactionsAPI",
+    "StoriesStealthAPI",
+    "StoriesViewsAPI",
     "TakeoutAPI",
     "TakeoutMediaAPI",
     "TakeoutMessagesAPI",

@@ -7,18 +7,29 @@ from typing import TYPE_CHECKING, Any
 from telecraft.client.apis._utils import resolve_input_peer
 from telecraft.client.peers import PeerRef
 from telecraft.tl.generated.functions import (
+    StoriesActivateStealthMode,
     StoriesCanSendStory,
+    StoriesCreateAlbum,
+    StoriesDeleteAlbum,
     StoriesDeleteStories,
     StoriesEditStory,
+    StoriesExportStoryLink,
+    StoriesGetAlbums,
     StoriesGetAllReadPeerStories,
     StoriesGetAllStories,
+    StoriesGetChatsToSend,
+    StoriesGetPeerMaxIds,
     StoriesGetPeerStories,
     StoriesGetPinnedStories,
     StoriesGetStoriesArchive,
     StoriesGetStoriesById,
     StoriesGetStoriesViews,
+    StoriesGetStoryReactionsList,
+    StoriesGetStoryViewsList,
     StoriesIncrementStoryViews,
     StoriesReadStories,
+    StoriesReorderAlbums,
+    StoriesReport,
     StoriesSearchPosts,
     StoriesSendReaction,
     StoriesSendStory,
@@ -26,6 +37,7 @@ from telecraft.tl.generated.functions import (
     StoriesTogglePeerStoriesHidden,
     StoriesTogglePinned,
     StoriesTogglePinnedToTop,
+    StoriesUpdateAlbum,
 )
 
 if TYPE_CHECKING:
@@ -122,11 +134,239 @@ class StoriesFeedAPI:
         )
 
 
+class StoriesLinksAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def export(self, peer: PeerRef, story_id: int, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesExportStoryLink(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=int(story_id),
+            ),
+            timeout=timeout,
+        )
+
+
+class StoriesViewsAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def __call__(self, peer: PeerRef, ids: Sequence[int], *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesGetStoriesViews(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=[int(x) for x in ids],
+            ),
+            timeout=timeout,
+        )
+
+    async def list(
+        self,
+        peer: PeerRef,
+        story_id: int,
+        *,
+        q: str | None = None,
+        offset: str = "",
+        limit: int = 100,
+        just_contacts: bool = False,
+        reactions_first: bool = False,
+        forwards_first: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if just_contacts:
+            flags |= 1
+        if q is not None:
+            flags |= 2
+        if reactions_first:
+            flags |= 4
+        if forwards_first:
+            flags |= 8
+        return await self._raw.invoke_api(
+            StoriesGetStoryViewsList(
+                flags=flags,
+                just_contacts=True if just_contacts else None,
+                reactions_first=True if reactions_first else None,
+                forwards_first=True if forwards_first else None,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                q=str(q) if q is not None else None,
+                id=int(story_id),
+                offset=str(offset),
+                limit=int(limit),
+            ),
+            timeout=timeout,
+        )
+
+
+class StoriesReactionsAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def list(
+        self,
+        peer: PeerRef,
+        story_id: int,
+        *,
+        reaction: Any | None = None,
+        offset: str = "",
+        limit: int = 100,
+        forwards_first: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if reaction is not None:
+            flags |= 1
+        if offset:
+            flags |= 2
+        if forwards_first:
+            flags |= 4
+        return await self._raw.invoke_api(
+            StoriesGetStoryReactionsList(
+                flags=flags,
+                forwards_first=True if forwards_first else None,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=int(story_id),
+                reaction=reaction,
+                offset=str(offset) if offset else None,
+                limit=int(limit),
+            ),
+            timeout=timeout,
+        )
+
+
+class StoriesStealthAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def activate(
+        self,
+        *,
+        past: bool = False,
+        future: bool = True,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if past:
+            flags |= 1
+        if future:
+            flags |= 2
+        return await self._raw.invoke_api(
+            StoriesActivateStealthMode(
+                flags=flags,
+                past=True if past else None,
+                future=True if future else None,
+            ),
+            timeout=timeout,
+        )
+
+
+class StoriesPeersAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def max_ids(self, peers: Sequence[PeerRef], *, timeout: float = 20.0) -> Any:
+        ids = [await resolve_input_peer(self._raw, peer, timeout=timeout) for peer in peers]
+        return await self._raw.invoke_api(StoriesGetPeerMaxIds(id=ids), timeout=timeout)
+
+
+class StoriesAlbumsAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def list(self, peer: PeerRef, *, hash: int = 0, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesGetAlbums(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                hash=int(hash),
+            ),
+            timeout=timeout,
+        )
+
+    async def create(
+        self,
+        peer: PeerRef,
+        title: str,
+        stories: Sequence[int],
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            StoriesCreateAlbum(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                title=str(title),
+                stories=[int(item) for item in stories],
+            ),
+            timeout=timeout,
+        )
+
+    async def update(
+        self,
+        peer: PeerRef,
+        album_id: int,
+        *,
+        title: str | None = None,
+        add_stories: Sequence[int] | None = None,
+        delete_stories: Sequence[int] | None = None,
+        order: Sequence[int] | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if title is not None:
+            flags |= 1
+        if delete_stories is not None:
+            flags |= 2
+        if add_stories is not None:
+            flags |= 4
+        if order is not None:
+            flags |= 8
+        return await self._raw.invoke_api(
+            StoriesUpdateAlbum(
+                flags=flags,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                album_id=int(album_id),
+                title=str(title) if title is not None else None,
+                delete_stories=(
+                    [int(item) for item in delete_stories] if delete_stories is not None else None
+                ),
+                add_stories=(
+                    [int(item) for item in add_stories] if add_stories is not None else None
+                ),
+                order=[int(item) for item in order] if order is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+    async def reorder(self, peer: PeerRef, order: Sequence[int], *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesReorderAlbums(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                order=[int(item) for item in order],
+            ),
+            timeout=timeout,
+        )
+
+    async def delete(self, peer: PeerRef, album_id: int, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            StoriesDeleteAlbum(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                album_id=int(album_id),
+            ),
+            timeout=timeout,
+        )
+
+
 class StoriesAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
         self.capabilities = StoriesCapabilitiesAPI(raw)
         self.feed = StoriesFeedAPI(raw)
+        self.links = StoriesLinksAPI(raw)
+        setattr(self, "views", StoriesViewsAPI(raw))
+        self.reactions = StoriesReactionsAPI(raw)
+        self.stealth = StoriesStealthAPI(raw)
+        self.peers = StoriesPeersAPI(raw)
+        self.albums = StoriesAlbumsAPI(raw)
 
     async def read(self, peer: PeerRef, max_id: int, *, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(
@@ -196,6 +436,28 @@ class StoriesAPI:
 
     async def all_read_peers(self, *, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(StoriesGetAllReadPeerStories(), timeout=timeout)
+
+    async def report(
+        self,
+        peer: PeerRef,
+        ids: Sequence[int],
+        option: bytes | str,
+        *,
+        message: str = "",
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            StoriesReport(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                id=[int(item) for item in ids],
+                option=option if isinstance(option, bytes) else str(option).encode(),
+                message=str(message),
+            ),
+            timeout=timeout,
+        )
+
+    async def chats_to_send(self, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(StoriesGetChatsToSend(), timeout=timeout)
 
     async def send(
         self,

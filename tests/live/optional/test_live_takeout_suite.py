@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from telecraft.client import Client, TakeoutScopes
+from telecraft.tl.generated.functions import ChannelsGetLeftChannels
 from tests.live._suite_shared import finalize_run, resolve_or_create_audit_peer, run_step
 
 pytestmark = [pytest.mark.live, pytest.mark.live_optional, pytest.mark.live_takeout]
@@ -50,14 +51,20 @@ async def _run_takeout_suite(client: Client, ctx: Any, reporter: Any) -> None:
             limit=1,
             timeout=ctx.cfg.timeout,
         )
+        left = await client.takeout.invoke(
+            ChannelsGetLeftChannels(offset=0),
+            timeout=ctx.cfg.timeout,
+        )
         finished = await client.takeout.finish(success=True, timeout=ctx.cfg.timeout)
 
         resource_ids["start_type"] = type(started).__name__
         resource_ids["export_type"] = type(exported).__name__
+        resource_ids["left_type"] = type(left).__name__
         resource_ids["finish_type"] = type(finished).__name__
         return (
             f"start={type(started).__name__} "
-            f"export={type(exported).__name__} finish={type(finished).__name__}"
+            f"export={type(exported).__name__} "
+            f"left={type(left).__name__} finish={type(finished).__name__}"
         )
 
     await run_step(

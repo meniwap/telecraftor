@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from telecraft.client.apis._utils import resolve_input_peer, resolve_input_peer_or_self
 from telecraft.client.gifts import GiftRef
@@ -9,6 +9,8 @@ from telecraft.client.peers import PeerRef
 from telecraft.tl.generated.functions import (
     PaymentsCheckCanSendGift,
     PaymentsConvertStarGift,
+    PaymentsCreateStarGiftCollection,
+    PaymentsDeleteStarGiftCollection,
     PaymentsGetResaleStarGifts,
     PaymentsGetSavedStarGift,
     PaymentsGetSavedStarGifts,
@@ -16,14 +18,19 @@ from telecraft.tl.generated.functions import (
     PaymentsGetStarGifts,
     PaymentsGetStarGiftUpgradePreview,
     PaymentsGetUniqueStarGift,
+    PaymentsReorderStarGiftCollections,
     PaymentsSaveStarGift,
+    PaymentsToggleChatStarGiftNotifications,
     PaymentsTransferStarGift,
+    PaymentsUpdateStarGiftCollection,
+    PaymentsUpdateStarGiftPrice,
     PaymentsUpgradeStarGift,
 )
 from telecraft.tl.generated.types import (
     InputSavedStarGiftChat,
     InputSavedStarGiftSlug,
     InputSavedStarGiftUser,
+    StarsAmount,
 )
 
 if TYPE_CHECKING:
@@ -174,6 +181,23 @@ class GiftsSavedAPI:
             timeout=timeout,
         )
 
+    async def set_resale_price(
+        self,
+        ref: GiftRef,
+        amount: int,
+        *,
+        nanos: int = 0,
+        timeout: float = 20.0,
+    ) -> Any:
+        input_ref = await _gift_ref_to_input(self._raw, ref, timeout=timeout)
+        return await self._raw.invoke_api(
+            PaymentsUpdateStarGiftPrice(
+                stargift=input_ref,
+                resell_amount=StarsAmount(amount=int(amount), nanos=int(nanos)),
+            ),
+            timeout=timeout,
+        )
+
 
 class GiftsResaleAPI:
     def __init__(self, raw: MtprotoClient) -> None:
@@ -227,22 +251,144 @@ class GiftsUniqueAPI:
         )
 
 
+class GiftsNotificationsAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def toggle_chat(self, peer: PeerRef, enabled: bool, *, timeout: float = 20.0) -> Any:
+        flags = 1 if enabled else 0
+        return await self._raw.invoke_api(
+            PaymentsToggleChatStarGiftNotifications(
+                flags=flags,
+                enabled=True if enabled else None,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+            ),
+            timeout=timeout,
+        )
+
+
+class GiftsCollectionsAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def __call__(self, peer: PeerRef, *, hash: int = 0, timeout: float = 20.0) -> Any:
+        return await self.list(peer, hash=hash, timeout=timeout)
+
+    async def list(self, peer: PeerRef, *, hash: int = 0, timeout: float = 20.0) -> Any:
+        input_peer = await resolve_input_peer(self._raw, peer, timeout=timeout)
+        return await self._raw.invoke_api(
+            PaymentsGetStarGiftCollections(peer=input_peer, hash=int(hash)),
+            timeout=timeout,
+        )
+
+    async def create(
+        self,
+        peer: PeerRef,
+        title: str,
+        refs: Sequence[GiftRef],
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        input_peer = await resolve_input_peer(self._raw, peer, timeout=timeout)
+        stargift = [await _gift_ref_to_input(self._raw, ref, timeout=timeout) for ref in refs]
+        return await self._raw.invoke_api(
+            PaymentsCreateStarGiftCollection(
+                peer=input_peer,
+                title=str(title),
+                stargift=stargift,
+            ),
+            timeout=timeout,
+        )
+
+    async def update(
+        self,
+        peer: PeerRef,
+        collection_id: int,
+        *,
+        title: str | None = None,
+        add_refs: Sequence[GiftRef] | None = None,
+        delete_refs: Sequence[GiftRef] | None = None,
+        order: Sequence[GiftRef] | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if title is not None:
+            flags |= 1
+        if delete_refs is not None:
+            flags |= 2
+        if add_refs is not None:
+            flags |= 4
+        if order is not None:
+            flags |= 8
+
+        input_peer = await resolve_input_peer(self._raw, peer, timeout=timeout)
+        return await self._raw.invoke_api(
+            PaymentsUpdateStarGiftCollection(
+                flags=flags,
+                peer=input_peer,
+                collection_id=int(collection_id),
+                title=str(title) if title is not None else None,
+                delete_stargift=(
+                    [
+                        await _gift_ref_to_input(self._raw, ref, timeout=timeout)
+                        for ref in delete_refs
+                    ]
+                    if delete_refs is not None
+                    else None
+                ),
+                add_stargift=(
+                    [await _gift_ref_to_input(self._raw, ref, timeout=timeout) for ref in add_refs]
+                    if add_refs is not None
+                    else None
+                ),
+                order=(
+                    [await _gift_ref_to_input(self._raw, ref, timeout=timeout) for ref in order]
+                    if order is not None
+                    else None
+                ),
+            ),
+            timeout=timeout,
+        )
+
+    async def reorder(
+        self,
+        peer: PeerRef,
+        order: Sequence[int],
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        input_peer = await resolve_input_peer(self._raw, peer, timeout=timeout)
+        return await self._raw.invoke_api(
+            PaymentsReorderStarGiftCollections(
+                peer=input_peer,
+                order=[int(item) for item in order],
+            ),
+            timeout=timeout,
+        )
+
+    async def delete(self, peer: PeerRef, collection_id: int, *, timeout: float = 20.0) -> Any:
+        input_peer = await resolve_input_peer(self._raw, peer, timeout=timeout)
+        return await self._raw.invoke_api(
+            PaymentsDeleteStarGiftCollection(peer=input_peer, collection_id=int(collection_id)),
+            timeout=timeout,
+        )
+
+
 class GiftsAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
         self.saved = GiftsSavedAPI(raw)
         self.resale = GiftsResaleAPI(raw)
         self.unique = GiftsUniqueAPI(raw)
+        self.notifications = GiftsNotificationsAPI(raw)
+        setattr(self, "collections", GiftsCollectionsAPI(raw))
 
     async def catalog(self, *, hash: int = 0, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(PaymentsGetStarGifts(hash=int(hash)), timeout=timeout)
 
     async def collections(self, peer: PeerRef, *, hash: int = 0, timeout: float = 20.0) -> Any:
-        input_peer = await resolve_input_peer(self._raw, peer, timeout=timeout)
-        return await self._raw.invoke_api(
-            PaymentsGetStarGiftCollections(peer=input_peer, hash=int(hash)),
-            timeout=timeout,
-        )
+        collections_api = cast(GiftsCollectionsAPI, getattr(self, "collections"))
+        return await collections_api.list(peer, hash=hash, timeout=timeout)
 
     async def check_can_send(self, gift_id: int, *, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(
