@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from telecraft.client.apis._utils import (
     resolve_input_channel,
@@ -15,8 +15,10 @@ from telecraft.tl.generated.functions import (
     ChannelsExportMessageLink,
     ChannelsGetAdminLog,
     ChannelsGetMessageAuthor,
+    ChannelsCheckSearchPostsFlood,
     ChannelsReadHistory,
     ChannelsReorderUsernames,
+    ChannelsRestrictSponsoredMessages,
     ChannelsReportAntiSpamFalsePositive,
     ChannelsSearchPosts,
     ChannelsSetBoostsToUnblockRestrictions,
@@ -349,6 +351,21 @@ class ChannelSettingsAPI:
             timeout=timeout,
         )
 
+    async def restrict_sponsored(
+        self,
+        channel: PeerRef,
+        restricted: bool,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            ChannelsRestrictSponsoredMessages(
+                channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
+                restricted=bool(restricted),
+            ),
+            timeout=timeout,
+        )
+
 
 class ChannelAdminLogAPI:
     def __init__(self, raw: MtprotoClient) -> None:
@@ -418,12 +435,65 @@ class ChannelLinksAPI:
         )
 
 
+class ChannelsSearchPostsAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def __call__(
+        self,
+        *,
+        query: str = "",
+        hashtag: str | None = None,
+        offset_rate: int = 0,
+        offset_peer: PeerRef | str = "self",
+        offset_id: int = 0,
+        limit: int = 50,
+        allow_paid_stars: int | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if hashtag is not None:
+            flags |= 1
+        if query:
+            flags |= 2
+        if allow_paid_stars is not None:
+            flags |= 4
+        return await self._raw.invoke_api(
+            ChannelsSearchPosts(
+                flags=flags,
+                hashtag=str(hashtag) if hashtag is not None else None,
+                query=str(query) if query else None,
+                offset_rate=int(offset_rate),
+                offset_peer=await resolve_input_peer_or_self(
+                    self._raw,
+                    offset_peer,
+                    timeout=timeout,
+                ),
+                offset_id=int(offset_id),
+                limit=int(limit),
+                allow_paid_stars=int(allow_paid_stars) if allow_paid_stars is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+    async def check_flood(self, query: str | None = None, *, timeout: float = 20.0) -> Any:
+        flags = 1 if query is not None else 0
+        return await self._raw.invoke_api(
+            ChannelsCheckSearchPostsFlood(
+                flags=flags,
+                query=str(query) if query is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+
 class ChannelsAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
         self.settings = ChannelSettingsAPI(raw)
         self.admin_log = ChannelAdminLogAPI(raw)
         self.links = ChannelLinksAPI(raw)
+        setattr(self, "search_posts", ChannelsSearchPostsAPI(raw))
 
     async def read_history(
         self,
@@ -486,30 +556,26 @@ class ChannelsAPI:
         allow_paid_stars: int | None = None,
         timeout: float = 20.0,
     ) -> Any:
-        flags = 0
-        if hashtag is not None:
-            flags |= 1
-        if query:
-            flags |= 2
-        if allow_paid_stars is not None:
-            flags |= 4
-        return await self._raw.invoke_api(
-            ChannelsSearchPosts(
-                flags=flags,
-                hashtag=str(hashtag) if hashtag is not None else None,
-                query=str(query) if query else None,
-                offset_rate=int(offset_rate),
-                offset_peer=await resolve_input_peer_or_self(
-                    self._raw,
-                    offset_peer,
-                    timeout=timeout,
-                ),
-                offset_id=int(offset_id),
-                limit=int(limit),
-                allow_paid_stars=int(allow_paid_stars) if allow_paid_stars is not None else None,
-            ),
+        search_api = cast(ChannelsSearchPostsAPI, getattr(self, "search_posts"))
+        return await search_api(
+            query=query,
+            hashtag=hashtag,
+            offset_rate=offset_rate,
+            offset_peer=offset_peer,
+            offset_id=offset_id,
+            limit=limit,
+            allow_paid_stars=allow_paid_stars,
             timeout=timeout,
         )
+
+    async def check_search_posts_flood(
+        self,
+        query: str | None = None,
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        search_api = cast(ChannelsSearchPostsAPI, getattr(self, "search_posts"))
+        return await search_api.check_flood(query=query, timeout=timeout)
 
     async def message_author(
         self,

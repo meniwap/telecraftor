@@ -9,17 +9,63 @@ from telecraft.tl.generated.functions import (
     MessagesGetAvailableReactions,
     MessagesGetMessageReactionsList,
     MessagesGetMessagesReactions,
+    MessagesGetRecentReactions,
     MessagesGetTopReactions,
     MessagesGetUnreadReactions,
+    MessagesSetChatAvailableReactions,
+    MessagesSetDefaultReaction,
 )
 
 if TYPE_CHECKING:
     from telecraft.client.mtproto import MtprotoClient
 
 
+class ReactionsDefaultsAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def set(self, reaction: Any, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            MessagesSetDefaultReaction(reaction=reaction),
+            timeout=timeout,
+        )
+
+
+class ReactionsChatAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def set_available(
+        self,
+        peer: PeerRef,
+        available_reactions: Any,
+        *,
+        reactions_limit: int | None = None,
+        paid_enabled: bool | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if reactions_limit is not None:
+            flags |= 1
+        if paid_enabled is not None:
+            flags |= 2
+        return await self._raw.invoke_api(
+            MessagesSetChatAvailableReactions(
+                flags=flags,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                available_reactions=available_reactions,
+                reactions_limit=int(reactions_limit) if reactions_limit is not None else None,
+                paid_enabled=bool(paid_enabled) if paid_enabled is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+
 class ReactionsAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
+        self.defaults = ReactionsDefaultsAPI(raw)
+        self.chat = ReactionsChatAPI(raw)
 
     async def available(self, *, hash: int = 0, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(
@@ -120,3 +166,9 @@ class ReactionsAPI:
 
     async def clear_recent(self, *, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(MessagesClearRecentReactions(), timeout=timeout)
+
+    async def recent(self, *, limit: int = 100, hash: int = 0, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            MessagesGetRecentReactions(limit=int(limit), hash=int(hash)),
+            timeout=timeout,
+        )

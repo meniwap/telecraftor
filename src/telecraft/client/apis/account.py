@@ -11,27 +11,39 @@ from telecraft.client.account import (
     build_input_theme,
     build_input_wallpaper,
 )
-from telecraft.client.apis._utils import resolve_input_channel, resolve_input_peer
+from telecraft.client.apis._utils import resolve_input_channel, resolve_input_peer, resolve_input_user
+from telecraft.client.passkeys import build_input_passkey_credential, build_passkey_id
 from telecraft.client.peers import PeerRef
+from telecraft.client.stickers import DocumentRef, build_input_document
 from telecraft.tl.generated.functions import (
+    AccountDeletePasskey,
     AccountCheckUsername,
     AccountDeleteAccount,
+    AccountGetPasskeys,
+    AccountGetPaidMessagesRevenue,
     AccountGetAuthorizations,
     AccountGetContentSettings,
     AccountGetMultiWallPapers,
+    AccountGetSavedMusicIds,
     AccountGetTheme,
     AccountGetThemes,
+    AccountGetUniqueGiftChatThemes,
     AccountGetWallPaper,
     AccountGetWallPapers,
     AccountGetWebAuthorizations,
+    AccountInitPasskeyRegistration,
     AccountInstallTheme,
     AccountInstallWallPaper,
+    AccountRegisterPasskey,
     AccountResetAuthorization,
     AccountResetWallPapers,
     AccountResetWebAuthorization,
     AccountResetWebAuthorizations,
+    AccountSaveMusic,
+    AccountSetMainProfileTab,
     AccountSaveWallPaper,
     AccountSetContentSettings,
+    AccountToggleNoPaidMessagesException,
     AccountUpdateBirthday,
     AccountUpdatePersonalChannel,
     AccountUpdateStatus,
@@ -44,6 +56,8 @@ from telecraft.tl.generated.functions import (
     MessagesGetDefaultHistoryTtl,
     MessagesSetChatWallPaper,
     MessagesSetDefaultHistoryTtl,
+    UsersGetSavedMusic,
+    UsersGetSavedMusicById,
 )
 
 if TYPE_CHECKING:
@@ -363,6 +377,193 @@ class AccountWallpapersAPI:
         )
 
 
+class AccountProfileTabAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def set(self, tab: Any, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            AccountSetMainProfileTab(tab=tab),
+            timeout=timeout,
+        )
+
+
+class AccountGiftThemesAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def list(
+        self,
+        *,
+        offset: str = "",
+        limit: int = 100,
+        hash: int = 0,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            AccountGetUniqueGiftChatThemes(
+                offset=str(offset),
+                limit=int(limit),
+                hash=int(hash),
+            ),
+            timeout=timeout,
+        )
+
+
+class AccountMusicSavedAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def list(
+        self,
+        user: PeerRef,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+        hash: int = 0,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            UsersGetSavedMusic(
+                id=await resolve_input_user(self._raw, user, timeout=timeout),
+                offset=int(offset),
+                limit=int(limit),
+                hash=int(hash),
+            ),
+            timeout=timeout,
+        )
+
+    async def by_id(
+        self,
+        user: PeerRef,
+        documents: Sequence[DocumentRef | Any],
+        *,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            UsersGetSavedMusicById(
+                id=await resolve_input_user(self._raw, user, timeout=timeout),
+                documents=[build_input_document(item) for item in documents],
+            ),
+            timeout=timeout,
+        )
+
+
+class AccountMusicAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+        self.saved = AccountMusicSavedAPI(raw)
+
+    async def save(
+        self,
+        document: DocumentRef | Any,
+        *,
+        unsave: bool = False,
+        after_document: DocumentRef | Any | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if unsave:
+            flags |= 1
+        if after_document is not None:
+            flags |= 2
+        return await self._raw.invoke_api(
+            AccountSaveMusic(
+                flags=flags,
+                unsave=True if unsave else None,
+                id=build_input_document(document),
+                after_id=build_input_document(after_document) if after_document is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+    async def saved_ids(self, *, hash: int = 0, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            AccountGetSavedMusicIds(hash=int(hash)),
+            timeout=timeout,
+        )
+
+
+class AccountPaidMessagesAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def revenue(
+        self,
+        user: PeerRef,
+        *,
+        parent_peer: PeerRef | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 1 if parent_peer is not None else 0
+        return await self._raw.invoke_api(
+            AccountGetPaidMessagesRevenue(
+                flags=flags,
+                parent_peer=(
+                    await resolve_input_peer(self._raw, parent_peer, timeout=timeout)
+                    if parent_peer is not None
+                    else None
+                ),
+                user_id=await resolve_input_user(self._raw, user, timeout=timeout),
+            ),
+            timeout=timeout,
+        )
+
+    async def toggle_exception(
+        self,
+        user: PeerRef,
+        *,
+        parent_peer: PeerRef | None = None,
+        require_payment: bool = False,
+        refund_charged: bool = False,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if refund_charged:
+            flags |= 1
+        if parent_peer is not None:
+            flags |= 2
+        if require_payment:
+            flags |= 4
+        return await self._raw.invoke_api(
+            AccountToggleNoPaidMessagesException(
+                flags=flags,
+                refund_charged=True if refund_charged else None,
+                require_payment=True if require_payment else None,
+                parent_peer=(
+                    await resolve_input_peer(self._raw, parent_peer, timeout=timeout)
+                    if parent_peer is not None
+                    else None
+                ),
+                user_id=await resolve_input_user(self._raw, user, timeout=timeout),
+            ),
+            timeout=timeout,
+        )
+
+
+class AccountPasskeysAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def init_registration(self, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(AccountInitPasskeyRegistration(), timeout=timeout)
+
+    async def register(self, credential: Any, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            AccountRegisterPasskey(credential=build_input_passkey_credential(credential)),
+            timeout=timeout,
+        )
+
+    async def list(self, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(AccountGetPasskeys(), timeout=timeout)
+
+    async def delete(self, passkey_id: str, *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            AccountDeletePasskey(id=build_passkey_id(passkey_id)),
+            timeout=timeout,
+        )
+
+
 class AccountIdentityAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
@@ -444,5 +645,10 @@ class AccountAPI:
         self.terms = AccountTermsAPI(raw)
         self.themes = AccountThemesAPI(raw)
         self.wallpapers = AccountWallpapersAPI(raw)
+        self.profile_tab = AccountProfileTabAPI(raw)
+        self.gift_themes = AccountGiftThemesAPI(raw)
+        self.music = AccountMusicAPI(raw)
+        self.paid_messages = AccountPaidMessagesAPI(raw)
+        self.passkeys = AccountPasskeysAPI(raw)
         self.identity = AccountIdentityAPI(raw)
         self.personal_channel = AccountPersonalChannelAPI(raw)

@@ -10,6 +10,7 @@ from telecraft.tl.generated.functions import (
     ChannelsGetChannelRecommendations,
     ChannelsGetGroupsForDiscussion,
     ChannelsGetLeftChannels,
+    ContactsGetSponsoredPeers,
     MessagesGetPeerSettings,
 )
 from telecraft.tl.generated.types import InputPeerEmpty, InputUserSelf
@@ -72,11 +73,23 @@ class DiscoveryBotsAPI:
         )
 
 
+class DiscoverySponsoredAPI:
+    def __init__(self, raw: MtprotoClient) -> None:
+        self._raw = raw
+
+    async def peers(self, q: str = "", *, timeout: float = 20.0) -> Any:
+        return await self._raw.invoke_api(
+            ContactsGetSponsoredPeers(q=str(q)),
+            timeout=timeout,
+        )
+
+
 class DiscoveryAPI:
     def __init__(self, raw: MtprotoClient) -> None:
         self._raw = raw
         self.channels = DiscoveryChannelsAPI(raw)
         self.bots = DiscoveryBotsAPI(raw)
+        self.sponsored = DiscoverySponsoredAPI(raw)
 
     async def peer_settings(self, peer: PeerRef, *, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(

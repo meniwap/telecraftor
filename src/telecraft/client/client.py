@@ -26,6 +26,7 @@ from telecraft.client.apis import (
     PresenceAPI,
     PrivacyAPI,
     ProfileAPI,
+    PremiumAPI,
     ReactionsAPI,
     ReportsAPI,
     SavedAPI,
@@ -107,6 +108,7 @@ class Client:
         self.discovery = DiscoveryAPI(self.raw)
         self.account = AccountAPI(self.raw)
         self.calls = CallsAPI(self.raw)
+        self.premium = PremiumAPI(self.raw)
         self.takeout = TakeoutAPI(self.raw)
         self.webapps = WebAppsAPI(self.raw)
         self.todos = TodosAPI(self.raw)

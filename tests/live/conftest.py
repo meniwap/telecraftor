@@ -51,6 +51,9 @@ class LiveConfig:
     enable_polls: bool
     enable_strict_polls_close: bool
     enable_paid: bool
+    enable_premium: bool
+    enable_sponsored: bool
+    enable_passkeys: bool
     enable_business: bool
     enable_chatlists: bool
     enable_calls: bool
@@ -225,6 +228,24 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Enable paid live steps (stars/gifts spending operations)",
     )
     group.addoption(
+        "--live-premium",
+        action="store_true",
+        default=False,
+        help="Enable optional premium live lane",
+    )
+    group.addoption(
+        "--live-sponsored",
+        action="store_true",
+        default=False,
+        help="Enable optional sponsored/admin live lane",
+    )
+    group.addoption(
+        "--live-passkeys",
+        action="store_true",
+        default=False,
+        help="Enable optional passkeys live lane",
+    )
+    group.addoption(
         "--live-business",
         action="store_true",
         default=False,
@@ -296,6 +317,9 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "live_second_account: live lane with second account")
     config.addinivalue_line("markers", "live_optional: optional live lane (unstable/expensive)")
     config.addinivalue_line("markers", "live_paid: live lane that may spend Stars")
+    config.addinivalue_line("markers", "live_premium: optional premium lane")
+    config.addinivalue_line("markers", "live_sponsored: optional sponsored lane")
+    config.addinivalue_line("markers", "live_passkeys: optional passkeys lane")
     config.addinivalue_line("markers", "live_business: optional business lane")
     config.addinivalue_line("markers", "live_chatlists: optional chatlists lane")
     config.addinivalue_line("markers", "live_calls: optional calls readonly lane")
@@ -311,6 +335,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     if config.getoption("--run-live"):
         second_raw = str(config.getoption("--live-second-account")).strip()
         paid_enabled = bool(config.getoption("--live-paid"))
+        premium_enabled = bool(config.getoption("--live-premium"))
+        sponsored_enabled = bool(config.getoption("--live-sponsored"))
+        passkeys_enabled = bool(config.getoption("--live-passkeys"))
         business_enabled = bool(config.getoption("--live-business"))
         chatlists_enabled = bool(config.getoption("--live-chatlists"))
         calls_enabled = bool(config.getoption("--live-calls"))
@@ -324,6 +351,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             reason="Second-account tests require --live-second-account <username>"
         )
         skip_paid = pytest.mark.skip(reason="Paid live tests require --live-paid")
+        skip_premium = pytest.mark.skip(reason="Premium live tests require --live-premium")
+        skip_sponsored = pytest.mark.skip(reason="Sponsored live tests require --live-sponsored")
+        skip_passkeys = pytest.mark.skip(reason="Passkeys live tests require --live-passkeys")
         skip_business = pytest.mark.skip(reason="Business live tests require --live-business")
         skip_chatlists = pytest.mark.skip(reason="Chatlists live tests require --live-chatlists")
         skip_calls = pytest.mark.skip(reason="Calls live tests require --live-calls")
@@ -344,6 +374,12 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 item.add_marker(skip_second)
             if not paid_enabled and "live_paid" in item.keywords:
                 item.add_marker(skip_paid)
+            if not premium_enabled and "live_premium" in item.keywords:
+                item.add_marker(skip_premium)
+            if not sponsored_enabled and "live_sponsored" in item.keywords:
+                item.add_marker(skip_sponsored)
+            if not passkeys_enabled and "live_passkeys" in item.keywords:
+                item.add_marker(skip_passkeys)
             if not business_enabled and (
                 "live_business" in item.keywords or "requires_business_account" in item.keywords
             ):
@@ -461,6 +497,9 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
         enable_polls=bool(pytestconfig.getoption("--live-enable-polls")),
         enable_strict_polls_close=bool(pytestconfig.getoption("--live-strict-polls-close")),
         enable_paid=bool(pytestconfig.getoption("--live-paid")),
+        enable_premium=bool(pytestconfig.getoption("--live-premium")),
+        enable_sponsored=bool(pytestconfig.getoption("--live-sponsored")),
+        enable_passkeys=bool(pytestconfig.getoption("--live-passkeys")),
         enable_business=bool(pytestconfig.getoption("--live-business")),
         enable_chatlists=bool(pytestconfig.getoption("--live-chatlists")),
         enable_calls=bool(pytestconfig.getoption("--live-calls")),

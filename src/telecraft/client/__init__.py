@@ -16,11 +16,14 @@ from .gifts import GiftRef
 from .messages import ReplyToMessageRef, ReplyToStoryRef
 from .mtproto import ClientInit
 from .notifications import NotifyTarget
+from .passkeys import PasskeyCredential, PasskeyRef
 from .payments import InvoiceRef, StarsAmountRef
 from .peers import Peer, PeerRef, PeerType
+from .premium import PremiumBoostSlots
 from .privacy import PrivacyKey, PrivacyRuleBuilder
 from .reports import ReportReasonBuilder
 from .stickers import DocumentRef, StickerSetRef
+from .sponsored import SponsoredMessageRef, SponsoredReportOption
 from .takeout import TakeoutScopes, TakeoutSessionRef
 
 __all__ = [
@@ -37,10 +40,13 @@ __all__ = [
     "InvoiceRef",
     "JoinAsRef",
     "NotifyTarget",
+    "PasskeyCredential",
+    "PasskeyRef",
     "Peer",
     "PeerRef",
     "PeerType",
     "PhoneCallRef",
+    "PremiumBoostSlots",
     "PrivacyKey",
     "PrivacyRuleBuilder",
     "ReplyToMessageRef",
@@ -49,6 +55,8 @@ __all__ = [
     "FolderAssignment",
     "StickerSetRef",
     "StarsAmountRef",
+    "SponsoredMessageRef",
+    "SponsoredReportOption",
     "TakeoutScopes",
     "TakeoutSessionRef",
     "ThemeRef",

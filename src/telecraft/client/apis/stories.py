@@ -17,6 +17,7 @@ from telecraft.tl.generated.functions import (
     StoriesGetAlbums,
     StoriesGetAllReadPeerStories,
     StoriesGetAllStories,
+    StoriesGetAlbumStories,
     StoriesGetChatsToSend,
     StoriesGetPeerMaxIds,
     StoriesGetPeerStories,
@@ -279,6 +280,25 @@ class StoriesAlbumsAPI:
             StoriesGetAlbums(
                 peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
                 hash=int(hash),
+            ),
+            timeout=timeout,
+        )
+
+    async def stories(
+        self,
+        peer: PeerRef,
+        album_id: int,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+        timeout: float = 20.0,
+    ) -> Any:
+        return await self._raw.invoke_api(
+            StoriesGetAlbumStories(
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                album_id=int(album_id),
+                offset=int(offset),
+                limit=int(limit),
             ),
             timeout=timeout,
         )

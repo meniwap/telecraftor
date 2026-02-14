@@ -14,6 +14,10 @@ Run Telegram live tests in explicit lanes:
 - `takeout`: takeout smoke flow (opt-in)
 - `webapps`: webapps smoke flow (opt-in)
 - `admin`: admin-sensitive smoke flows (opt-in)
+- `premium`: premium boosts smoke flow (opt-in)
+- `sponsored`: sponsored/channel-flood smoke flow (opt-in)
+- `passkeys`: passkeys smoke flow (opt-in)
+- `account_music`: account music + gift themes readonly smoke flow
 - `stories_write`: stories write smoke flow (opt-in)
 - `channel_admin`: channel admin smoke flow (opt-in)
 - dual audit output (Telegram + local files)
@@ -183,6 +187,72 @@ python -m pytest tests/live/optional/test_live_webapps_suite.py -vv -s \
 Required env for webapps lane:
 - `TELECRAFT_LIVE_WEBAPP_BOT` (bot peer, e.g. `@mybot`)
 
+Optional premium lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_premium_boosts_readonly_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-premium
+```
+
+Optional sponsored lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_channels_sponsored_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-sponsored \
+  --live-admin
+```
+
+Optional passkeys lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_passkeys_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-passkeys
+```
+
+Optional account music readonly lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_account_music_readonly_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox
+```
+
+Optional announcements readonly lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_messages_announcements_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox
+```
+
+Optional contacts requirements lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_contacts_requirements_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox
+```
+
+Optional conference-chain readonly lane:
+
+```bash
+python -m pytest tests/live/optional/test_live_calls_conference_chain_suite.py -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-calls
+```
+
+Required env for conference-chain lane:
+- `TELECRAFT_LIVE_GROUP_CALL_ID`
+- `TELECRAFT_LIVE_GROUP_CALL_ACCESS_HASH`
+- `TELECRAFT_LIVE_GROUP_CALL_SUB_CHAIN_ID`
+
 Optional admin-sensitive lanes:
 
 ```bash
@@ -253,6 +323,9 @@ If `--live-audit-peer auto` is used, a persistent audit destination is created a
 - `takeout` lane requires explicit `--live-takeout`.
 - `webapps` lane requires explicit `--live-webapps`.
 - `admin` sensitive lanes require explicit `--live-admin`.
+- `premium` lane requires explicit `--live-premium`.
+- `sponsored` lane requires explicit `--live-sponsored` (and `--live-admin` for admin-bound actions).
+- `passkeys` lane requires explicit `--live-passkeys`.
 - `stories_write` lane requires explicit `--live-stories-write`.
 - `channel_admin` lane requires explicit `--live-channel-admin`.
 - `business` and `chatlists` suites are fail-fast on unsupported/account capability errors.
