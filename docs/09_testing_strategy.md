@@ -92,6 +92,9 @@
 ## Governance
 
 - source of truth: `tests/meta/v2_method_matrix.yaml`
+- public support contract: `tests/meta/v2_support_contract.json`
+- deprecation registry: `tests/meta/v2_deprecations.json`
 - each wrapper method must have a matrix row with stability + lane + required scenarios
 - naming convention enforced: `test_<namespace>__<method>__<scenario>`
 - compatibility policy: additive changes + explicit deprecation windows
+- public releases (`0.2.x` line) require manual `prod_safe` live evidence before tagging

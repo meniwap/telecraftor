@@ -59,6 +59,30 @@ Notes:
 - Decoder now keeps the receiver loop alive on decode failures and fails only relevant requests.
 - Dump files are written only when `TELECRAFT_DEBUG_DUMP_TL=1` is set.
 
+## Production Safe Release Gate (Public Releases)
+
+For public releases (`0.2.x` line and above), run the manual `prod_safe` reliability gate and keep
+the generated run IDs for `tools/release_check.py`.
+
+```bash
+TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core tests/live/optional \
+  -m "live and (live_core_safe or live_prod_safe)" \
+  -vv -s \
+  --run-live \
+  --live-runtime prod \
+  --allow-prod-live \
+  --live-profile prod_safe \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+Expected artifacts for each run:
+- `reports/live/prod/<run_id>/events.jsonl`
+- `reports/live/prod/<run_id>/summary.md`
+- `reports/live/prod/<run_id>/artifacts.json`
+
+`0.1.x` internal milestones do not require this gate.
+
 ## Command
 
 Core lane:

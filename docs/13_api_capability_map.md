@@ -5,6 +5,17 @@ Source of truth for method-level coverage/stability:
 
 This is a namespace-level quick map for discoverability.
 
+## Support Tiers (Public Contract)
+
+Support tiers are defined in `tests/meta/v2_support_contract.json` and applied per namespace/method.
+
+- `Tier A`: stable + publicly supported + release-gated with manual `prod_safe` evidence
+- `Tier B`: stable + compatibility-guaranteed, but not live-gated on every public release
+- `experimental`: best-effort, no compatibility guarantee
+
+Public release gates apply to the public line (`0.2.x` and above). Internal `0.1.x` milestones can
+ship privately without the public release gate flow.
+
 ## Stable Namespaces
 
 - `admin`
@@ -80,5 +91,7 @@ This is a namespace-level quick map for discoverability.
 
 - Changes are `Additive + Deprecation` only.
 - New methods must be registered in `tests/meta/v2_method_matrix.yaml`.
+- Support tier and live-gate policy are defined in `tests/meta/v2_support_contract.json`.
+- Stable deprecations are tracked in `tests/meta/v2_deprecations.json` (minimum window: 2 minors).
 - Required unit naming format: `test_<namespace>__<method>__<scenario>`.
 - Promotion from `experimental` to `stable` requires explicit matrix updates after live validation.
