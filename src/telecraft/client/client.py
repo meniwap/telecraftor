@@ -5,6 +5,8 @@ from pathlib import Path
 from telecraft.client.apis import (
     AccountAPI,
     AdminAPI,
+    AuthAPI,
+    BotsAPI,
     BusinessAPI,
     CallsAPI,
     ChannelsAPI,
@@ -17,6 +19,8 @@ from telecraft.client.apis import (
     FoldersAPI,
     GamesAPI,
     GiftsAPI,
+    HelpAPI,
+    LangpackAPI,
     MediaAPI,
     MessagesAPI,
     NotificationsAPI,
@@ -39,7 +43,9 @@ from telecraft.client.apis import (
     TodosAPI,
     TopicsAPI,
     TranslateAPI,
+    UploadsAPI,
     UpdatesAPI,
+    UsersAPI,
     WebAppsAPI,
 )
 from telecraft.client.mtproto import ClientInit, MtprotoClient
@@ -86,6 +92,8 @@ class Client:
         self.media = MediaAPI(self.raw)
         self.chats = ChatsAPI(self.raw)
         self.admin = AdminAPI(self.raw)
+        self.auth = AuthAPI(self.raw)
+        self.bots = BotsAPI(self.raw)
         self.contacts = ContactsAPI(self.raw)
         self.polls = PollsAPI(self.raw)
         self.folders = FoldersAPI(self.raw)
@@ -93,6 +101,8 @@ class Client:
         self.saved = SavedAPI(self.raw)
         self.stars = StarsAPI(self.raw)
         self.gifts = GiftsAPI(self.raw)
+        self.help = HelpAPI(self.raw)
+        self.langpack = LangpackAPI(self.raw)
         self.dialogs = DialogsAPI(self.raw)
         self.stickers = StickersAPI(self.raw)
         self.topics = TopicsAPI(self.raw)
@@ -113,8 +123,10 @@ class Client:
         self.webapps = WebAppsAPI(self.raw)
         self.todos = TodosAPI(self.raw)
         self.translate = TranslateAPI(self.raw)
+        self.uploads = UploadsAPI(self.raw)
         self.presence = PresenceAPI(self.raw)
         self.updates = UpdatesAPI(self.raw)
+        self.users = UsersAPI(self.raw)
 
     @property
     def is_connected(self) -> bool:

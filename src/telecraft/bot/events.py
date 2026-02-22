@@ -1031,6 +1031,410 @@ class ReactionEvent:
 
 
 @dataclass(slots=True)
+class CallbackQueryEvent:
+    """
+    Bot callback query event (inline keyboard button click).
+
+    Supports:
+    - updateBotCallbackQuery (message in chat/channel)
+    - updateInlineBotCallbackQuery (inline message callback)
+    """
+
+    client: Any
+    raw: Any
+    query_id: int
+    user_id: int | None
+    peer_type: str | None
+    peer_id: int | None
+    msg_id: int | None
+    inline_msg_id: Any | None
+    data: bytes | None
+    game_short_name: str | None
+    chat_instance: int | None
+    # Set by Dispatcher according to backlog policy / throttling decisions.
+    is_backlog: bool = False
+    allow_reply: bool = True
+
+    @property
+    def data_text(self) -> str | None:
+        if self.data is None:
+            return None
+        try:
+            return self.data.decode("utf-8")
+        except Exception:  # noqa: BLE001
+            return None
+
+    async def answer(
+        self,
+        *,
+        message: str | None = None,
+        alert: bool = False,
+        url: str | None = None,
+        cache_time: int = 0,
+        timeout: float = 20.0,
+    ) -> Any:
+        from telecraft.tl.generated.functions import MessagesSetBotCallbackAnswer
+
+        if not self.allow_reply:
+            logger.info(
+                "Suppressed callback answer (allow_reply=False) query_id=%s peer=%s:%s",
+                self.query_id,
+                self.peer_type,
+                self.peer_id,
+            )
+            return None
+
+        flags = 0
+        if message is not None:
+            flags |= 1
+        if alert:
+            flags |= 2
+        if url is not None:
+            flags |= 4
+        return await self.client.invoke_api(
+            MessagesSetBotCallbackAnswer(
+                flags=flags,
+                alert=True if alert else None,
+                query_id=int(self.query_id),
+                message=message,
+                url=url,
+                cache_time=int(cache_time),
+            ),
+            timeout=timeout,
+        )
+
+    @classmethod
+    def from_update(cls, *, client: Any, update: Any) -> CallbackQueryEvent | None:
+        name = getattr(update, "TL_NAME", None)
+
+        if name == "updateBotCallbackQuery":
+            qid = getattr(update, "query_id", None)
+            if not isinstance(qid, int):
+                return None
+            uid = getattr(update, "user_id", None)
+            user_id = int(uid) if isinstance(uid, int) else None
+            peer = getattr(update, "peer", None)
+            peer_type, peer_id = _peer_type_and_id(peer)
+            msg_id_raw = getattr(update, "msg_id", None)
+            msg_id = int(msg_id_raw) if isinstance(msg_id_raw, int) else None
+            ci = getattr(update, "chat_instance", None)
+            chat_instance = int(ci) if isinstance(ci, int) else None
+            data = getattr(update, "data", None)
+            payload = bytes(data) if isinstance(data, (bytes, bytearray)) else None
+            return cls(
+                client=client,
+                raw=update,
+                query_id=int(qid),
+                user_id=user_id,
+                peer_type=peer_type,
+                peer_id=peer_id,
+                msg_id=msg_id,
+                inline_msg_id=None,
+                data=payload,
+                game_short_name=_decode_text(getattr(update, "game_short_name", None)),
+                chat_instance=chat_instance,
+            )
+
+        if name == "updateInlineBotCallbackQuery":
+            qid = getattr(update, "query_id", None)
+            if not isinstance(qid, int):
+                return None
+            uid = getattr(update, "user_id", None)
+            user_id = int(uid) if isinstance(uid, int) else None
+            ci = getattr(update, "chat_instance", None)
+            chat_instance = int(ci) if isinstance(ci, int) else None
+            data = getattr(update, "data", None)
+            payload = bytes(data) if isinstance(data, (bytes, bytearray)) else None
+            return cls(
+                client=client,
+                raw=update,
+                query_id=int(qid),
+                user_id=user_id,
+                peer_type=None,
+                peer_id=None,
+                msg_id=None,
+                inline_msg_id=getattr(update, "msg_id", None),
+                data=payload,
+                game_short_name=_decode_text(getattr(update, "game_short_name", None)),
+                chat_instance=chat_instance,
+            )
+
+        if name == "updateBusinessBotCallbackQuery":
+            qid = getattr(update, "query_id", None)
+            if not isinstance(qid, int):
+                return None
+            uid = getattr(update, "user_id", None)
+            user_id = int(uid) if isinstance(uid, int) else None
+            message = getattr(update, "message", None)
+            peer = getattr(message, "peer_id", None)
+            peer_type, peer_id = _peer_type_and_id(peer)
+            msg_id_raw = getattr(message, "id", None)
+            msg_id = int(msg_id_raw) if isinstance(msg_id_raw, int) else None
+            ci = getattr(update, "chat_instance", None)
+            chat_instance = int(ci) if isinstance(ci, int) else None
+            data = getattr(update, "data", None)
+            payload = bytes(data) if isinstance(data, (bytes, bytearray)) else None
+            return cls(
+                client=client,
+                raw=update,
+                query_id=int(qid),
+                user_id=user_id,
+                peer_type=peer_type,
+                peer_id=peer_id,
+                msg_id=msg_id,
+                inline_msg_id=None,
+                data=payload,
+                game_short_name=None,
+                chat_instance=chat_instance,
+            )
+
+        return None
+
+
+@dataclass(slots=True)
+class InlineQueryEvent:
+    client: Any
+    raw: Any
+    query_id: int
+    user_id: int | None
+    query: str | None
+    offset: str | None
+    geo: Any | None
+    peer_type: Any | None
+    # Set by Dispatcher according to backlog policy / throttling decisions.
+    is_backlog: bool = False
+    allow_reply: bool = True
+
+    async def answer(
+        self,
+        results: list[Any],
+        *,
+        gallery: bool = False,
+        private: bool = False,
+        cache_time: int = 0,
+        next_offset: str | None = None,
+        switch_pm: Any | None = None,
+        switch_webview: Any | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        from telecraft.tl.generated.functions import MessagesSetInlineBotResults
+
+        if not self.allow_reply:
+            logger.info(
+                "Suppressed inline-query answer (allow_reply=False) query_id=%s user_id=%s",
+                self.query_id,
+                self.user_id,
+            )
+            return None
+
+        flags = 0
+        if gallery:
+            flags |= 1
+        if private:
+            flags |= 2
+        if next_offset is not None:
+            flags |= 4
+        if switch_pm is not None:
+            flags |= 8
+        if switch_webview is not None:
+            flags |= 16
+        return await self.client.invoke_api(
+            MessagesSetInlineBotResults(
+                flags=flags,
+                gallery=True if gallery else None,
+                private=True if private else None,
+                query_id=int(self.query_id),
+                results=list(results),
+                cache_time=int(cache_time),
+                next_offset=next_offset,
+                switch_pm=switch_pm,
+                switch_webview=switch_webview,
+            ),
+            timeout=timeout,
+        )
+
+    @classmethod
+    def from_update(cls, *, client: Any, update: Any) -> InlineQueryEvent | None:
+        if getattr(update, "TL_NAME", None) != "updateBotInlineQuery":
+            return None
+        qid = getattr(update, "query_id", None)
+        if not isinstance(qid, int):
+            return None
+        uid = getattr(update, "user_id", None)
+        user_id = int(uid) if isinstance(uid, int) else None
+        return cls(
+            client=client,
+            raw=update,
+            query_id=int(qid),
+            user_id=user_id,
+            query=_decode_text(getattr(update, "query", None)),
+            offset=_decode_text(getattr(update, "offset", None)),
+            geo=getattr(update, "geo", None),
+            peer_type=getattr(update, "peer_type", None),
+        )
+
+
+@dataclass(slots=True)
+class ShippingQueryEvent:
+    client: Any
+    raw: Any
+    query_id: int
+    user_id: int | None
+    payload: bytes | None
+    shipping_address: Any | None
+    # Set by Dispatcher according to backlog policy / throttling decisions.
+    is_backlog: bool = False
+    allow_reply: bool = True
+
+    @property
+    def payload_text(self) -> str | None:
+        if self.payload is None:
+            return None
+        try:
+            return self.payload.decode("utf-8")
+        except Exception:  # noqa: BLE001
+            return None
+
+    async def answer(
+        self,
+        *,
+        shipping_options: list[Any] | None = None,
+        error: str | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        from telecraft.tl.generated.functions import MessagesSetBotShippingResults
+
+        if not self.allow_reply:
+            logger.info(
+                "Suppressed shipping-query answer (allow_reply=False) query_id=%s user_id=%s",
+                self.query_id,
+                self.user_id,
+            )
+            return None
+
+        flags = 0
+        if error is not None:
+            flags |= 1
+        if shipping_options is not None:
+            flags |= 2
+        return await self.client.invoke_api(
+            MessagesSetBotShippingResults(
+                flags=flags,
+                query_id=int(self.query_id),
+                error=error,
+                shipping_options=shipping_options,
+            ),
+            timeout=timeout,
+        )
+
+    @classmethod
+    def from_update(cls, *, client: Any, update: Any) -> ShippingQueryEvent | None:
+        if getattr(update, "TL_NAME", None) != "updateBotShippingQuery":
+            return None
+        qid = getattr(update, "query_id", None)
+        if not isinstance(qid, int):
+            return None
+        uid = getattr(update, "user_id", None)
+        user_id = int(uid) if isinstance(uid, int) else None
+        payload = getattr(update, "payload", None)
+        data = bytes(payload) if isinstance(payload, (bytes, bytearray)) else None
+        return cls(
+            client=client,
+            raw=update,
+            query_id=int(qid),
+            user_id=user_id,
+            payload=data,
+            shipping_address=getattr(update, "shipping_address", None),
+        )
+
+
+@dataclass(slots=True)
+class PrecheckoutQueryEvent:
+    client: Any
+    raw: Any
+    query_id: int
+    user_id: int | None
+    payload: bytes | None
+    currency: str | None
+    total_amount: int | None
+    info: Any | None
+    shipping_option_id: str | None
+    # Set by Dispatcher according to backlog policy / throttling decisions.
+    is_backlog: bool = False
+    allow_reply: bool = True
+
+    @property
+    def payload_text(self) -> str | None:
+        if self.payload is None:
+            return None
+        try:
+            return self.payload.decode("utf-8")
+        except Exception:  # noqa: BLE001
+            return None
+
+    async def answer(
+        self,
+        *,
+        success: bool = True,
+        error: str | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        from telecraft.tl.generated.functions import MessagesSetBotPrecheckoutResults
+
+        if not self.allow_reply:
+            logger.info(
+                "Suppressed precheckout-query answer (allow_reply=False) query_id=%s user_id=%s",
+                self.query_id,
+                self.user_id,
+            )
+            return None
+
+        # Telegram expects an error response when success=False.
+        ok = bool(success)
+        if error is not None:
+            ok = False
+        flags = 0
+        if error is not None:
+            flags |= 1
+        if ok:
+            flags |= 2
+        return await self.client.invoke_api(
+            MessagesSetBotPrecheckoutResults(
+                flags=flags,
+                success=True if ok else None,
+                query_id=int(self.query_id),
+                error=error,
+            ),
+            timeout=timeout,
+        )
+
+    @classmethod
+    def from_update(cls, *, client: Any, update: Any) -> PrecheckoutQueryEvent | None:
+        if getattr(update, "TL_NAME", None) != "updateBotPrecheckoutQuery":
+            return None
+        qid = getattr(update, "query_id", None)
+        if not isinstance(qid, int):
+            return None
+        uid = getattr(update, "user_id", None)
+        user_id = int(uid) if isinstance(uid, int) else None
+        payload = getattr(update, "payload", None)
+        data = bytes(payload) if isinstance(payload, (bytes, bytearray)) else None
+        total_amount_raw = getattr(update, "total_amount", None)
+        total_amount = int(total_amount_raw) if isinstance(total_amount_raw, int) else None
+        return cls(
+            client=client,
+            raw=update,
+            query_id=int(qid),
+            user_id=user_id,
+            payload=data,
+            currency=_decode_text(getattr(update, "currency", None)),
+            total_amount=total_amount,
+            info=getattr(update, "info", None),
+            shipping_option_id=_decode_text(getattr(update, "shipping_option_id", None)),
+        )
+
+
+@dataclass(slots=True)
 class DeletedMessagesEvent:
     client: Any
     raw: Any
@@ -1066,7 +1470,17 @@ class DeletedMessagesEvent:
         return None
 
 
-BotEvent = MessageEvent | ChatActionEvent | MemberUpdateEvent | ReactionEvent | DeletedMessagesEvent
+BotEvent = (
+    MessageEvent
+    | ChatActionEvent
+    | MemberUpdateEvent
+    | ReactionEvent
+    | CallbackQueryEvent
+    | InlineQueryEvent
+    | ShippingQueryEvent
+    | PrecheckoutQueryEvent
+    | DeletedMessagesEvent
+)
 
 
 def parse_events(*, client: Any, update: Any) -> list[BotEvent]:
@@ -1079,6 +1493,10 @@ def parse_events(*, client: Any, update: Any) -> list[BotEvent]:
     # Prefer ReactionEvent over MessageEvent(kind="edit") when Telegram represents reaction
     # changes as updateEditMessage/updateEditChannelMessage.
     r = ReactionEvent.from_update(client=client, update=update)
+    cb = CallbackQueryEvent.from_update(client=client, update=update)
+    iq = InlineQueryEvent.from_update(client=client, update=update)
+    sq = ShippingQueryEvent.from_update(client=client, update=update)
+    pq = PrecheckoutQueryEvent.from_update(client=client, update=update)
     m = MessageEvent.from_update(client=client, update=update)
     if mu is not None:
         out.append(mu)
@@ -1099,6 +1517,14 @@ def parse_events(*, client: Any, update: Any) -> list[BotEvent]:
             out.append(m)
     if r is not None:
         out.append(r)
+    if cb is not None:
+        out.append(cb)
+    if iq is not None:
+        out.append(iq)
+    if sq is not None:
+        out.append(sq)
+    if pq is not None:
+        out.append(pq)
 
     d = DeletedMessagesEvent.from_update(client=client, update=update)
     if d is not None:

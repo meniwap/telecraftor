@@ -1,0 +1,46 @@
+{
+  "allowed_peers": [
+    "@telecraftorbotandi"
+  ],
+  "admin_user_ids": [
+    8047745725
+  ],
+  "audit_peer": "@telecraftorbotandi",
+  "storage_path": ".sessions/group_bot.sqlite3",
+  "plugin_paths": [
+    "apps/bot_plugins/core.py",
+    "apps/bot_plugins/moderation.py",
+    "apps/bot_plugins/welcome.py",
+    "apps/bot_plugins/utilities.py",
+    "apps/bot_plugins/stats.py"
+  ],
+  "read_only_mode": true,
+  "enable_moderation": true,
+  "enable_stats": true,
+  "enable_welcome": true,
+  "enable_utilities": true,
+  "enable_inline": false,
+  "warn_threshold": 3,
+  "flood_message_count": 8,
+  "flood_window_seconds": 10,
+  "flood_cooldown_seconds": 45,
+  "auto_mute_minutes": 2,
+  "block_links": true,
+  "blocked_keywords": [],
+  "backlog_policy": "process_no_reply",
+  "backlog_grace_seconds": 60,
+  "throttle_global_per_minute": 240,
+  "throttle_peer_per_minute": 60,
+  "throttle_burst": 10,
+  "throttle_mode": "sleep",
+  "debug_dispatcher": false,
+  "announcements": [
+    {
+      "name": "rules-reminder",
+      "text": "תזכורת: שמרו על כללי הקבוצה.",
+      "every_seconds": 21600,
+      "peer": "@telecraftorbotandi",
+      "enabled": false
+    }
+  ]
+}

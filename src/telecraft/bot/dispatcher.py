@@ -8,11 +8,15 @@ from dataclasses import dataclass
 from typing import Any
 
 from telecraft.bot.events import (
+    CallbackQueryEvent,
     ChatActionEvent,
     DeletedMessagesEvent,
+    InlineQueryEvent,
     MemberUpdateEvent,
     MessageEvent,
+    PrecheckoutQueryEvent,
     ReactionEvent,
+    ShippingQueryEvent,
     parse_events,
 )
 from telecraft.bot.router import Router
@@ -242,6 +246,50 @@ class Dispatcher:
                         peer_rate_per_sec=peer_rate_per_sec,
                         peer_buckets=peer_buckets,
                     )
+                elif isinstance(evt, CallbackQueryEvent):
+                    await self._handle_callback(
+                        evt,
+                        started_at=started_at,
+                        now_ts=now_ts,
+                        seen_other=seen_other,
+                        seen_other_order=seen_other_order,
+                        global_bucket=global_bucket,
+                        peer_rate_per_sec=peer_rate_per_sec,
+                        peer_buckets=peer_buckets,
+                    )
+                elif isinstance(evt, InlineQueryEvent):
+                    await self._handle_inline_query(
+                        evt,
+                        started_at=started_at,
+                        now_ts=now_ts,
+                        seen_other=seen_other,
+                        seen_other_order=seen_other_order,
+                        global_bucket=global_bucket,
+                        peer_rate_per_sec=peer_rate_per_sec,
+                        peer_buckets=peer_buckets,
+                    )
+                elif isinstance(evt, ShippingQueryEvent):
+                    await self._handle_shipping_query(
+                        evt,
+                        started_at=started_at,
+                        now_ts=now_ts,
+                        seen_other=seen_other,
+                        seen_other_order=seen_other_order,
+                        global_bucket=global_bucket,
+                        peer_rate_per_sec=peer_rate_per_sec,
+                        peer_buckets=peer_buckets,
+                    )
+                elif isinstance(evt, PrecheckoutQueryEvent):
+                    await self._handle_precheckout_query(
+                        evt,
+                        started_at=started_at,
+                        now_ts=now_ts,
+                        seen_other=seen_other,
+                        seen_other_order=seen_other_order,
+                        global_bucket=global_bucket,
+                        peer_rate_per_sec=peer_rate_per_sec,
+                        peer_buckets=peer_buckets,
+                    )
                 elif isinstance(evt, DeletedMessagesEvent):
                     if not self._apply_backlog_policy(evt, started_at=started_at, now_ts=now_ts):
                         if self.debug:
@@ -431,6 +479,143 @@ class Dispatcher:
             peer_buckets=peer_buckets,
         ):
             await self.router.dispatch_reaction(evt)
+
+    async def _handle_callback(
+        self,
+        evt: CallbackQueryEvent,
+        *,
+        started_at: int,
+        now_ts: int,
+        seen_other: set[tuple[str, str, int, int]],
+        seen_other_order: deque[tuple[str, str, int, int]],
+        global_bucket: _TokenBucket | None,
+        peer_rate_per_sec: float | None,
+        peer_buckets: dict[tuple[str, int], _TokenBucket],
+    ) -> None:
+        if not self._apply_backlog_policy(evt, started_at=started_at, now_ts=now_ts):
+            if self.debug:
+                logger.info("Skip: backlog policy drop callback query_id=%s", evt.query_id)
+            return
+
+        if not self._dedupe_other(
+            seen_other,
+            seen_other_order,
+            (
+                "callback",
+                evt.peer_type or "unknown",
+                int(evt.peer_id or 0),
+                int(evt.query_id),
+            ),
+        ):
+            return
+
+        if await self._maybe_throttle(
+            peer_type=evt.peer_type,
+            peer_id=evt.peer_id,
+            global_bucket=global_bucket,
+            peer_rate_per_sec=peer_rate_per_sec,
+            peer_buckets=peer_buckets,
+        ):
+            await self.router.dispatch_callback_query(evt)
+
+    async def _handle_inline_query(
+        self,
+        evt: InlineQueryEvent,
+        *,
+        started_at: int,
+        now_ts: int,
+        seen_other: set[tuple[str, str, int, int]],
+        seen_other_order: deque[tuple[str, str, int, int]],
+        global_bucket: _TokenBucket | None,
+        peer_rate_per_sec: float | None,
+        peer_buckets: dict[tuple[str, int], _TokenBucket],
+    ) -> None:
+        if not self._apply_backlog_policy(evt, started_at=started_at, now_ts=now_ts):
+            if self.debug:
+                logger.info("Skip: backlog policy drop inline query_id=%s", evt.query_id)
+            return
+
+        if not self._dedupe_other(
+            seen_other,
+            seen_other_order,
+            ("inline_query", "query", 0, int(evt.query_id)),
+        ):
+            return
+
+        if await self._maybe_throttle(
+            peer_type="user",
+            peer_id=evt.user_id,
+            global_bucket=global_bucket,
+            peer_rate_per_sec=peer_rate_per_sec,
+            peer_buckets=peer_buckets,
+        ):
+            await self.router.dispatch_inline_query(evt)
+
+    async def _handle_shipping_query(
+        self,
+        evt: ShippingQueryEvent,
+        *,
+        started_at: int,
+        now_ts: int,
+        seen_other: set[tuple[str, str, int, int]],
+        seen_other_order: deque[tuple[str, str, int, int]],
+        global_bucket: _TokenBucket | None,
+        peer_rate_per_sec: float | None,
+        peer_buckets: dict[tuple[str, int], _TokenBucket],
+    ) -> None:
+        if not self._apply_backlog_policy(evt, started_at=started_at, now_ts=now_ts):
+            if self.debug:
+                logger.info("Skip: backlog policy drop shipping query_id=%s", evt.query_id)
+            return
+
+        if not self._dedupe_other(
+            seen_other,
+            seen_other_order,
+            ("shipping_query", "query", 0, int(evt.query_id)),
+        ):
+            return
+
+        if await self._maybe_throttle(
+            peer_type="user",
+            peer_id=evt.user_id,
+            global_bucket=global_bucket,
+            peer_rate_per_sec=peer_rate_per_sec,
+            peer_buckets=peer_buckets,
+        ):
+            await self.router.dispatch_shipping_query(evt)
+
+    async def _handle_precheckout_query(
+        self,
+        evt: PrecheckoutQueryEvent,
+        *,
+        started_at: int,
+        now_ts: int,
+        seen_other: set[tuple[str, str, int, int]],
+        seen_other_order: deque[tuple[str, str, int, int]],
+        global_bucket: _TokenBucket | None,
+        peer_rate_per_sec: float | None,
+        peer_buckets: dict[tuple[str, int], _TokenBucket],
+    ) -> None:
+        if not self._apply_backlog_policy(evt, started_at=started_at, now_ts=now_ts):
+            if self.debug:
+                logger.info("Skip: backlog policy drop precheckout query_id=%s", evt.query_id)
+            return
+
+        if not self._dedupe_other(
+            seen_other,
+            seen_other_order,
+            ("precheckout_query", "query", 0, int(evt.query_id)),
+        ):
+            return
+
+        if await self._maybe_throttle(
+            peer_type="user",
+            peer_id=evt.user_id,
+            global_bucket=global_bucket,
+            peer_rate_per_sec=peer_rate_per_sec,
+            peer_buckets=peer_buckets,
+        ):
+            await self.router.dispatch_precheckout_query(evt)
 
     async def _handle_message(
         self,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .account import AuthorizationRef, ThemeRef, WallpaperRef, WebAuthorizationRef
 from .admin import ADMIN_RIGHTS_BASIC, banned_rights_full_ban, make_admin_rights, make_banned_rights
+from .auth import AuthSessionRef, LoginTokenRef
 from .calls import (
     CallParticipantRef,
     GroupCallJoinParams,
@@ -25,20 +26,25 @@ from .reports import ReportReasonBuilder
 from .stickers import DocumentRef, StickerSetRef
 from .sponsored import SponsoredMessageRef, SponsoredReportOption
 from .takeout import TakeoutScopes, TakeoutSessionRef
+from .uploads import CdnFileRef, FileLocationRef
 
 __all__ = [
     "ADMIN_RIGHTS_BASIC",
     "AuthorizationRef",
+    "AuthSessionRef",
     "CallParticipantRef",
+    "CdnFileRef",
     "ChatlistRef",
     "Client",
     "ClientInit",
     "DocumentRef",
+    "FileLocationRef",
     "GiftRef",
     "GroupCallJoinParams",
     "GroupCallRef",
     "InvoiceRef",
     "JoinAsRef",
+    "LoginTokenRef",
     "NotifyTarget",
     "PasskeyCredential",
     "PasskeyRef",

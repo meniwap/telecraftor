@@ -8,6 +8,7 @@ from typing import Literal
 
 RuntimeMode = Literal["sandbox", "prod"]
 NetworkMode = Literal["test", "prod"]
+SessionKind = Literal["user", "bot"]
 
 
 class RuntimeIsolationError(ValueError):
@@ -36,7 +37,9 @@ class SessionPaths:
     sessions_root: Path
     runtime_root: Path
     current_pointer: Path
+    current_bot_pointer: Path
     legacy_current_pointer: Path
+    legacy_current_bot_pointer: Path
     audit_peer_file: Path
     legacy_audit_peer_file: Path
 
@@ -45,6 +48,17 @@ def _truthy(value: str | None) -> bool:
     if value is None:
         return False
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def resolve_session_kind(raw: str | None, *, default: SessionKind = "user") -> SessionKind:
+    if raw is None or not raw.strip():
+        return default
+    v = raw.strip().lower()
+    if v in {"user", "account"}:
+        return "user"
+    if v in {"bot", "bot_account"}:
+        return "bot"
+    raise RuntimeIsolationError(f"Unknown session kind {raw!r}. Expected one of: user, bot.")
 
 
 def resolve_runtime(raw: str | None, *, default: RuntimeMode = "sandbox") -> RuntimeMode:
@@ -95,13 +109,18 @@ def resolve_session_paths(
         sessions_root=sessions_root_path,
         runtime_root=runtime_root,
         current_pointer=runtime_root / "current",
+        current_bot_pointer=runtime_root / "current_bot",
         legacy_current_pointer=sessions_root_path / f"{nw}.current",
+        legacy_current_bot_pointer=sessions_root_path / f"{nw}.bot.current",
         audit_peer_file=runtime_root / "live_audit_peer.txt",
         legacy_audit_peer_file=sessions_root_path / "live_audit_peer.txt",
     )
 
 
-def default_session_path(paths: SessionPaths, *, dc: int) -> Path:
+def default_session_path(paths: SessionPaths, *, dc: int, kind: SessionKind = "user") -> Path:
+    resolved_kind = resolve_session_kind(kind)
+    if resolved_kind == "bot":
+        return paths.runtime_root / f"{paths.network}_dc{int(dc)}.bot.session.json"
     return paths.runtime_root / f"{paths.network}_dc{int(dc)}.session.json"
 
 
@@ -124,18 +143,27 @@ def _resolve_pointer_target(pointer_file: Path) -> str | None:
     return None
 
 
-def read_current_session(paths: SessionPaths) -> str | None:
+def read_current_session(paths: SessionPaths, *, kind: SessionKind = "user") -> str | None:
+    resolved_kind = resolve_session_kind(kind)
+    if resolved_kind == "bot":
+        cur = _resolve_pointer_target(paths.current_bot_pointer)
+        if cur is not None:
+            return cur
+        return _resolve_pointer_target(paths.legacy_current_bot_pointer)
+
     cur = _resolve_pointer_target(paths.current_pointer)
     if cur is not None:
         return cur
     return _resolve_pointer_target(paths.legacy_current_pointer)
 
 
-def pick_latest_session(paths: SessionPaths) -> str | None:
+def pick_latest_session(paths: SessionPaths, *, kind: SessionKind = "user") -> str | None:
+    resolved_kind = resolve_session_kind(kind)
+    suffix = ".bot.session.json" if resolved_kind == "bot" else ".session.json"
     best: tuple[float, str] | None = None
     for root in (paths.runtime_root, paths.sessions_root):
         for dc in (1, 2, 3, 4, 5):
-            p = root / f"{paths.network}_dc{dc}.session.json"
+            p = root / f"{paths.network}_dc{dc}{suffix}"
             if not p.exists():
                 continue
             try:
@@ -147,25 +175,38 @@ def pick_latest_session(paths: SessionPaths) -> str | None:
     return best[1] if best is not None else None
 
 
-def pick_existing_session(paths: SessionPaths, *, preferred_dc: int) -> str:
-    current = read_current_session(paths)
+def pick_existing_session(
+    paths: SessionPaths,
+    *,
+    preferred_dc: int,
+    kind: SessionKind = "user",
+) -> str:
+    resolved_kind = resolve_session_kind(kind)
+    current = read_current_session(paths, kind=resolved_kind)
     if current is not None:
         return current
-    preferred = default_session_path(paths, dc=preferred_dc)
+    preferred = default_session_path(paths, dc=preferred_dc, kind=resolved_kind)
     if preferred.exists():
         return str(preferred.resolve())
-    latest = pick_latest_session(paths)
+    latest = pick_latest_session(paths, kind=resolved_kind)
     if latest is not None:
         return latest
     return str(preferred.resolve())
 
 
-def write_current_session_pointer(paths: SessionPaths, session_path: str | Path) -> None:
+def write_current_session_pointer(
+    paths: SessionPaths,
+    session_path: str | Path,
+    *,
+    kind: SessionKind = "user",
+) -> None:
+    resolved_kind = resolve_session_kind(kind)
     p = Path(session_path).expanduser()
     if not p.is_absolute():
         p = (Path.cwd() / p).resolve()
     paths.runtime_root.mkdir(parents=True, exist_ok=True)
-    paths.current_pointer.write_text(str(p) + "\n", encoding="utf-8", newline="\n")
+    pointer_path = paths.current_bot_pointer if resolved_kind == "bot" else paths.current_pointer
+    pointer_path.write_text(str(p) + "\n", encoding="utf-8", newline="\n")
 
 
 def _host_to_network(host: str, session_name: str) -> NetworkMode | None:

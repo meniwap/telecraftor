@@ -19,7 +19,9 @@ from .account import (
     AccountWebSessionsAPI,
 )
 from .admin import AdminAPI
+from .auth import AuthAPI
 from .business import BusinessAPI, BusinessLinksAPI, BusinessProfileAPI, BusinessQuickRepliesAPI
+from .bots import BotsAPI
 from .calls import CallsAPI, CallsConferenceAPI, CallsGroupAPI, CallsGroupChainAPI, CallsStreamAPI
 from .channels import (
     ChannelAdminLogAPI,
@@ -44,6 +46,8 @@ from .gifts import (
     GiftsSavedAPI,
     GiftsUniqueAPI,
 )
+from .help import HelpAPI
+from .langpack import LangpackAPI
 from .media import MediaAPI
 from .messages import (
     MessagesAPI,
@@ -119,7 +123,9 @@ from .takeout import TakeoutAPI, TakeoutMediaAPI, TakeoutMessagesAPI
 from .todos import TodosAPI
 from .topics import TopicsAPI, TopicsForumAPI
 from .translate import TranslateAPI
+from .uploads import UploadsAPI
 from .updates import UpdatesAPI
+from .users import UsersAPI
 from .webapps import WebAppsAPI
 
 __all__ = [
@@ -140,10 +146,12 @@ __all__ = [
     "AccountWallpapersAPI",
     "AccountWebSessionsAPI",
     "AdminAPI",
+    "AuthAPI",
     "BusinessAPI",
     "BusinessLinksAPI",
     "BusinessProfileAPI",
     "BusinessQuickRepliesAPI",
+    "BotsAPI",
     "CallsAPI",
     "CallsConferenceAPI",
     "CallsGroupAPI",
@@ -179,6 +187,8 @@ __all__ = [
     "GiftsResaleAPI",
     "GiftsSavedAPI",
     "GiftsUniqueAPI",
+    "HelpAPI",
+    "LangpackAPI",
     "MediaAPI",
     "MessagesAPI",
     "MessagesAttachMenuAPI",
@@ -255,6 +265,8 @@ __all__ = [
     "TopicsAPI",
     "TopicsForumAPI",
     "TranslateAPI",
+    "UploadsAPI",
     "UpdatesAPI",
+    "UsersAPI",
     "WebAppsAPI",
 ]

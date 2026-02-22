@@ -13,6 +13,7 @@ from telecraft.client.runtime_isolation import (
     pick_existing_session,
     require_prod_override,
     resolve_network,
+    resolve_session_kind,
     resolve_runtime,
     resolve_session_paths,
     validate_session_matches_network,
@@ -42,6 +43,7 @@ def _need_env_int(name: str) -> int:
 class _RuntimeContext:
     runtime: str
     network: str
+    session_kind: str
     session_paths: SessionPaths
     session_path: str
 
@@ -87,11 +89,16 @@ def _resolve_runtime_context(
     allow_missing_session: bool,
 ) -> _RuntimeContext:
     runtime, network = _resolve_runtime_network(args)
+    session_kind = resolve_session_kind(str(getattr(args, "session_kind", "user")))
     session_paths = resolve_session_paths(runtime=runtime, network=network)
 
     session_raw = getattr(args, "session", None)
     if session_raw is None:
-        session = pick_existing_session(session_paths, preferred_dc=int(args.dc))
+        session = pick_existing_session(
+            session_paths,
+            preferred_dc=int(args.dc),
+            kind=session_kind,
+        )
     else:
         p = Path(str(session_raw)).expanduser()
         if not p.is_absolute():
@@ -101,7 +108,7 @@ def _resolve_runtime_context(
     p_session = Path(session)
     if not allow_missing_session and not p_session.exists():
         raise SystemExit(
-            f"No session found for runtime={runtime!r} network={network!r}. "
+            f"No {session_kind} session found for runtime={runtime!r} network={network!r}. "
             f"Run login first. Expected: {session}"
         )
     if p_session.exists():
@@ -116,6 +123,7 @@ def _resolve_runtime_context(
     return _RuntimeContext(
         runtime=runtime,
         network=network,
+        session_kind=session_kind,
         session_paths=session_paths,
         session_path=str(p_session),
     )
@@ -177,7 +185,11 @@ async def _cmd_login(args: argparse.Namespace) -> int:
                     ).strip()
                     authz = await client.check_password(pw, timeout=args.timeout)
                     print("Logged in OK.")
-                    write_current_session_pointer(ctx.session_paths, session)
+                    write_current_session_pointer(
+                        ctx.session_paths,
+                        session,
+                        kind=ctx.session_kind,
+                    )
                     _ = authz
                     return 0
                 raise
@@ -186,7 +198,11 @@ async def _cmd_login(args: argparse.Namespace) -> int:
             if getattr(auth, "TL_NAME", None) == "auth.authorization":
                 print("Logged in OK.")
                 print(f"Session saved to: {session}")
-                write_current_session_pointer(ctx.session_paths, session)
+                write_current_session_pointer(
+                    ctx.session_paths,
+                    session,
+                    kind=ctx.session_kind,
+                )
                 return 0
 
             # Sign-up required (new account)
@@ -202,7 +218,11 @@ async def _cmd_login(args: argparse.Namespace) -> int:
                 )
                 print("Signed up + logged in OK.")
                 print(f"Session saved to: {session}")
-                write_current_session_pointer(ctx.session_paths, session)
+                write_current_session_pointer(
+                    ctx.session_paths,
+                    session,
+                    kind=ctx.session_kind,
+                )
                 return 0
 
             print("Unexpected login result:", repr(auth))
@@ -215,7 +235,94 @@ async def _cmd_login(args: argparse.Namespace) -> int:
                     try:
                         dc = int(msg.split(prefix, 1)[1])
                         # New auth_key must be created on the new DC, so use a new session file.
-                        session = str(default_session_path(ctx.session_paths, dc=dc).resolve())
+                        session = str(
+                            default_session_path(
+                                ctx.session_paths,
+                                dc=dc,
+                                kind=ctx.session_kind,
+                            ).resolve()
+                        )
+                        print(f"Migrating to DC {dc} (next session: {session})...")
+                        break
+                    except ValueError:
+                        pass
+            else:
+                raise
+        finally:
+            await client.close()
+
+    return 1
+
+
+async def _cmd_login_bot(args: argparse.Namespace) -> int:
+    from telecraft.client.mtproto import ClientInit, MtprotoClient
+    from telecraft.tl.generated.functions import AuthImportBotAuthorization
+
+    ctx = _resolve_runtime_context(args, allow_missing_session=True)
+    api_id = _need_env_int("TELEGRAM_API_ID")
+    api_hash = _need_env("TELEGRAM_API_HASH")
+
+    token = args.bot_token or os.environ.get("TELEGRAM_BOT_TOKEN") or input("Bot token: ").strip()
+    if not token:
+        raise SystemExit("Missing bot token. Pass --bot-token or set TELEGRAM_BOT_TOKEN.")
+    session = ctx.session_path
+
+    dc = args.dc
+    for _attempt in range(2):
+        # If we already have a session file, prefer its DC/host/port/framing to avoid mismatch.
+        if Path(session).exists():
+            dc_from_sess, host, port, framing = _session_client_args(session)
+            dc = dc_from_sess
+            host_override = host
+            port_override = port
+            framing_override = framing
+        else:
+            host_override = None
+            port_override = 443
+            framing_override = args.framing
+
+        client = MtprotoClient(
+            network=ctx.network,
+            dc_id=dc,
+            host=host_override,
+            port=port_override,
+            framing=framing_override,
+            session_path=session,
+            init=ClientInit(api_id=api_id, api_hash=api_hash),
+        )
+        await client.connect(timeout=args.timeout)
+        try:
+            _ = await client.invoke_api(
+                AuthImportBotAuthorization(
+                    flags=0,
+                    api_id=api_id,
+                    api_hash=api_hash,
+                    bot_auth_token=token,
+                ),
+                timeout=args.timeout,
+            )
+            print("Bot logged in OK.")
+            print(f"Session saved to: {session}")
+            write_current_session_pointer(
+                ctx.session_paths,
+                session,
+                kind=ctx.session_kind,
+            )
+            return 0
+        except RpcErrorException as e:
+            # Simple DC migrate support (retry once).
+            msg = e.message
+            for prefix in ("PHONE_MIGRATE_", "USER_MIGRATE_", "NETWORK_MIGRATE_"):
+                if prefix in msg:
+                    try:
+                        dc = int(msg.split(prefix, 1)[1])
+                        session = str(
+                            default_session_path(
+                                ctx.session_paths,
+                                dc=dc,
+                                kind=ctx.session_kind,
+                            ).resolve()
+                        )
                         print(f"Migrating to DC {dc} (next session: {session})...")
                         break
                     except ValueError:
@@ -690,7 +797,7 @@ def main() -> int:
 
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    def add_common(sp: argparse.ArgumentParser) -> None:
+    def add_common(sp: argparse.ArgumentParser, *, default_session_kind: str = "user") -> None:
         sp.add_argument(
             "--runtime",
             choices=["sandbox", "prod"],
@@ -713,6 +820,12 @@ def main() -> int:
         sp.add_argument("--framing", choices=["intermediate", "abridged"], default="intermediate")
         sp.add_argument("--timeout", type=float, default=30.0)
         sp.add_argument("--session", type=str, default=None)
+        sp.add_argument(
+            "--session-kind",
+            choices=["user", "bot"],
+            default=default_session_kind,
+            help="Session lane to use (default: user)",
+        )
 
     login = sub.add_parser("login", help="Login")
     add_common(login)
@@ -721,6 +834,10 @@ def main() -> int:
     login.add_argument("--password", type=str, default=None)
     login.add_argument("--first-name", type=str, default=None)
     login.add_argument("--last-name", type=str, default=None)
+
+    login_bot = sub.add_parser("login-bot", help="Login bot account using bot token")
+    add_common(login_bot, default_session_kind="bot")
+    login_bot.add_argument("--bot-token", type=str, default=None, help="Bot token from BotFather")
 
     me = sub.add_parser("me", help="Print current user")
     add_common(me)
@@ -804,6 +921,8 @@ def main() -> int:
     try:
         if args.cmd == "login":
             return asyncio.run(_cmd_login(args))
+        if args.cmd == "login-bot":
+            return asyncio.run(_cmd_login_bot(args))
         if args.cmd == "me":
             return asyncio.run(_cmd_me(args))
         if args.cmd == "send-self":

@@ -299,6 +299,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=False,
         help="Enable optional channel admin live lane",
     )
+    group.addoption(
+        "--live-bot",
+        action="store_true",
+        default=False,
+        help="Enable optional bot-session live lane",
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -329,6 +335,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "live_admin: optional admin-sensitive lane")
     config.addinivalue_line("markers", "live_stories_write: optional stories write lane")
     config.addinivalue_line("markers", "live_channel_admin: optional channel admin lane")
+    config.addinivalue_line("markers", "live_bot: optional bot-session live lane")
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -347,6 +354,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         admin_enabled = bool(config.getoption("--live-admin"))
         stories_write_enabled = bool(config.getoption("--live-stories-write"))
         channel_admin_enabled = bool(config.getoption("--live-channel-admin"))
+        bot_enabled = bool(config.getoption("--live-bot"))
         skip_second = pytest.mark.skip(
             reason="Second-account tests require --live-second-account <username>"
         )
@@ -369,6 +377,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         skip_channel_admin = pytest.mark.skip(
             reason="Channel admin live tests require --live-channel-admin"
         )
+        skip_bot = pytest.mark.skip(reason="Bot live tests require --live-bot")
         for item in items:
             if not second_raw and "requires_second_account" in item.keywords:
                 item.add_marker(skip_second)
@@ -400,6 +409,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 item.add_marker(skip_stories_write)
             if not channel_admin_enabled and "live_channel_admin" in item.keywords:
                 item.add_marker(skip_channel_admin)
+            if not bot_enabled and "live_bot" in item.keywords:
+                item.add_marker(skip_bot)
         return
 
     skip_live = pytest.mark.skip(reason="Live tests require --run-live")
@@ -517,6 +528,45 @@ def client_v2(live_config: LiveConfig) -> Client:
     return Client(
         network=live_config.network,
         session_path=live_config.session_path,
+        init=ClientInit(api_id=live_config.api_id, api_hash=live_config.api_hash),
+    )
+
+
+@pytest.fixture
+def bot_client_v2(live_config: LiveConfig, pytestconfig: pytest.Config) -> Client:
+    if not pytestconfig.getoption("--live-bot"):
+        pytest.skip("Bot live tests require --live-bot")
+
+    session_paths = resolve_session_paths(
+        runtime=live_config.runtime,
+        network=live_config.network,
+    )
+    bot_session = _env("TELEGRAM_BOT_SESSION_PATH")
+    if bot_session is None:
+        bot_session = pick_existing_session(
+            session_paths,
+            preferred_dc=2,
+            kind="bot",
+        )
+    bot_session_obj = Path(str(bot_session)).expanduser()
+    if not bot_session_obj.is_absolute():
+        bot_session_obj = (Path.cwd() / bot_session_obj).resolve()
+    if not bot_session_obj.exists():
+        pytest.skip(
+            "No bot session found for bot lane. "
+            "Run login-bot first or set TELEGRAM_BOT_SESSION_PATH."
+        )
+    try:
+        validate_session_matches_network(
+            session_path=bot_session_obj,
+            expected_network=live_config.network,
+        )
+    except RuntimeIsolationError as e:
+        raise pytest.UsageError(str(e)) from e
+
+    return Client(
+        network=live_config.network,
+        session_path=str(bot_session_obj),
         init=ClientInit(api_id=live_config.api_id, api_hash=live_config.api_hash),
     )
 
