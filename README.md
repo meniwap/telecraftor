@@ -79,6 +79,17 @@ Namespaces:
 
 Low-level `MtprotoClient` is still available from `telecraft.client.mtproto` for direct/raw operations.
 
+## Stability and Support
+
+- `0.1.x` is the internal line (private milestones, no public release commitment by default)
+- `0.2.x` is the first public line (`alpha` / `beta` / `rc` / stable)
+- stable APIs follow `Additive + Deprecation`; experimental APIs are best-effort
+- public releases require the manual `prod_safe` live gate before tagging
+
+Docs:
+- Support policy: `docs/17_support_policy.md`
+- Release process: `docs/18_release_process.md`
+
 ## Userbot vs bot guides
 
 - Userbot guide: `docs/14_userbot_guide.md`

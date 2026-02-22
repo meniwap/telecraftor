@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "defaults": {
+    "stable": {
+      "support_tier": "B",
+      "compat": "additive+deprecation",
+      "live_gate": "none"
+    },
+    "experimental": {
+      "support_tier": "experimental",
+      "compat": "best_effort",
+      "live_gate": "none"
+    }
+  },
+  "namespace_overrides": {
+    "messages": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.scheduled": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.discussion": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.receipts": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.effects": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.sent_media": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.gifs": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.inline": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.inline.prepared": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.history_import": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.chat_theme": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.suggested_posts": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.fact_checks": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "messages.saved_tags": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "dialogs": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "dialogs.pinned": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "dialogs.unread": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "dialogs.filters": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "profile": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "peers": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "chats": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "chats.members": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "chats.invites": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "media": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "search": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "stickers.sets": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "stickers.search": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "stickers.recent": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "stickers.favorites": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "stickers.emoji": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "saved.dialogs": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "saved.history": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "saved.reaction_tags": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "folders": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "contacts": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    },
+    "contacts.requirements": {
+      "support_tier": "A",
+      "compat": "additive+deprecation",
+      "live_gate": "prod_safe"
+    }
+  },
+  "method_overrides": {}
+}

@@ -100,3 +100,7 @@ await client.gifts.saved.get([ref])
 
 - MTProto/Auth/Session internals are unchanged.
 - For raw/low-level operations, use `telecraft.client.mtproto.MtprotoClient`.
+- Stable API deprecations/renames must also be recorded in:
+  - `tests/meta/v2_deprecations.json`
+  - `CHANGELOG.md` (`Deprecated` / `Removed`)
+  - this migration document
