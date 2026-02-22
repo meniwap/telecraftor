@@ -12,13 +12,21 @@ Keep live QA isolated from production by default:
 - `sandbox` runtime:
   - network: `test`
   - sessions: `.sessions/sandbox/`
+  - user pointer: `.sessions/sandbox/current`
+  - bot pointer: `.sessions/sandbox/current_bot`
   - audit peer file: `.sessions/sandbox/live_audit_peer.txt`
   - reports: `reports/live/sandbox/<run_id>/`
 - `prod` runtime:
   - network: `prod`
   - sessions: `.sessions/prod/`
+  - user pointer: `.sessions/prod/current`
+  - bot pointer: `.sessions/prod/current_bot`
   - audit peer file: `.sessions/prod/live_audit_peer.txt`
   - reports: `reports/live/prod/<run_id>/`
+
+Session kind separation:
+- user sessions: `test_dcX.session.json` / `prod_dcX.session.json`
+- bot sessions: `test_dcX.bot.session.json` / `prod_dcX.bot.session.json`
 
 ## Production Override Rules
 
@@ -60,6 +68,12 @@ Apply:
 
 ```bash
 ./.venv/bin/python apps/run.py login --runtime sandbox --dc 2
+```
+
+For bot accounts (MTProto bot login):
+
+```bash
+./.venv/bin/python apps/run.py login-bot --runtime sandbox --dc 2
 ```
 
 2. Run live core in sandbox:

@@ -52,3 +52,35 @@ def test_run_runtime_cli__rejects_network_mismatch() -> None:
     args = argparse.Namespace(cmd="me", runtime="sandbox", network="prod", allow_prod=False)
     with pytest.raises(SystemExit):
         run._resolve_runtime_network(args)
+
+
+def test_run_runtime_cli__resolve_runtime_context__defaults_to_user_session_kind() -> None:
+    run = _load_run_module()
+    args = argparse.Namespace(
+        cmd="me",
+        runtime="sandbox",
+        network=None,
+        allow_prod=False,
+        session=None,
+        dc=2,
+        session_kind="user",
+    )
+    ctx = run._resolve_runtime_context(args, allow_missing_session=True)
+    assert ctx.session_kind == "user"
+    assert ctx.session_path.endswith("test_dc2.session.json")
+
+
+def test_run_runtime_cli__resolve_runtime_context__supports_bot_session_kind() -> None:
+    run = _load_run_module()
+    args = argparse.Namespace(
+        cmd="me",
+        runtime="sandbox",
+        network=None,
+        allow_prod=False,
+        session=None,
+        dc=2,
+        session_kind="bot",
+    )
+    ctx = run._resolve_runtime_context(args, allow_missing_session=True)
+    assert ctx.session_kind == "bot"
+    assert ctx.session_path.endswith("test_dc2.bot.session.json")

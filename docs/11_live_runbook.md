@@ -20,6 +20,7 @@ Run Telegram live tests in explicit lanes:
 - `account_music`: account music + gift themes readonly smoke flow
 - `stories_write`: stories write smoke flow (opt-in)
 - `channel_admin`: channel admin smoke flow (opt-in)
+- `bot`: bot-session E2E smoke flow (opt-in)
 - dual audit output (Telegram + local files)
 
 ## Prerequisites
@@ -283,6 +284,19 @@ python -m pytest tests/live/optional/test_live_channels_admin_suite.py -vv -s \
   --live-channel-admin
 ```
 
+Optional bot lane:
+
+```bash
+python -m pytest tests/live/bot -m "live_bot" -vv -s \
+  --run-live \
+  --live-runtime sandbox \
+  --live-bot
+```
+
+Required env for bot lane:
+- `TELECRAFT_LIVE_BOT_TEST_PEER` (peer where both user+bot can post/read, e.g. `@your_group`)
+- optional: `TELEGRAM_BOT_SESSION_PATH` (defaults to `.sessions/<runtime>/current_bot` resolution)
+
 Prod override (explicit, hard-gated):
 
 ```bash
@@ -328,6 +342,7 @@ If `--live-audit-peer auto` is used, a persistent audit destination is created a
 - `passkeys` lane requires explicit `--live-passkeys`.
 - `stories_write` lane requires explicit `--live-stories-write`.
 - `channel_admin` lane requires explicit `--live-channel-admin`.
+- `bot` lane requires explicit `--live-bot`.
 - `business` and `chatlists` suites are fail-fast on unsupported/account capability errors.
 - `polls` close is warning-only by default; use `--live-strict-polls-close` to fail on close errors.
 - Cleanup runs even on failed steps.

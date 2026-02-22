@@ -1,18 +1,25 @@
 from __future__ import annotations
 
 from .app import ReconnectPolicy, run_forever, run_userbot
+from .conversations import ConversationManager
 from .dispatcher import Dispatcher
 from .events import (
+    CallbackQueryEvent,
     ChatActionEvent,
     DeletedMessagesEvent,
+    InlineQueryEvent,
     MemberUpdateEvent,
     MessageEvent,
+    PrecheckoutQueryEvent,
     ReactionEvent,
+    ShippingQueryEvent,
 )
 from .exceptions import StopPropagation
 from .filters import (
     ActionFilter,
+    CallbackFilter,
     Filter,
+    InlineQueryFilter,
     MemberFilter,
     ReactionFilter,
     action_from_user,
@@ -30,6 +37,9 @@ from .filters import (
     action_title_contains,
     all_,
     and_,
+    callback_data_equals,
+    callback_data_regex,
+    callback_data_startswith,
     channel,
     command,
     contains,
@@ -41,6 +51,8 @@ from .filters import (
     in_chat,
     in_peer,
     incoming,
+    inline_query_regex,
+    inline_query_text_contains,
     member_actor,
     member_banned,
     member_in_channel,
@@ -62,24 +74,54 @@ from .filters import (
     startswith,
     text,
 )
+from .groupbot import (
+    GroupBotConfig,
+    GroupBotContext,
+    GroupBotStorage,
+    ScheduledAnnouncement,
+    ScheduledJobRecord,
+    attach_group_bot_context,
+    get_group_bot_context,
+    load_group_bot_config,
+)
+from .plugins import PluginLoader
 from .router import Router
+from .scheduler import ScheduledJob, Scheduler
 
 __all__ = [
     "ActionFilter",
+    "CallbackFilter",
+    "CallbackQueryEvent",
     "ChatActionEvent",
     "DeletedMessagesEvent",
     "Dispatcher",
     "Filter",
+    "GroupBotConfig",
+    "GroupBotContext",
+    "GroupBotStorage",
+    "InlineQueryEvent",
+    "InlineQueryFilter",
+    "ConversationManager",
     "MemberFilter",
     "MemberUpdateEvent",
     "MessageEvent",
     "ReactionEvent",
     "ReactionFilter",
+    "ShippingQueryEvent",
+    "PrecheckoutQueryEvent",
     "ReconnectPolicy",
+    "ScheduledJob",
+    "Scheduler",
+    "PluginLoader",
     "Router",
+    "ScheduledAnnouncement",
     "StopPropagation",
+    "ScheduledJobRecord",
     "all_",
     "and_",
+    "callback_data_equals",
+    "callback_data_regex",
+    "callback_data_startswith",
     "action_from_user",
     "action_in_channel",
     "action_in_chat",
@@ -107,6 +149,7 @@ __all__ = [
     "reaction_count_gte",
     "run_forever",
     "run_userbot",
+    "attach_group_bot_context",
     "channel",
     "command",
     "contains",
@@ -116,6 +159,10 @@ __all__ = [
     "in_chat",
     "in_peer",
     "incoming",
+    "inline_query_regex",
+    "inline_query_text_contains",
+    "get_group_bot_context",
+    "load_group_bot_config",
     "or_",
     "outgoing",
     "edited_message",

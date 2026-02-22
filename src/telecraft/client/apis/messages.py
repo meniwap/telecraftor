@@ -47,6 +47,10 @@ from telecraft.tl.generated.functions import (
     MessagesSavePreparedInlineMessage,
     MessagesSearchSentMedia,
     MessagesSetChatTheme,
+    MessagesSetBotCallbackAnswer,
+    MessagesSetBotPrecheckoutResults,
+    MessagesSetBotShippingResults,
+    MessagesSetInlineBotResults,
     MessagesSendInlineBotResult,
     MessagesSendMedia,
     MessagesSendMessage,
@@ -1344,6 +1348,123 @@ class MessagesAPI:
             msg_id,
             reaction=resolved,
             big=big,
+            timeout=timeout,
+        )
+
+    async def set_bot_callback_answer(
+        self,
+        query_id: int,
+        *,
+        message: str | None = None,
+        alert: bool = False,
+        url: str | None = None,
+        cache_time: int = 0,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if message is not None:
+            flags |= 1
+        if alert:
+            flags |= 2
+        if url is not None:
+            flags |= 4
+        return await self._raw.invoke_api(
+            MessagesSetBotCallbackAnswer(
+                flags=flags,
+                alert=True if alert else None,
+                query_id=int(query_id),
+                message=str(message) if message is not None else None,
+                url=str(url) if url is not None else None,
+                cache_time=int(cache_time),
+            ),
+            timeout=timeout,
+        )
+
+    async def set_inline_bot_results(
+        self,
+        query_id: int,
+        *,
+        results: Sequence[Any] | None = None,
+        gallery: bool = False,
+        private: bool = False,
+        cache_time: int = 0,
+        next_offset: str | None = None,
+        switch_pm: Any | None = None,
+        switch_webview: Any | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if gallery:
+            flags |= 1
+        if private:
+            flags |= 2
+        if next_offset is not None:
+            flags |= 4
+        if switch_pm is not None:
+            flags |= 8
+        if switch_webview is not None:
+            flags |= 16
+        return await self._raw.invoke_api(
+            MessagesSetInlineBotResults(
+                flags=flags,
+                gallery=True if gallery else None,
+                private=True if private else None,
+                query_id=int(query_id),
+                results=list(results) if results is not None else [],
+                cache_time=int(cache_time),
+                next_offset=str(next_offset) if next_offset is not None else None,
+                switch_pm=switch_pm,
+                switch_webview=switch_webview,
+            ),
+            timeout=timeout,
+        )
+
+    async def set_bot_shipping_results(
+        self,
+        query_id: int,
+        *,
+        error: str | None = None,
+        shipping_options: Sequence[Any] | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        flags = 0
+        if error is not None:
+            flags |= 1
+        if shipping_options is not None:
+            flags |= 2
+        return await self._raw.invoke_api(
+            MessagesSetBotShippingResults(
+                flags=flags,
+                query_id=int(query_id),
+                error=str(error) if error is not None else None,
+                shipping_options=list(shipping_options) if shipping_options is not None else None,
+            ),
+            timeout=timeout,
+        )
+
+    async def set_bot_precheckout_results(
+        self,
+        query_id: int,
+        *,
+        success: bool = True,
+        error: str | None = None,
+        timeout: float = 20.0,
+    ) -> Any:
+        ok = bool(success)
+        if error is not None:
+            ok = False
+        flags = 0
+        if error is not None:
+            flags |= 1
+        if ok:
+            flags |= 2
+        return await self._raw.invoke_api(
+            MessagesSetBotPrecheckoutResults(
+                flags=flags,
+                success=True if ok else None,
+                query_id=int(query_id),
+                error=str(error) if error is not None else None,
+            ),
             timeout=timeout,
         )
 

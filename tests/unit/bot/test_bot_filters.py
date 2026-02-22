@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from telecraft.bot import (
+    CallbackQueryEvent,
     ChatActionEvent,
+    InlineQueryEvent,
     ReactionEvent,
     action_from_user,
     action_in_chat,
@@ -9,6 +11,9 @@ from telecraft.bot import (
     action_join,
     action_pinned_msg,
     action_title_contains,
+    callback_data_equals,
+    callback_data_regex,
+    callback_data_startswith,
     channel,
     command,
     contains,
@@ -19,6 +24,8 @@ from telecraft.bot import (
     in_channel,
     in_chat,
     incoming,
+    inline_query_regex,
+    inline_query_text_contains,
     new_message,
     outgoing,
     private,
@@ -63,6 +70,25 @@ def _r(**kw):
         peer_id=None,
         msg_id=1,
         reactions=None,
+    )
+    for k, v in kw.items():
+        setattr(base, k, v)
+    return base
+
+
+def _c(**kw):
+    base = CallbackQueryEvent(
+        client=object(),
+        raw=object(),
+        query_id=1,
+        user_id=1,
+        peer_type=None,
+        peer_id=None,
+        msg_id=None,
+        inline_msg_id=None,
+        data=None,
+        game_short_name=None,
+        chat_instance=None,
     )
     for k, v in kw.items():
         setattr(base, k, v)
@@ -173,3 +199,29 @@ def test_reaction_filters_basic() -> None:
     assert reaction_contains("❤️")(e) is True
     assert reaction_count_gte("❤️", 2)(e) is True
     assert reaction_count_gte("❤️", 5)(e) is False
+
+
+def test_callback_filters_basic() -> None:
+    e = _c(data=b"cat_yes")
+    assert callback_data_equals("cat_yes")(e) is True
+    assert callback_data_equals("cat_no")(e) is False
+    assert callback_data_startswith("cat_")(e) is True
+    assert callback_data_startswith("dog_")(e) is False
+    assert callback_data_regex(r"^cat_(yes|no)$")(e) is True
+
+
+def test_inline_query_filters_basic() -> None:
+    e = InlineQueryEvent(
+        client=object(),
+        raw=object(),
+        query_id=2,
+        user_id=1,
+        query="cats and dogs",
+        offset="",
+        geo=None,
+        peer_type=None,
+    )
+    assert inline_query_text_contains("cats")(e) is True
+    assert inline_query_text_contains("CATS", case_sensitive=False)(e) is True
+    assert inline_query_text_contains("bird")(e) is False
+    assert inline_query_regex(r"cats\s+and\s+dogs")(e) is True

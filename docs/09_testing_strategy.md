@@ -34,6 +34,7 @@
 - `tests/live/core/**`: core live lane without second account (`-m "live and live_core"`)
 - `tests/live/second_account/**`: `@meniwap` membership lane only (`-m "live_second_account"`)
 - `tests/live/optional/**`: unstable/expensive lane (`-m "live_optional"`)
+- `tests/live/bot/**`: optional bot-session lane (`-m "live_bot"`, requires `--live-bot`)
 - `tests/live/optional/test_live_gifts_paid.py`: paid lane (requires `--live-paid`)
 - `tests/live/optional/test_live_business_suite.py`: business lane (requires `--live-business`)
 - `tests/live/optional/test_live_chatlists_suite.py`: chatlists lane (requires `--live-chatlists`)
@@ -74,6 +75,7 @@
 - admin-sensitive lanes additionally require `--live-admin`
 - stories write lane additionally requires `--live-stories-write`
 - channel admin lane additionally requires `--live-channel-admin`
+- bot lane additionally requires `--live-bot`
 - premium lane additionally requires `--live-premium`
 - sponsored lane additionally requires `--live-sponsored`
 - passkeys lane additionally requires `--live-passkeys`

@@ -21,12 +21,29 @@ await client.admin.promote("channel:123", "@meniwap")
 await client.close()
 ```
 
+Additional examples:
+
+```python
+await client.help.config()
+await client.users.full("self")
+await client.langpack.languages(lang_pack="")
+await client.auth.export_login_token()
+await client.uploads.upload_file("/tmp/photo.jpg")
+await client.bots.get_commands()
+```
+
 Namespaces:
 - `client.messages` (`client.messages.scheduled`, `client.messages.web`, `client.messages.discussion`, `client.messages.receipts`, `client.messages.effects`, `client.messages.sent_media`, `client.messages.gifs`, `client.messages.paid_reactions`, `client.messages.inline`, `client.messages.inline.prepared`, `client.messages.history_import`, `client.messages.chat_theme`, `client.messages.suggested_posts`, `client.messages.fact_checks`, `client.messages.sponsored`, `client.messages.saved_tags`, `client.messages.attach_menu`)
 - `client.search`
 - `client.drafts`
 - `client.reports`
+- `client.help`
+- `client.auth`
+- `client.bots`
+- `client.users`
 - `client.media`
+- `client.uploads`
+- `client.langpack`
 - `client.chats` (`client.chats.members`, `client.chats.invites`)
 - `client.admin`
 - `client.contacts`
@@ -61,6 +78,20 @@ Namespaces:
 - `client.updates`
 
 Low-level `MtprotoClient` is still available from `telecraft.client.mtproto` for direct/raw operations.
+
+## Userbot vs bot guides
+
+- Userbot guide: `docs/14_userbot_guide.md`
+- MTProto bot guide (bot token over MTProto): `docs/15_mtproto_bot_guide.md`
+- Group bot guide (plugin-based MTProto bot): `docs/16_group_bot_guide.md`
+
+Quick bot flow:
+
+```bash
+./.venv/bin/python apps/run.py login-bot --runtime sandbox
+./.venv/bin/python apps/bot_keyboard_demo.py --runtime sandbox --target @meniwap
+./.venv/bin/python apps/group_bot.py --runtime sandbox --config apps/bot_config.json
+```
 
 ## Development
 

@@ -4,12 +4,21 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from telecraft.bot.events import ChatActionEvent, MemberUpdateEvent, MessageEvent, ReactionEvent
+from telecraft.bot.events import (
+    CallbackQueryEvent,
+    ChatActionEvent,
+    InlineQueryEvent,
+    MemberUpdateEvent,
+    MessageEvent,
+    ReactionEvent,
+)
 
 Filter = Callable[[MessageEvent], bool]
 ActionFilter = Callable[[ChatActionEvent], bool]
 MemberFilter = Callable[[MemberUpdateEvent], bool]
 ReactionFilter = Callable[[ReactionEvent], bool]
+CallbackFilter = Callable[[CallbackQueryEvent], bool]
+InlineQueryFilter = Callable[[InlineQueryEvent], bool]
 
 
 def all_() -> Filter:
@@ -308,6 +317,71 @@ def reaction_count_gte(reaction_key: str, n: int) -> ReactionFilter:
             return int(getattr(e, "counts", {}).get(reaction_key, 0)) >= want
         except Exception:  # noqa: BLE001
             return False
+
+    return _f
+
+
+def callback_data_equals(value: bytes | str) -> CallbackFilter:
+    want = value.encode("utf-8") if isinstance(value, str) else bytes(value)
+
+    def _f(e: CallbackQueryEvent) -> bool:
+        data = e.data
+        if data is None:
+            return False
+        return bytes(data) == want
+
+    return _f
+
+
+def callback_data_startswith(prefix: bytes | str) -> CallbackFilter:
+    want = prefix.encode("utf-8") if isinstance(prefix, str) else bytes(prefix)
+
+    def _f(e: CallbackQueryEvent) -> bool:
+        data = e.data
+        if data is None:
+            return False
+        return bytes(data).startswith(want)
+
+    return _f
+
+
+def callback_data_regex(pattern: str, *, flags: int = 0) -> CallbackFilter:
+    rx = re.compile(pattern, flags=flags)
+
+    def _f(e: CallbackQueryEvent) -> bool:
+        data = e.data
+        if data is None:
+            return False
+        try:
+            text = bytes(data).decode("utf-8")
+        except Exception:  # noqa: BLE001
+            return False
+        return rx.search(text) is not None
+
+    return _f
+
+
+def inline_query_text_contains(substr: str, *, case_sensitive: bool = False) -> InlineQueryFilter:
+    q = substr if case_sensitive else substr.lower()
+
+    def _f(e: InlineQueryEvent) -> bool:
+        t = e.query
+        if not t:
+            return False
+        s = t if case_sensitive else t.lower()
+        return q in s
+
+    return _f
+
+
+def inline_query_regex(pattern: str, *, flags: int = 0) -> InlineQueryFilter:
+    rx = re.compile(pattern, flags=flags)
+
+    def _f(e: InlineQueryEvent) -> bool:
+        t = e.query
+        if not t:
+            return False
+        return rx.search(t) is not None
 
     return _f
 

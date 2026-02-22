@@ -53,6 +53,7 @@ def test_client_v2_surface_and_connect_close() -> None:
     assert c.messages is not None
     assert c.chats is not None
     assert c.admin is not None
+    assert c.bots is not None
     assert c.contacts is not None
     assert c.polls is not None
     assert c.folders is not None
