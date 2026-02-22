@@ -32,8 +32,12 @@
 ## Live tests (manual, destructive-capable)
 
 - `tests/live/core/**`: core live lane without second account (`-m "live and live_core"`)
+  - `live_core_safe`: safe/reversible core smoke subset
+  - `live_core_destructive`: destructive core subset (requires `--live-destructive`)
 - `tests/live/second_account/**`: `@meniwap` membership lane only (`-m "live_second_account"`)
 - `tests/live/optional/**`: unstable/expensive lane (`-m "live_optional"`)
+- `tests/live/optional/test_live_prod_safe_baseline.py`: curated prod-safe optional baseline
+  (`-m "live_prod_safe"`)
 - `tests/live/bot/**`: optional bot-session lane (`-m "live_bot"`, requires `--live-bot`)
 - `tests/live/optional/test_live_gifts_paid.py`: paid lane (requires `--live-paid`)
 - `tests/live/optional/test_live_business_suite.py`: business lane (requires `--live-business`)
@@ -62,6 +66,8 @@
 - `tests/live/optional/test_live_reports_suite.py`: report lane (requires `--live-admin`)
 - all live lanes are gated by `--run-live`
 - live runtime defaults to sandbox (`--live-runtime sandbox`)
+- live profile defaults to `default` (`--live-profile default`)
+- production reliability runs should use `--live-profile prod_safe`
 - prod live requires both `--allow-prod-live` and `TELECRAFT_ALLOW_PROD_LIVE=1`
 - destructive operations require `--live-destructive`
 - second-account lane additionally requires `--live-second-account <username>`
@@ -79,6 +85,8 @@
 - premium lane additionally requires `--live-premium`
 - sponsored lane additionally requires `--live-sponsored`
 - passkeys lane additionally requires `--live-passkeys`
+- `prod_safe` profile auto-skips destructive/admin/paid/second-account/calls-write lanes
+- `prod_safe` profile is recommended for manual prod reliability smoke runs
 - audit trail is written to Telegram + local report files (`reports/live/<runtime>/<run_id>/`)
 
 ## Governance

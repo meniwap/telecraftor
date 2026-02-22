@@ -40,6 +40,7 @@ class LiveConfig:
     api_id: int
     api_hash: str
     runtime: str
+    live_profile: str
     network: str
     session_path: str
     audit_peer_file: Path
@@ -101,6 +102,13 @@ def _normalize_second_account(raw: str) -> str:
     return f"@{s}"
 
 
+def _resolve_live_profile(raw: str) -> str:
+    value = (raw or "default").strip().lower() or "default"
+    if value in {"default", "prod_safe"}:
+        return value
+    raise ValueError(f"Unsupported --live-profile {raw!r}; expected 'default' or 'prod_safe'")
+
+
 class AuditReporter:
     def __init__(self, ctx: LiveContext) -> None:
         self.ctx = ctx
@@ -118,6 +126,7 @@ class AuditReporter:
         status: str,
         step: str,
         details: str = "",
+        error_class: str | None = None,
         to_telegram: bool = True,
     ) -> None:
         ts = datetime.now(timezone.utc).isoformat()
@@ -128,6 +137,8 @@ class AuditReporter:
             "step": step,
             "details": details,
         }
+        if error_class is not None:
+            payload["error_class"] = error_class
         self._write_event(payload)
         if not to_telegram:
             return
@@ -196,6 +207,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store",
         default="sandbox",
         help="Live runtime lane (sandbox/prod). Default: sandbox",
+    )
+    group.addoption(
+        "--live-profile",
+        action="store",
+        default="default",
+        help="Live execution profile (default/prod_safe). Default: default",
     )
     group.addoption(
         "--allow-prod-live",
@@ -320,8 +337,13 @@ def pytest_configure(config: pytest.Config) -> None:
         "requires_business_account: live tests requiring business-enabled account",
     )
     config.addinivalue_line("markers", "live_core: live core lane")
+    config.addinivalue_line("markers", "live_core_safe: safe subset of core live lane")
+    config.addinivalue_line(
+        "markers", "live_core_destructive: destructive subset of core live lane"
+    )
     config.addinivalue_line("markers", "live_second_account: live lane with second account")
     config.addinivalue_line("markers", "live_optional: optional live lane (unstable/expensive)")
+    config.addinivalue_line("markers", "live_prod_safe: curated optional suite for prod-safe runs")
     config.addinivalue_line("markers", "live_paid: live lane that may spend Stars")
     config.addinivalue_line("markers", "live_premium: optional premium lane")
     config.addinivalue_line("markers", "live_sponsored: optional sponsored lane")
@@ -340,6 +362,16 @@ def pytest_configure(config: pytest.Config) -> None:
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     if config.getoption("--run-live"):
+        runtime_raw = str(config.getoption("--live-runtime")).strip().lower() or "sandbox"
+        try:
+            live_profile = _resolve_live_profile(str(config.getoption("--live-profile")))
+        except ValueError as e:
+            raise pytest.UsageError(str(e)) from e
+        if runtime_raw == "prod" and live_profile != "prod_safe":
+            print(
+                "[telecraft-live] Warning: running live tests on production without "
+                "--live-profile prod_safe (recommended for reliability smoke runs)."
+            )
         second_raw = str(config.getoption("--live-second-account")).strip()
         paid_enabled = bool(config.getoption("--live-paid"))
         premium_enabled = bool(config.getoption("--live-premium"))
@@ -378,6 +410,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             reason="Channel admin live tests require --live-channel-admin"
         )
         skip_bot = pytest.mark.skip(reason="Bot live tests require --live-bot")
+        skip_prod_safe_profile = pytest.mark.skip(
+            reason="Excluded by --live-profile prod_safe policy"
+        )
         for item in items:
             if not second_raw and "requires_second_account" in item.keywords:
                 item.add_marker(skip_second)
@@ -411,6 +446,21 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 item.add_marker(skip_channel_admin)
             if not bot_enabled and "live_bot" in item.keywords:
                 item.add_marker(skip_bot)
+
+            if live_profile == "prod_safe":
+                if (
+                    "destructive" in item.keywords
+                    or "live_core_destructive" in item.keywords
+                    or "requires_second_account" in item.keywords
+                    or "live_paid" in item.keywords
+                    or "live_business" in item.keywords
+                    or "live_chatlists" in item.keywords
+                    or "live_stories_write" in item.keywords
+                    or "live_channel_admin" in item.keywords
+                    or "live_calls_write" in item.keywords
+                    or "live_admin" in item.keywords
+                ):
+                    item.add_marker(skip_prod_safe_profile)
         return
 
     skip_live = pytest.mark.skip(reason="Live tests require --run-live")
@@ -428,6 +478,10 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
         pytest.skip("Live tests require --run-live")
 
     runtime_raw = str(pytestconfig.getoption("--live-runtime")).strip() or "sandbox"
+    try:
+        live_profile = _resolve_live_profile(str(pytestconfig.getoption("--live-profile")))
+    except ValueError as e:
+        raise pytest.UsageError(str(e)) from e
     network_raw = str(pytestconfig.getoption("--live-network")).strip()
     if network_raw:
         print(
@@ -487,7 +541,7 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
     second_account = _normalize_second_account(second_account_raw)
     print(
         "[telecraft-live] "
-        f"runtime={runtime} network={network} "
+        f"runtime={runtime} profile={live_profile} network={network} "
         f"session={session_path_obj} "
         f"report_root={report_root} "
         f"audit_peer={str(pytestconfig.getoption('--live-audit-peer'))} "
@@ -497,6 +551,7 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
         api_id=api_id,
         api_hash=api_hash,
         runtime=runtime,
+        live_profile=live_profile,
         network=network,
         session_path=str(session_path_obj),
         audit_peer_file=session_paths.audit_peer_file,
