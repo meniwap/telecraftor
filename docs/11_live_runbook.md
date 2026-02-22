@@ -307,6 +307,59 @@ TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core -m "live_core" -vv 
   --live-destructive
 ```
 
+## Production Safe Reliability Runs (No Sandbox)
+
+Use this profile for manual production reliability smoke checks (`OSS Beta` style validation)
+without destructive/admin/paid/second-account lanes.
+
+Key rules:
+- `--live-runtime prod` + `--allow-prod-live` + `TELECRAFT_ALLOW_PROD_LIVE=1` are still required.
+- add `--live-profile prod_safe` to enforce collection-time skipping of risky lanes.
+- `prod_safe` runs include connection health probes after each step (`profile.me()`).
+
+Optional prod-safe baseline only:
+
+```bash
+TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/optional/test_live_prod_safe_baseline.py -vv -s \
+  --run-live \
+  --live-runtime prod \
+  --allow-prod-live \
+  --live-profile prod_safe \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+Core safe only:
+
+```bash
+TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core -m "live_core_safe" -vv -s \
+  --run-live \
+  --live-runtime prod \
+  --allow-prod-live \
+  --live-profile prod_safe \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+Combined prod-safe reliability run (core + optional baseline):
+
+```bash
+TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core tests/live/optional \
+  -m "live and (live_core_safe or live_prod_safe)" \
+  -vv -s \
+  --run-live \
+  --live-runtime prod \
+  --allow-prod-live \
+  --live-profile prod_safe \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+Result interpretation:
+- Green: all step statuses `PASS` and health probes passed.
+- Yellow: expected skips (policy-gated or missing optional env in non-core lanes).
+- Red: `timeout`, `transport`, `decode`, `rpc`, or `capability` failures in events/summary.
+
 Note: pass `--live-second-account` without `@` because pytest treats leading `@` specially.
 The fixture normalizes bare usernames to `@username`.
 
@@ -327,6 +380,7 @@ If `--live-audit-peer auto` is used, a persistent audit destination is created a
 - Always run with `--run-live`.
 - Default live runtime is sandbox (`--live-runtime sandbox`).
 - Prod live requires both `--allow-prod-live` and `TELECRAFT_ALLOW_PROD_LIVE=1`.
+- For production reliability smoke, prefer `--live-profile prod_safe`.
 - Destructive operations require `--live-destructive`.
 - `second_account` lane requires explicit `--live-second-account`.
 - `paid` lane requires explicit `--live-paid`.
@@ -340,6 +394,7 @@ If `--live-audit-peer auto` is used, a persistent audit destination is created a
 - `premium` lane requires explicit `--live-premium`.
 - `sponsored` lane requires explicit `--live-sponsored` (and `--live-admin` for admin-bound actions).
 - `passkeys` lane requires explicit `--live-passkeys`.
+- `prod_safe` profile excludes destructive/admin/paid/second-account/calls-write lanes at collection time.
 - `stories_write` lane requires explicit `--live-stories-write`.
 - `channel_admin` lane requires explicit `--live-channel-admin`.
 - `bot` lane requires explicit `--live-bot`.

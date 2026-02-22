@@ -291,6 +291,23 @@ TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core -m live_core -vv -s
   --live-destructive
 ```
 
+Production safe reliability smoke (recommended for manual prod checks):
+
+```bash
+TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core tests/live/optional \
+  -m "live and (live_core_safe or live_prod_safe)" \
+  -vv -s \
+  --run-live \
+  --live-runtime prod \
+  --allow-prod-live \
+  --live-profile prod_safe \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+This profile auto-skips destructive/admin/paid/second-account/calls-write lanes and runs a
+connection health probe (`profile.me()`) after each step.
+
 ## Client: peer resolution (userbot-friendly)
 
 `telecraft` is MTProto-first and async-only. For userbots you typically want to target peers by:
