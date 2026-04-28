@@ -40,10 +40,10 @@ Before starting production-readiness work, read this file, pick one item, update
 
 ### PROD-003 - CI / Quality Gate Alignment
 - priority: `P0`
-- status: `todo`
+- status: `done`
 - goal: Ensure CI validates the same production-quality checks used locally.
 - next_action: Add/verify CI coverage for ruff on `apps`, mypy, meta, non-live pytest, live collect-only, and package build.
-- evidence: Pending.
+- evidence: CI now runs ruff on `src tests tools apps`, mypy, meta gates, non-live pytest, live collect-only, and package build. Local verification passed: ruff, mypy, tests/meta, not-live pytest, live collect-only, and `python -m build`.
 - blocked: `false`
 
 ### PROD-004 - Prod-Safe Live Gate Expansion
