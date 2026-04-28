@@ -60,9 +60,9 @@ def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Telecraft MTProto bot keyboard demo")
     p.add_argument(
         "--runtime",
-        choices=["sandbox", "prod"],
-        default=os.environ.get("TELECRAFT_RUNTIME", "sandbox"),
-        help="Runtime lane (default: sandbox)",
+        choices=["prod"],
+        default=os.environ.get("TELECRAFT_RUNTIME", "prod"),
+        help="Runtime lane (prod only)",
     )
     p.add_argument(
         "--allow-prod",
@@ -72,7 +72,7 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--network",
-        choices=["test", "prod"],
+        choices=["prod"],
         default=None,
         help="Deprecated override; runtime determines network",
     )
@@ -89,9 +89,9 @@ def _parse_args() -> argparse.Namespace:
 
 def _resolve_runtime_session(args: argparse.Namespace) -> tuple[str, str, str]:
     try:
-        runtime = resolve_runtime(str(args.runtime), default="sandbox")
+        runtime = resolve_runtime(str(args.runtime), default="prod")
         if args.network:
-            print("Warning: --network is deprecated; use --runtime sandbox|prod.")
+            print("Warning: --network is deprecated; use --runtime prod.")
         network = resolve_network(runtime=runtime, explicit_network=args.network)
         if runtime == "prod":
             require_prod_override(
@@ -116,7 +116,7 @@ def _resolve_runtime_session(args: argparse.Namespace) -> tuple[str, str, str]:
         if not session_obj.exists():
             raise SystemExit(
                 f"No bot session found for runtime={runtime!r} network={network!r}. "
-                "Run: ./.venv/bin/python apps/run.py login-bot --runtime sandbox"
+                "Run: ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod"
             )
         validate_session_matches_network(session_path=session_obj, expected_network=network)
         return runtime, network, str(session_obj)
@@ -131,7 +131,10 @@ def _peer_ref_from_event(peer_type: str | None, peer_id: int | None) -> str | No
 
 
 async def main(args: argparse.Namespace) -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     api_id = int(_need("TELEGRAM_API_ID"))
     api_hash = _need("TELEGRAM_API_HASH")
     runtime, network, session = _resolve_runtime_session(args)
@@ -155,8 +158,10 @@ async def main(args: argparse.Namespace) -> None:
     @router.on_message(incoming(), stop=False)
     async def _trace(e: MessageEvent) -> None:
         if e.text:
+            peer = f"{e.peer_type}:{e.peer_id}"
             print(
-                f"IN: peer={e.peer_type}:{e.peer_id} sender={e.sender_id} msg_id={e.msg_id} text={e.text!r}"
+                f"IN: peer={peer} sender={e.sender_id} "
+                f"msg_id={e.msg_id} text={e.text!r}"
             )
 
     @router.on_message(text(), stop=True)

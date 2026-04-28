@@ -10,16 +10,16 @@ from telecraft.client.apis._utils import (
 from telecraft.client.peers import PeerRef
 from telecraft.client.stickers import StickerSetRef, build_input_sticker_set
 from telecraft.tl.generated.functions import (
+    ChannelsCheckSearchPostsFlood,
     ChannelsDeleteHistory,
     ChannelsDeleteParticipantHistory,
     ChannelsExportMessageLink,
     ChannelsGetAdminLog,
     ChannelsGetMessageAuthor,
-    ChannelsCheckSearchPostsFlood,
     ChannelsReadHistory,
     ChannelsReorderUsernames,
-    ChannelsRestrictSponsoredMessages,
     ChannelsReportAntiSpamFalsePositive,
+    ChannelsRestrictSponsoredMessages,
     ChannelsSearchPosts,
     ChannelsSetBoostsToUnblockRestrictions,
     ChannelsSetDiscussionGroup,

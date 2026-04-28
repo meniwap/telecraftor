@@ -81,7 +81,10 @@ class AuthAPI:
         return await self._raw.invoke_api(AuthResetAuthorizations(), timeout=timeout)
 
     async def export_authorization(self, dc_id: int, *, timeout: float = 20.0) -> Any:
-        return await self._raw.invoke_api(AuthExportAuthorization(dc_id=int(dc_id)), timeout=timeout)
+        return await self._raw.invoke_api(
+            AuthExportAuthorization(dc_id=int(dc_id)),
+            timeout=timeout,
+        )
 
     async def import_authorization(
         self,

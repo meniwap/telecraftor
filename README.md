@@ -99,9 +99,9 @@ Docs:
 Quick bot flow:
 
 ```bash
-./.venv/bin/python apps/run.py login-bot --runtime sandbox
-./.venv/bin/python apps/bot_keyboard_demo.py --runtime sandbox --target @meniwap
-./.venv/bin/python apps/group_bot.py --runtime sandbox --config apps/bot_config.json
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/bot_keyboard_demo.py --runtime prod --allow-prod --target @meniwap
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py --runtime prod --allow-prod --config apps/bot_config.json
 ```
 
 ## Development
@@ -119,7 +119,7 @@ Run checks:
 
 ```bash
 python -m pytest -m "not live"
-python -m ruff check src tests tools
+python -m ruff check src tests tools apps
 python -m mypy src
 ```
 
@@ -128,7 +128,7 @@ Run live destructive suite manually:
 ```bash
 python -m pytest -m live -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-destructive \
   --live-second-account meniwap \
   --live-audit-peer auto \
@@ -143,7 +143,7 @@ Poll/scheduled step is disabled by default. Enable it explicitly:
 ```bash
 python -m pytest tests/live/test_aggressive_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-destructive \
   --live-second-account meniwap \
   --live-enable-polls
@@ -158,7 +158,7 @@ Run optional API expansion lanes:
 ```bash
 python -m pytest tests/live/optional -m "live_optional" -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-audit-peer auto \
   --live-report-dir reports/live
 ```
@@ -170,7 +170,7 @@ python -m pytest tests/live/optional \
   -m "live_optional and not live_paid and not live_business and not live_chatlists and not live_stories_write and not live_channel_admin" \
   -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-audit-peer auto \
   --live-report-dir reports/live
 ```
@@ -180,7 +180,7 @@ Business lane (opt-in):
 ```bash
 python -m pytest tests/live/optional/test_live_business_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-business
 ```
 
@@ -191,7 +191,7 @@ Chatlists lane (opt-in):
 ```bash
 python -m pytest tests/live/optional/test_live_chatlists_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-chatlists
 ```
 
@@ -203,7 +203,7 @@ Stories write lane (opt-in):
 ```bash
 python -m pytest tests/live/optional/test_live_stories_write_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-stories-write
 ```
 
@@ -212,7 +212,7 @@ Channel admin lane (opt-in):
 ```bash
 python -m pytest tests/live/optional/test_live_channels_admin_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-channel-admin
 ```
 
@@ -221,7 +221,7 @@ Calls readonly lane (opt-in):
 ```bash
 python -m pytest tests/live/optional/test_live_calls_readonly_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-calls
 ```
 
@@ -230,7 +230,7 @@ Calls write lane (opt-in, destructive):
 ```bash
 python -m pytest tests/live/optional/test_live_calls_write_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-calls-write \
   --live-destructive
 ```
@@ -240,7 +240,7 @@ Takeout lane (opt-in):
 ```bash
 python -m pytest tests/live/optional/test_live_takeout_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-takeout
 ```
 
@@ -249,7 +249,7 @@ WebApps lane (opt-in):
 ```bash
 python -m pytest tests/live/optional/test_live_webapps_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-webapps
 ```
 
@@ -258,7 +258,7 @@ Premium lane (opt-in):
 ```bash
 python -m pytest tests/live/optional/test_live_premium_boosts_readonly_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-premium
 ```
 
@@ -267,7 +267,7 @@ Sponsored lane (opt-in, admin-bound):
 ```bash
 python -m pytest tests/live/optional/test_live_channels_sponsored_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-sponsored \
   --live-admin
 ```
@@ -277,7 +277,7 @@ Passkeys lane (opt-in):
 ```bash
 python -m pytest tests/live/optional/test_live_passkeys_suite.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-passkeys
 ```
 
@@ -286,7 +286,7 @@ Enable paid gifts/stars lane explicitly (never on by default):
 ```bash
 python -m pytest tests/live/optional/test_live_gifts_paid.py -vv -s \
   --run-live \
-  --live-runtime sandbox \
+  --allow-prod-live \
   --live-paid \
   --live-audit-peer auto \
   --live-report-dir reports/live
@@ -297,7 +297,6 @@ Production live runs are hard-blocked by default. To run against prod intentiona
 ```bash
 TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core -m live_core -vv -s \
   --run-live \
-  --live-runtime prod \
   --allow-prod-live \
   --live-destructive
 ```
@@ -309,7 +308,6 @@ TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core tests/live/optional
   -m "live and (live_core_safe or live_prod_safe)" \
   -vv -s \
   --run-live \
-  --live-runtime prod \
   --allow-prod-live \
   --live-profile prod_safe \
   --live-audit-peer auto \
@@ -376,9 +374,3 @@ print("saved:", path)
 ## Bot runner (stable userbots)
 
 Use `telecraft.bot.run_userbot()` to run a Router/Dispatcher with reconnect/backoff.
-
-Smoke-test auth key exchange (test DCs):
-
-```bash
-python tools/smoke_auth_key.py --dc 2 --framing intermediate --timeout 60 --out auth_key.json
-```

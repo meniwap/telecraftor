@@ -78,16 +78,16 @@ Per-peer overrides are stored in SQLite (`group_settings`) and survive restarts.
 1) Login bot session (once):
 
 ```bash
-./.venv/bin/python apps/run.py login-bot --runtime sandbox
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod
 ```
 
-2) Start in sandbox:
+2) Start in prod:
 
 ```bash
-./.venv/bin/python apps/group_bot.py --runtime sandbox --config apps/bot_config.json
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py --runtime prod --allow-prod --config apps/bot_config.json
 ```
 
-3) Start in prod (hard-gated):
+3) Explicit hard-gated form:
 
 ```bash
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py \

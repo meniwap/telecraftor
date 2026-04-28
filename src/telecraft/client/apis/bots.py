@@ -14,7 +14,11 @@ from telecraft.tl.generated.functions import (
     BotsSetBotCommands,
     BotsSetBotMenuButton,
 )
-from telecraft.tl.generated.types import BotCommandScopeDefault, BotMenuButtonDefault, InputUserEmpty
+from telecraft.tl.generated.types import (
+    BotCommandScopeDefault,
+    BotMenuButtonDefault,
+    InputUserEmpty,
+)
 
 if TYPE_CHECKING:
     from telecraft.client.mtproto import MtprotoClient

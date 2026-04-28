@@ -27,45 +27,45 @@ source apps/env.sh
 
 #### הרצה
 
-- Login בסנדבוקס (ברירת מחדל בטוחה; שומר session תחת `.sessions/sandbox/`)
+- Login בפרוד (שומר session תחת `.sessions/prod/`)
 
 ```bash
-./.venv/bin/python apps/run.py login --runtime sandbox --dc 2
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login --runtime prod --allow-prod --dc 2
 ```
 
 - Login לבוט (MTProto bot account via token; שומר bot session נפרד)
 
 ```bash
-./.venv/bin/python apps/run.py login-bot --runtime sandbox --dc 2
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod --dc 2
 # או:
-./.venv/bin/python apps/run.py login-bot --runtime sandbox --bot-token "$TELEGRAM_BOT_TOKEN"
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod --bot-token "$TELEGRAM_BOT_TOKEN"
 ```
 
 - getMe
 
 ```bash
-./.venv/bin/python apps/run.py me --runtime sandbox --dc 2
-./.venv/bin/python apps/run.py me --runtime sandbox --session-kind bot --dc 2
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-prod --dc 2
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-prod --session-kind bot --dc 2
 ```
 
 - לשלוח הודעה לעצמך (Saved Messages)
 
 ```bash
-./.venv/bin/python apps/run.py send-self "hi" --runtime sandbox --dc 2
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py send-self "hi" --runtime prod --allow-prod --dc 2
 ```
 
 - לשלוח הודעה ל־peer דרך resolve (username/phone)
 
 ```bash
-./.venv/bin/python apps/run.py send "@username" "hi from telecraft" --runtime sandbox
-./.venv/bin/python apps/run.py send "+15551234567" "hi" --runtime sandbox
-./.venv/bin/python apps/run.py send "channel:123456789" "hi" --runtime sandbox
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py send "@username" "hi from telecraft" --runtime prod --allow-prod
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py send "+15551234567" "hi" --runtime prod --allow-prod
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py send "channel:123456789" "hi" --runtime prod --allow-prod
 ```
 
 - להקשיב ל־updates (תשלח לעצמך הודעה בזמן שזה רץ)
 
 ```bash
-./.venv/bin/python apps/run.py updates --runtime sandbox --dc 2
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py updates --runtime prod --allow-prod --dc 2
 ```
 
 #### פרוד (רק אם אתה בטוח)
@@ -102,8 +102,8 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-
 אחרי `login-bot`:
 
 ```bash
-./.venv/bin/python apps/run.py login-bot --runtime sandbox --dc 2
-./.venv/bin/python apps/bot_keyboard_demo.py --runtime sandbox --target @meniwap
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod --dc 2
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/bot_keyboard_demo.py --runtime prod --allow-prod --target @meniwap
 ```
 
 מה אמור לקרות:
@@ -145,7 +145,7 @@ export TELEGRAM_STREAMING_BOT_TOKEN="123456:ABC..."
 אחרי `login-bot`:
 
 ```bash
-./.venv/bin/python apps/group_bot.py --runtime sandbox --config apps/bot_config.json
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py --runtime prod --allow-prod --config apps/bot_config.json
 ```
 
 מה יש בפנים:
@@ -160,10 +160,9 @@ export TELEGRAM_STREAMING_BOT_TOKEN="123456:ABC..."
 #### Session / state קבצים (לא נכנסים לגיט)
 
 בתיקייה `.sessions/` נוצרים:
-- `.sessions/sandbox/test_dcX.session.json`: auth_key + endpoint/framing + server_salt
-- `.sessions/sandbox/test_dcX.bot.session.json`: bot auth session (נפרד מחשבון משתמש)
-- `.sessions/sandbox/test_dcX.updates.json`: updates state מינימלי
-- `.sessions/sandbox/test_dcX.entities.json`: entity cache מינימלי
-- `.sessions/sandbox/current`: pointer לסשן הסנדבוקס
-- `.sessions/sandbox/current_bot`: pointer לסשן bot בסנדבוקס
-- `.sessions/prod/prod_dcX.*` ו-`.sessions/prod/current`: lane נפרד לפרוד
+- `.sessions/prod/prod_dcX.session.json`: auth_key + endpoint/framing + server_salt
+- `.sessions/prod/prod_dcX.bot.session.json`: bot auth session (נפרד מחשבון משתמש)
+- `.sessions/prod/prod_dcX.updates.json`: updates state מינימלי
+- `.sessions/prod/prod_dcX.entities.json`: entity cache מינימלי
+- `.sessions/prod/current`: pointer לסשן משתמש בפרוד
+- `.sessions/prod/current_bot`: pointer לסשן bot בפרוד

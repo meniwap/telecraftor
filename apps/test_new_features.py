@@ -8,7 +8,7 @@
 
 מה צריך לפני:
     1. להריץ login:
-       ./.venv/bin/python apps/run.py login --network prod --dc 4
+       TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login --allow-prod --dc 4
     2. לוודא ש-env.sh מכיל API_ID ו-API_HASH
 """
 
@@ -48,8 +48,8 @@ def _need(name: str) -> str:
     return v
 
 
-def _current_session_path(network: str) -> str:
-    p = Path(".sessions") / f"{network}.current"
+def _current_session_path() -> str:
+    p = Path(".sessions/prod/current")
     if p.exists():
         s = p.read_text(encoding="utf-8").strip()
         if s and Path(s).exists():
@@ -69,7 +69,11 @@ async def test_iter_dialogs(client) -> bool:
             count += 1
             peer = getattr(dialog, "peer", None)
             peer_name = getattr(peer, "TL_NAME", "unknown")
-            peer_id = getattr(peer, "user_id", None) or getattr(peer, "chat_id", None) or getattr(peer, "channel_id", None)
+            peer_id = (
+                getattr(peer, "user_id", None)
+                or getattr(peer, "chat_id", None)
+                or getattr(peer, "channel_id", None)
+            )
             unread = getattr(dialog, "unread_count", 0)
             print(f"  {count}. {peer_name} id={peer_id} | unread={unread}")
     except Exception as e:
@@ -174,8 +178,9 @@ async def test_forward_message(client, msg_id: int) -> int | None:
         print(f"  מעביר הודעה {msg_id} ל-Saved Messages...")
         
         # Use InputPeerSelf for both source and destination
-        from telecraft.tl.generated.functions import MessagesForwardMessages
         from secrets import randbits
+
+        from telecraft.tl.generated.functions import MessagesForwardMessages
         
         result = await client.invoke_api(
             MessagesForwardMessages(
@@ -242,11 +247,10 @@ async def test_delete_message(client, msg_id: int) -> bool:
             MessagesDeleteMessages(flags=0, revoke=True, id=[msg_id])
         )
 
-        pts = getattr(result, "pts", None)
         pts_count = getattr(result, "pts_count", None)
-        print(f"✅ הודעה נמחקה!")
+        print("✅ הודעה נמחקה!")
         print(f"   📊 pts_count={pts_count} (כמה הודעות נמחקו)")
-        print(f"   💡 לך לטלגרם ותראה שההודעה נעלמה!")
+        print("   💡 לך לטלגרם ותראה שההודעה נעלמה!")
         return True
     except Exception as e:
         print(f"  ❌ שגיאה: {type(e).__name__}: {e}")
@@ -311,13 +315,14 @@ async def test_edit_message(client, msg_id: int) -> bool:
         return False
 
     try:
+        from telecraft.tl.generated.functions import MessagesEditMessage
         from telecraft.tl.generated.types import InputPeerSelf
 
         new_text = "🧪 הודעה זו נערכה! (edited)"
         print(f"  עורך הודעה {msg_id} לטקסט חדש...")
-        
-        result = await client.invoke_api(
-            __import__('telecraft.tl.generated.functions', fromlist=['MessagesEditMessage']).MessagesEditMessage(
+
+        await client.invoke_api(
+            MessagesEditMessage(
                 flags=0,
                 no_webpage=False,
                 invert_media=False,
@@ -333,8 +338,8 @@ async def test_edit_message(client, msg_id: int) -> bool:
             )
         )
         
-        print(f"✅ הודעה נערכה!")
-        print(f"   💡 לך לטלגרם ותראה שההודעה השתנתה!")
+        print("✅ הודעה נערכה!")
+        print("   💡 לך לטלגרם ותראה שההודעה השתנתה!")
         return True
     except Exception as e:
         print(f"  ❌ שגיאה: {type(e).__name__}: {e}")
@@ -352,12 +357,12 @@ async def test_pin_message(client, msg_id: int) -> bool:
         return False
 
     try:
-        from telecraft.tl.generated.types import InputPeerSelf
         from telecraft.tl.generated.functions import MessagesUpdatePinnedMessage
+        from telecraft.tl.generated.types import InputPeerSelf
 
         print(f"  מצמיד הודעה {msg_id}...")
         
-        result = await client.invoke_api(
+        await client.invoke_api(
             MessagesUpdatePinnedMessage(
                 flags=0,
                 silent=True,  # לא להודיע
@@ -368,10 +373,10 @@ async def test_pin_message(client, msg_id: int) -> bool:
             )
         )
         
-        print(f"✅ הודעה הוצמדה!")
+        print("✅ הודעה הוצמדה!")
         
         # Unpin it
-        print(f"  מסיר הצמדה...")
+        print("  מסיר הצמדה...")
         await client.invoke_api(
             MessagesUpdatePinnedMessage(
                 flags=0,
@@ -382,7 +387,7 @@ async def test_pin_message(client, msg_id: int) -> bool:
                 id=int(msg_id),
             )
         )
-        print(f"✅ הצמדה הוסרה!")
+        print("✅ הצמדה הוסרה!")
         return True
     except Exception as e:
         print(f"  ❌ שגיאה: {type(e).__name__}: {e}")
@@ -400,12 +405,12 @@ async def test_reaction(client, msg_id: int) -> bool:
         return False
 
     try:
-        from telecraft.tl.generated.types import InputPeerSelf, ReactionEmoji
         from telecraft.tl.generated.functions import MessagesSendReaction
+        from telecraft.tl.generated.types import InputPeerSelf, ReactionEmoji
 
         print(f"  מוסיף 👍 להודעה {msg_id}...")
         
-        result = await client.invoke_api(
+        await client.invoke_api(
             MessagesSendReaction(
                 flags=0,
                 big=False,
@@ -416,14 +421,14 @@ async def test_reaction(client, msg_id: int) -> bool:
             )
         )
         
-        print(f"✅ ריאקציה נוספה!")
-        print(f"   💡 לך לטלגרם ותראה 👍 על ההודעה!")
+        print("✅ ריאקציה נוספה!")
+        print("   💡 לך לטלגרם ותראה 👍 על ההודעה!")
         return True
     except Exception as e:
         err_msg = str(e)
         if "PREMIUM_ACCOUNT_REQUIRED" in err_msg:
-            print(f"  ⚠️ ריאקציות ב-Saved Messages דורשות פרימיום")
-            print(f"   💡 הפיצ'ר עובד בקבוצות/ערוצים!")
+            print("  ⚠️ ריאקציות ב-Saved Messages דורשות פרימיום")
+            print("   💡 הפיצ'ר עובד בקבוצות/ערוצים!")
             return True  # Not a real failure
         print(f"  ❌ שגיאה: {type(e).__name__}: {e}")
         return False
@@ -436,10 +441,10 @@ async def test_search(client) -> bool:
     print("=" * 60)
 
     try:
-        from telecraft.tl.generated.types import InputPeerSelf, InputMessagesFilterEmpty
         from telecraft.tl.generated.functions import MessagesSearch
+        from telecraft.tl.generated.types import InputMessagesFilterEmpty, InputPeerSelf
 
-        print(f"  מחפש 'בדיקת' ב-Saved Messages...")
+        print("  מחפש 'בדיקת' ב-Saved Messages...")
         
         result = await client.invoke_api(
             MessagesSearch(
@@ -484,12 +489,12 @@ async def test_typing_action(client) -> bool:
     print("=" * 60)
 
     try:
-        from telecraft.tl.generated.types import InputPeerSelf, SendMessageTypingAction
         from telecraft.tl.generated.functions import MessagesSetTyping
+        from telecraft.tl.generated.types import InputPeerSelf, SendMessageTypingAction
 
-        print(f"  שולח סטטוס 'מקליד...'...")
+        print("  שולח סטטוס 'מקליד...'...")
         
-        result = await client.invoke_api(
+        await client.invoke_api(
             MessagesSetTyping(
                 flags=0,
                 peer=InputPeerSelf(),
@@ -498,8 +503,8 @@ async def test_typing_action(client) -> bool:
             )
         )
         
-        print(f"✅ סטטוס נשלח!")
-        print(f"   💡 הצד השני רואה 'מקליד...' למשך כמה שניות")
+        print("✅ סטטוס נשלח!")
+        print("   💡 הצד השני רואה 'מקליד...' למשך כמה שניות")
         return True
     except Exception as e:
         print(f"  ❌ שגיאה: {type(e).__name__}: {e}")
@@ -515,14 +520,14 @@ async def test_get_chat_member(client, channel_username: str = "telegram") -> bo
     try:
         # First join the channel to make sure we're a member
         print(f"  📍 ערוץ: @{channel_username}")
-        print(f"  מצטרף לערוץ...")
+        print("  מצטרף לערוץ...")
         
         try:
             await client.join_channel(channel_username)
-            print(f"     ✅ הצטרפות הצליחה")
+            print("     ✅ הצטרפות הצליחה")
         except Exception as e:
             if "USER_ALREADY_PARTICIPANT" in str(e):
-                print(f"     ℹ️ כבר חבר בערוץ")
+                print("     ℹ️ כבר חבר בערוץ")
             else:
                 raise
 
@@ -538,11 +543,11 @@ async def test_get_chat_member(client, channel_username: str = "telegram") -> bo
             print("     כדי לבדוק אותו באמת, צריך קבוצה/ערוץ שאתה אדמין בו")
             
             # Leave channel
-            print(f"\n  עוזב את הערוץ...")
+            print("\n  עוזב את הערוץ...")
             await client.leave_channel(channel_username)
-            print(f"     ✅ עזיבה הצליחה")
+            print("     ✅ עזיבה הצליחה")
             
-            print(f"\n✅ הבדיקה הסתיימה (הפיצ'ר קיים, אבל צריך תנאים מיוחדים)")
+            print("\n✅ הבדיקה הסתיימה (הפיצ'ר קיים, אבל צריך תנאים מיוחדים)")
             return True
 
         print(f"  בודק את המידע שלך (id={my_id}) בערוץ...")
@@ -552,7 +557,7 @@ async def test_get_chat_member(client, channel_username: str = "telegram") -> bo
         member_tl = getattr(member_info, "TL_NAME", "unknown")
         member_date = getattr(member_info, "date", None)
         
-        print(f"✅ קיבלנו מידע על החבר!")
+        print("✅ קיבלנו מידע על החבר!")
         print(f"   📋 סוג: {member_tl}")
         if member_date:
             from datetime import datetime
@@ -560,16 +565,16 @@ async def test_get_chat_member(client, channel_username: str = "telegram") -> bo
             print(f"   📅 תאריך הצטרפות: {dt.strftime('%Y-%m-%d %H:%M')}")
 
         # Leave the channel
-        print(f"\n  עוזב את הערוץ...")
+        print("\n  עוזב את הערוץ...")
         await client.leave_channel(channel_username)
-        print(f"     ✅ עזיבה הצליחה")
+        print("     ✅ עזיבה הצליחה")
         
         return True
 
     except Exception as e:
         err_msg = str(e)
         if "FLOOD_WAIT" in err_msg:
-            print(f"  ⚠️ FloodWait - נסה שוב מאוחר יותר")
+            print("  ⚠️ FloodWait - נסה שוב מאוחר יותר")
             return True
         print(f"  ❌ שגיאה: {type(e).__name__}: {e}")
         import traceback
@@ -693,8 +698,8 @@ async def test_mark_read(client) -> bool:
     print("=" * 60)
 
     try:
-        from telecraft.tl.generated.types import InputPeerSelf
         from telecraft.tl.generated.functions import MessagesReadHistory
+        from telecraft.tl.generated.types import InputPeerSelf
         
         print("  מסמן את כל ההודעות ב-Saved Messages כנקראו...")
         
@@ -707,7 +712,7 @@ async def test_mark_read(client) -> bool:
         pts_count = getattr(result, "pts_count", None)
         
         if pts is not None:
-            print(f"✅ הודעות סומנו כנקראו!")
+            print("✅ הודעות סומנו כנקראו!")
             print(f"   📊 pts={pts}, pts_count={pts_count}")
         else:
             print(f"✅ הודעות סומנו כנקראו! (result={result})")
@@ -866,7 +871,7 @@ async def test_join_leave_channel(client) -> bool:
         print(f"  📍 ערוץ לבדיקה: @{test_channel}")
 
         # Step 1: נסה להצטרף לערוץ
-        print(f"\n  1️⃣ מנסה להצטרף לערוץ...")
+        print("\n  1️⃣ מנסה להצטרף לערוץ...")
         try:
             join_result = await client.join_channel(test_channel)
             join_tl_name = getattr(join_result, "TL_NAME", "unknown")
@@ -884,10 +889,10 @@ async def test_join_leave_channel(client) -> bool:
         except Exception as e:
             err_msg = str(e)
             if "CHANNELS_TOO_MUCH" in err_msg:
-                print(f"     ⚠️ כבר מצורף למקסימום ערוצים, לא ניתן להצטרף לעוד")
+                print("     ⚠️ כבר מצורף למקסימום ערוצים, לא ניתן להצטרף לעוד")
                 return True  # זה לא כישלון של הקוד
             elif "USER_ALREADY_PARTICIPANT" in err_msg:
-                print(f"     ℹ️ כבר חבר בערוץ הזה")
+                print("     ℹ️ כבר חבר בערוץ הזה")
             else:
                 raise
 
@@ -895,19 +900,19 @@ async def test_join_leave_channel(client) -> bool:
         await asyncio.sleep(1)
 
         # Step 2: עזוב את הערוץ
-        print(f"\n  2️⃣ עוזב את הערוץ...")
+        print("\n  2️⃣ עוזב את הערוץ...")
         leave_result = await client.leave_channel(test_channel)
         leave_tl_name = getattr(leave_result, "TL_NAME", "unknown")
         print(f"     ✅ עזיבה הצליחה! (response: {leave_tl_name})")
 
-        print(f"\n✅ בדיקת join/leave הושלמה!")
+        print("\n✅ בדיקת join/leave הושלמה!")
         print(f"   💡 אם תיכנס לטלגרם תראה שנכנסת ויצאת מ-@{test_channel}")
         return True
 
     except Exception as e:
         err_msg = str(e)
         if "FLOOD_WAIT" in err_msg:
-            print(f"  ⚠️ FloodWait - טלגרם מגביל. נסה שוב מאוחר יותר")
+            print("  ⚠️ FloodWait - טלגרם מגביל. נסה שוב מאוחר יותר")
             return True  # לא כישלון של הקוד
         print(f"  ❌ שגיאה: {type(e).__name__}: {e}")
         import traceback
@@ -965,7 +970,7 @@ async def main() -> None:
 
     api_id = int(_need("TELEGRAM_API_ID"))
     api_hash = _need("TELEGRAM_API_HASH")
-    session = _current_session_path("prod")
+    session = _current_session_path()
     print(f"📁 Session: {session}")
 
     client = MtprotoClient(
@@ -992,7 +997,7 @@ async def main() -> None:
         if reply_msg_id:
             forwarded_id = await test_forward_message(client, reply_msg_id)
             if forwarded_id:
-                print(f"   💡 לך לטלגרם ל-Saved Messages ותראה הודעה מועברת!")
+                print("   💡 לך לטלגרם ל-Saved Messages ותראה הודעה מועברת!")
 
         # Test 5: delete - נמחק את ההודעה הראשונה שנשלחה (לא את המועברת)
         if sent_msg_id:

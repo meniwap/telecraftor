@@ -11,19 +11,23 @@ from telecraft.client.account import (
     build_input_theme,
     build_input_wallpaper,
 )
-from telecraft.client.apis._utils import resolve_input_channel, resolve_input_peer, resolve_input_user
+from telecraft.client.apis._utils import (
+    resolve_input_channel,
+    resolve_input_peer,
+    resolve_input_user,
+)
 from telecraft.client.passkeys import build_input_passkey_credential, build_passkey_id
 from telecraft.client.peers import PeerRef
 from telecraft.client.stickers import DocumentRef, build_input_document
 from telecraft.tl.generated.functions import (
-    AccountDeletePasskey,
     AccountCheckUsername,
     AccountDeleteAccount,
-    AccountGetPasskeys,
-    AccountGetPaidMessagesRevenue,
+    AccountDeletePasskey,
     AccountGetAuthorizations,
     AccountGetContentSettings,
     AccountGetMultiWallPapers,
+    AccountGetPaidMessagesRevenue,
+    AccountGetPasskeys,
     AccountGetSavedMusicIds,
     AccountGetTheme,
     AccountGetThemes,
@@ -40,9 +44,9 @@ from telecraft.tl.generated.functions import (
     AccountResetWebAuthorization,
     AccountResetWebAuthorizations,
     AccountSaveMusic,
-    AccountSetMainProfileTab,
     AccountSaveWallPaper,
     AccountSetContentSettings,
+    AccountSetMainProfileTab,
     AccountToggleNoPaidMessagesException,
     AccountUpdateBirthday,
     AccountUpdatePersonalChannel,
@@ -472,7 +476,11 @@ class AccountMusicAPI:
                 flags=flags,
                 unsave=True if unsave else None,
                 id=build_input_document(document),
-                after_id=build_input_document(after_document) if after_document is not None else None,
+                after_id=(
+                    build_input_document(after_document)
+                    if after_document is not None
+                    else None
+                ),
             ),
             timeout=timeout,
         )
