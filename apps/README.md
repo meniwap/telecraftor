@@ -111,6 +111,35 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-
 - יש כפתורי inline: `כן` / `לא`
 - בלחיצה מתקבל callback query, הבוט מחזיר toast ומעדכן את ההודעה.
 
+#### Streaming bot (Bot API draft streaming)
+
+הדמו הזה לא משתמש ב־MTProto. הוא משתמש ב־Bot API הרשמי כי שם Telegram תיעדה את
+`sendMessageDraft` ל־streaming של טקסט חלקי בצ'אט פרטי.
+
+לפני הרצה:
+
+```bash
+source apps/env.sh
+```
+
+וודא שיש לך:
+
+```bash
+export TELEGRAM_STREAMING_BOT_TOKEN="123456:ABC..."
+```
+
+הרצה:
+
+```bash
+./.venv/bin/python -m apps.streamingbot.main
+```
+
+מה אמור לקרות:
+- בפרטי: הבוט יגדיל draft בהדרגה ואז ישלח תשובה סופית לפי mode.
+- יש פקודות כמו `/joke`, `/story`, `/battle`, `/fortune`, וגם `/menu` ו-`/stop`.
+- יש גם reply keyboard ו-inline buttons ל-"עוד כזה", "ערבב" ומעבר מהיר בין מצבים.
+- בקבוצה/ערוץ: הבוט יבקש לעבור לפרטי.
+
 #### Group bot (plugin-based, לקבוצות אמיתיות)
 
 אחרי `login-bot`:
