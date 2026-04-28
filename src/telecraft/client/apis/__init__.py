@@ -20,15 +20,15 @@ from .account import (
 )
 from .admin import AdminAPI
 from .auth import AuthAPI
-from .business import BusinessAPI, BusinessLinksAPI, BusinessProfileAPI, BusinessQuickRepliesAPI
 from .bots import BotsAPI
+from .business import BusinessAPI, BusinessLinksAPI, BusinessProfileAPI, BusinessQuickRepliesAPI
 from .calls import CallsAPI, CallsConferenceAPI, CallsGroupAPI, CallsGroupChainAPI, CallsStreamAPI
 from .channels import (
     ChannelAdminLogAPI,
     ChannelLinksAPI,
     ChannelsAPI,
-    ChannelsSearchPostsAPI,
     ChannelSettingsAPI,
+    ChannelsSearchPostsAPI,
 )
 from .chatlists import ChatlistInvitesAPI, ChatlistsAPI, ChatlistSuggestionsAPI, ChatlistUpdatesAPI
 from .chats import ChatsAPI
@@ -83,10 +83,10 @@ from .payments import (
 )
 from .peers import PeersAPI
 from .polls import PollsAPI
+from .premium import PremiumAPI, PremiumBoostsAPI
 from .presence import PresenceAPI
 from .privacy import PrivacyAPI, PrivacyGlobalSettingsAPI
 from .profile import ProfileAPI
-from .premium import PremiumAPI, PremiumBoostsAPI
 from .reactions import ReactionsAPI, ReactionsChatAPI, ReactionsDefaultsAPI
 from .reports import ReportsAPI
 from .saved import (
@@ -123,8 +123,8 @@ from .takeout import TakeoutAPI, TakeoutMediaAPI, TakeoutMessagesAPI
 from .todos import TodosAPI
 from .topics import TopicsAPI, TopicsForumAPI
 from .translate import TranslateAPI
-from .uploads import UploadsAPI
 from .updates import UpdatesAPI
+from .uploads import UploadsAPI
 from .users import UsersAPI
 from .webapps import WebAppsAPI
 

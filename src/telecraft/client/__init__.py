@@ -23,8 +23,8 @@ from .peers import Peer, PeerRef, PeerType
 from .premium import PremiumBoostSlots
 from .privacy import PrivacyKey, PrivacyRuleBuilder
 from .reports import ReportReasonBuilder
-from .stickers import DocumentRef, StickerSetRef
 from .sponsored import SponsoredMessageRef, SponsoredReportOption
+from .stickers import DocumentRef, StickerSetRef
 from .takeout import TakeoutScopes, TakeoutSessionRef
 from .uploads import CdnFileRef, FileLocationRef
 

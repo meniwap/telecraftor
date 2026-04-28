@@ -13,8 +13,8 @@ from telecraft.client.runtime_isolation import (
     pick_existing_session,
     require_prod_override,
     resolve_network,
-    resolve_session_kind,
     resolve_runtime,
+    resolve_session_kind,
     resolve_session_paths,
     validate_session_matches_network,
     write_current_session_pointer,
@@ -55,17 +55,17 @@ def _session_client_args(session_path: str) -> tuple[int, str, int, str]:
 
 
 def _resolve_runtime_network(args: argparse.Namespace) -> tuple[str, str]:
-    runtime_arg = str(getattr(args, "runtime", "sandbox")).strip()
+    runtime_arg = str(getattr(args, "runtime", "prod")).strip()
     network_arg_raw = getattr(args, "network", None)
     network_arg = None if network_arg_raw is None else str(network_arg_raw).strip()
     cmd = str(getattr(args, "cmd", "command")).strip() or "command"
 
     try:
-        runtime = resolve_runtime(runtime_arg, default="sandbox")
+        runtime = resolve_runtime(runtime_arg, default="prod")
         if network_arg:
             print(
                 "Warning: --network is deprecated; runtime determines network. "
-                "Use --runtime sandbox|prod."
+                "Use --runtime prod."
             )
         network = resolve_network(runtime=runtime, explicit_network=network_arg)
         if runtime == "prod":
@@ -800,9 +800,9 @@ def main() -> int:
     def add_common(sp: argparse.ArgumentParser, *, default_session_kind: str = "user") -> None:
         sp.add_argument(
             "--runtime",
-            choices=["sandbox", "prod"],
-            default="sandbox",
-            help="Runtime lane (default: sandbox/test network)",
+            choices=["prod"],
+            default="prod",
+            help="Runtime lane (prod only)",
         )
         sp.add_argument(
             "--allow-prod",
@@ -812,7 +812,7 @@ def main() -> int:
         )
         sp.add_argument(
             "--network",
-            choices=["test", "prod"],
+            choices=["prod"],
             default=None,
             help="Deprecated override; runtime now determines network",
         )

@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tests.meta.test_v2_method_coverage import MethodRef, _discover_v2_methods
+from tests.meta.test_v2_method_coverage import MethodRef, _discover_v2_methods  # noqa: E402
 
 MATRIX_PATH = Path("tests/meta/v2_method_matrix.yaml")
 DEFAULT_SCENARIOS = [

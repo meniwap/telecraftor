@@ -65,7 +65,7 @@
 - `tests/live/optional/test_live_stats_readonly_suite.py`: stats readonly lane (requires `--live-admin`)
 - `tests/live/optional/test_live_reports_suite.py`: report lane (requires `--live-admin`)
 - all live lanes are gated by `--run-live`
-- live runtime defaults to sandbox (`--live-runtime sandbox`)
+- live runtime is production-only (`--live-runtime prod` is accepted as a compatibility no-op)
 - live profile defaults to `default` (`--live-profile default`)
 - production reliability runs should use `--live-profile prod_safe`
 - prod live requires both `--allow-prod-live` and `TELECRAFT_ALLOW_PROD_LIVE=1`
@@ -87,7 +87,7 @@
 - passkeys lane additionally requires `--live-passkeys`
 - `prod_safe` profile auto-skips destructive/admin/paid/second-account/calls-write lanes
 - `prod_safe` profile is recommended for manual prod reliability smoke runs
-- audit trail is written to Telegram + local report files (`reports/live/<runtime>/<run_id>/`)
+- audit trail is written to Telegram + local report files (`reports/live/prod/<run_id>/`)
 
 ## Governance
 

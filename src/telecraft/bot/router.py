@@ -36,7 +36,10 @@ ReactionMiddleware = Callable[[ReactionEvent, Callable[[], Awaitable[None]]], Aw
 DeletedMiddleware = Callable[[DeletedMessagesEvent, Callable[[], Awaitable[None]]], Awaitable[None]]
 CallbackMiddleware = Callable[[CallbackQueryEvent, Callable[[], Awaitable[None]]], Awaitable[None]]
 InlineQueryMiddleware = Callable[[InlineQueryEvent, Callable[[], Awaitable[None]]], Awaitable[None]]
-ShippingQueryMiddleware = Callable[[ShippingQueryEvent, Callable[[], Awaitable[None]]], Awaitable[None]]
+ShippingQueryMiddleware = Callable[
+    [ShippingQueryEvent, Callable[[], Awaitable[None]]],
+    Awaitable[None],
+]
 PrecheckoutQueryMiddleware = Callable[
     [PrecheckoutQueryEvent, Callable[[], Awaitable[None]]],
     Awaitable[None],

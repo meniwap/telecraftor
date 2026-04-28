@@ -56,9 +56,9 @@ def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Telecraft echo bot")
     p.add_argument(
         "--runtime",
-        choices=["sandbox", "prod"],
-        default=os.environ.get("TELECRAFT_RUNTIME", "sandbox"),
-        help="Runtime lane (default: sandbox)",
+        choices=["prod"],
+        default=os.environ.get("TELECRAFT_RUNTIME", "prod"),
+        help="Runtime lane (prod only)",
     )
     p.add_argument(
         "--allow-prod",
@@ -68,7 +68,7 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--network",
-        choices=["test", "prod"],
+        choices=["prod"],
         default=None,
         help="Deprecated override; runtime determines network",
     )
@@ -79,9 +79,9 @@ def _parse_args() -> argparse.Namespace:
 
 def _resolve_runtime_session(args: argparse.Namespace) -> tuple[str, str, str]:
     try:
-        runtime = resolve_runtime(str(args.runtime), default="sandbox")
+        runtime = resolve_runtime(str(args.runtime), default="prod")
         if args.network:
-            print("Warning: --network is deprecated; use --runtime sandbox|prod.")
+            print("Warning: --network is deprecated; use --runtime prod.")
         network = resolve_network(runtime=runtime, explicit_network=args.network)
         if runtime == "prod":
             require_prod_override(
@@ -102,7 +102,7 @@ def _resolve_runtime_session(args: argparse.Namespace) -> tuple[str, str, str]:
         if not session_obj.exists():
             raise SystemExit(
                 f"No session found for runtime={runtime!r} network={network!r}. "
-                "Run: ./.venv/bin/python apps/run.py login --runtime sandbox"
+                "Run: ./.venv/bin/python apps/run.py login --runtime prod --allow-prod"
             )
         validate_session_matches_network(session_path=session_obj, expected_network=network)
         return runtime, network, str(session_obj)

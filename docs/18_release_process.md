@@ -42,7 +42,7 @@ Internal `0.1.x` milestones may skip these gates.
 ## 2. Run non-live validation
 
 ```bash
-python -m ruff check src tests tools
+python -m ruff check src tests tools apps
 python -m mypy src
 python -m pytest tests/meta -q
 python -m pytest -m "not live" -q
@@ -56,7 +56,6 @@ TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core tests/live/optional
   -m "live and (live_core_safe or live_prod_safe)" \
   -vv -s \
   --run-live \
-  --live-runtime prod \
   --allow-prod-live \
   --live-profile prod_safe \
   --live-audit-peer auto \

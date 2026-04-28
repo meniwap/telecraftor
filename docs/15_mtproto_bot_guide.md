@@ -34,28 +34,28 @@ Required env vars:
 ## Login bot session
 
 ```bash
-./.venv/bin/python apps/run.py login-bot --runtime sandbox --dc 2
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod --dc 2
 ```
 
 You can also pass the token directly:
 
 ```bash
-./.venv/bin/python apps/run.py login-bot --runtime sandbox --bot-token "123456:ABC..."
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod --bot-token "123456:ABC..."
 ```
 
 ## Session isolation for bots
 
 Bot sessions use their own lane:
-- files like `.sessions/sandbox/test_dc2.bot.session.json`
-- pointer file `.sessions/sandbox/current_bot`
+- files like `.sessions/prod/prod_dc2.bot.session.json`
+- pointer file `.sessions/prod/current_bot`
 
 Regular user sessions are kept separate (`current`), so bot login does not overwrite user login.
 
 Use bot lane explicitly in CLI commands when needed:
 
 ```bash
-./.venv/bin/python apps/run.py me --runtime sandbox --session-kind bot
-./.venv/bin/python apps/run.py updates --runtime sandbox --session-kind bot
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-prod --session-kind bot
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py updates --runtime prod --allow-prod --session-kind bot
 ```
 
 ## Run the keyboard demo
@@ -63,7 +63,7 @@ Use bot lane explicitly in CLI commands when needed:
 Use the included app:
 
 ```bash
-./.venv/bin/python apps/bot_keyboard_demo.py --runtime sandbox --target @meniwap
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/bot_keyboard_demo.py --runtime prod --allow-prod --target @meniwap
 ```
 
 What it does:
@@ -78,7 +78,7 @@ What it does:
 Use the production-ready plugin shell:
 
 ```bash
-./.venv/bin/python apps/group_bot.py --runtime sandbox --config apps/bot_config.json
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py --runtime prod --allow-prod --config apps/bot_config.json
 ```
 
 For full architecture/config/QA details see:

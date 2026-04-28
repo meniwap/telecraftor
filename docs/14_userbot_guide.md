@@ -27,10 +27,9 @@ Required env vars:
 Optional:
 - `TELEGRAM_PASSWORD` (if 2FA is enabled)
 
-## Runtime lanes and safety
+## Runtime safety
 
-- `sandbox` runtime -> Telegram `test` network (default)
-- `prod` runtime -> Telegram `prod` network (requires explicit override)
+Telecraft app orchestration is production-only. Production is blocked unless both are set:
 
 Production is blocked unless both are set:
 - `--allow-prod`
@@ -41,7 +40,7 @@ Production is blocked unless both are set:
 Login writes a user session file and updates the user pointer.
 
 ```bash
-./.venv/bin/python apps/run.py login --runtime sandbox --dc 2
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login --runtime prod --allow-prod --dc 2
 ```
 
 Important defaults:
@@ -51,9 +50,9 @@ Important defaults:
 ## Quick checks
 
 ```bash
-./.venv/bin/python apps/run.py me --runtime sandbox
-./.venv/bin/python apps/run.py send-self "hello from userbot" --runtime sandbox
-./.venv/bin/python apps/run.py updates --runtime sandbox
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-prod
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py send-self "hello from userbot" --runtime prod --allow-prod
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py updates --runtime prod --allow-prod
 ```
 
 ## Running a userbot app
@@ -64,7 +63,7 @@ Examples:
 - `apps/selftest_bot.py`
 
 ```bash
-./.venv/bin/python apps/command_bot.py --runtime sandbox
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/command_bot.py --runtime prod --allow-prod
 ```
 
 ## Minimal pattern
@@ -89,13 +88,11 @@ await Dispatcher(client=app.raw, router=router, ignore_outgoing=False).run()
 - User accounts cannot behave exactly like Bot API bots in every Telegram client UX flow.
 - Inline/reply keyboard interactions that are bot-centric may not appear/behave the same for user accounts.
 - Sending to channels/DMs may need entity priming (`access_hash` cache). `Dispatcher` does best-effort priming on startup.
-- If you accidentally mix session files between `sandbox` and `prod`, runtime isolation blocks startup.
+- If you accidentally load a non-prod session, runtime isolation blocks startup.
 
 ## Session files (user kind)
 
 Typical files:
-- `.sessions/sandbox/test_dcX.session.json`
-- `.sessions/sandbox/current`
 - `.sessions/prod/prod_dcX.session.json`
 - `.sessions/prod/current`
 

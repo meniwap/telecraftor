@@ -4,7 +4,8 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from telecraft.client.media import BIG_FILE_THRESHOLD, PART_SIZE, MediaError, upload_file as media_upload_file
+from telecraft.client.media import BIG_FILE_THRESHOLD, PART_SIZE, MediaError
+from telecraft.client.media import upload_file as media_upload_file
 from telecraft.client.uploads import build_cdn_file_token, build_file_location
 from telecraft.tl.generated.functions import (
     UploadGetCdnFile,
@@ -209,11 +210,20 @@ class UploadsAPI:
         timeout: float = 20.0,
     ) -> Any:
         return await self._raw.invoke_api(
-            UploadGetCdnFileHashes(file_token=build_cdn_file_token(file_token), offset=int(offset)),
+            UploadGetCdnFileHashes(
+                file_token=build_cdn_file_token(file_token),
+                offset=int(offset),
+            ),
             timeout=timeout,
         )
 
-    async def get_file_hashes(self, location: Any, *, offset: int = 0, timeout: float = 20.0) -> Any:
+    async def get_file_hashes(
+        self,
+        location: Any,
+        *,
+        offset: int = 0,
+        timeout: float = 20.0,
+    ) -> Any:
         return await self._raw.invoke_api(
             UploadGetFileHashes(location=build_file_location(location), offset=int(offset)),
             timeout=timeout,

@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any
 from telecraft.client.apis._utils import resolve_input_peer, resolve_input_user
 from telecraft.client.messages import build_input_reply_to_message, build_input_reply_to_story
 from telecraft.client.peers import PeerRef
-from telecraft.client.stickers import DocumentRef, build_input_document
 from telecraft.client.sponsored import build_sponsored_option, build_sponsored_random_id
+from telecraft.client.stickers import DocumentRef, build_input_document
 from telecraft.tl.generated.functions import (
     MessagesCheckHistoryImportPeer,
     MessagesClickSponsoredMessage,
@@ -24,10 +24,10 @@ from telecraft.tl.generated.functions import (
     MessagesGetFactCheck,
     MessagesGetMessageEditData,
     MessagesGetMessageReadParticipants,
-    MessagesGetPreparedInlineMessage,
     MessagesGetMessagesViews,
     MessagesGetOutboxReadDate,
     MessagesGetPaidReactionPrivacy,
+    MessagesGetPreparedInlineMessage,
     MessagesGetReplies,
     MessagesGetSavedGifs,
     MessagesGetScheduledHistory,
@@ -46,17 +46,17 @@ from telecraft.tl.generated.functions import (
     MessagesSaveGif,
     MessagesSavePreparedInlineMessage,
     MessagesSearchSentMedia,
-    MessagesSetChatTheme,
-    MessagesSetBotCallbackAnswer,
-    MessagesSetBotPrecheckoutResults,
-    MessagesSetBotShippingResults,
-    MessagesSetInlineBotResults,
     MessagesSendInlineBotResult,
     MessagesSendMedia,
     MessagesSendMessage,
     MessagesSendPaidReaction,
     MessagesSendScheduledMessages,
     MessagesSendScreenshotNotification,
+    MessagesSetBotCallbackAnswer,
+    MessagesSetBotPrecheckoutResults,
+    MessagesSetBotShippingResults,
+    MessagesSetChatTheme,
+    MessagesSetInlineBotResults,
     MessagesToggleBotInAttachMenu,
     MessagesTogglePaidReactionPrivacy,
     MessagesToggleSuggestedPostApproval,

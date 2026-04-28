@@ -18,12 +18,15 @@ def _load_run_module():
     return mod
 
 
-def test_run_runtime_cli__defaults_to_sandbox_network() -> None:
+def test_run_runtime_cli__defaults_to_prod_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     run = _load_run_module()
-    args = argparse.Namespace(cmd="me", runtime="sandbox", network=None, allow_prod=False)
+    monkeypatch.setenv("TELECRAFT_ALLOW_PROD", "1")
+    args = argparse.Namespace(cmd="me", runtime="prod", network=None, allow_prod=True)
     runtime, network = run._resolve_runtime_network(args)
-    assert runtime == "sandbox"
-    assert network == "test"
+    assert runtime == "prod"
+    assert network == "prod"
 
 
 def test_run_runtime_cli__blocks_prod_without_overrides(
@@ -47,40 +50,50 @@ def test_run_runtime_cli__allows_prod_with_flag_and_env(
     assert network == "prod"
 
 
-def test_run_runtime_cli__rejects_network_mismatch() -> None:
+def test_run_runtime_cli__rejects_sandbox_runtime() -> None:
     run = _load_run_module()
-    args = argparse.Namespace(cmd="me", runtime="sandbox", network="prod", allow_prod=False)
+    args = argparse.Namespace(cmd="me", runtime="sandbox", network=None, allow_prod=False)
     with pytest.raises(SystemExit):
         run._resolve_runtime_network(args)
 
 
-def test_run_runtime_cli__resolve_runtime_context__defaults_to_user_session_kind() -> None:
+def test_run_runtime_cli__resolve_runtime_context__defaults_to_user_session_kind(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     run = _load_run_module()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELECRAFT_ALLOW_PROD", "1")
     args = argparse.Namespace(
         cmd="me",
-        runtime="sandbox",
+        runtime="prod",
         network=None,
-        allow_prod=False,
+        allow_prod=True,
         session=None,
         dc=2,
         session_kind="user",
     )
     ctx = run._resolve_runtime_context(args, allow_missing_session=True)
     assert ctx.session_kind == "user"
-    assert ctx.session_path.endswith("test_dc2.session.json")
+    assert ctx.session_path.endswith("prod_dc2.session.json")
 
 
-def test_run_runtime_cli__resolve_runtime_context__supports_bot_session_kind() -> None:
+def test_run_runtime_cli__resolve_runtime_context__supports_bot_session_kind(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     run = _load_run_module()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELECRAFT_ALLOW_PROD", "1")
     args = argparse.Namespace(
         cmd="me",
-        runtime="sandbox",
+        runtime="prod",
         network=None,
-        allow_prod=False,
+        allow_prod=True,
         session=None,
         dc=2,
         session_kind="bot",
     )
     ctx = run._resolve_runtime_context(args, allow_missing_session=True)
     assert ctx.session_kind == "bot"
-    assert ctx.session_path.endswith("test_dc2.bot.session.json")
+    assert ctx.session_path.endswith("prod_dc2.bot.session.json")

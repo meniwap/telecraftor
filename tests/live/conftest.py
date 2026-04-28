@@ -205,8 +205,8 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     group.addoption(
         "--live-runtime",
         action="store",
-        default="sandbox",
-        help="Live runtime lane (sandbox/prod). Default: sandbox",
+        default="prod",
+        help="Live runtime lane (prod only). Default: prod",
     )
     group.addoption(
         "--live-profile",
@@ -224,7 +224,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--live-network",
         action="store",
         default="",
-        help="Deprecated network override (runtime now determines network)",
+        help="Deprecated network override; only prod is supported by live orchestration",
     )
     group.addoption(
         "--live-enable-polls",
@@ -362,7 +362,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     if config.getoption("--run-live"):
-        runtime_raw = str(config.getoption("--live-runtime")).strip().lower() or "sandbox"
+        runtime_raw = str(config.getoption("--live-runtime")).strip().lower() or "prod"
         try:
             live_profile = _resolve_live_profile(str(config.getoption("--live-profile")))
         except ValueError as e:
@@ -477,7 +477,7 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
     if not pytestconfig.getoption("--run-live"):
         pytest.skip("Live tests require --run-live")
 
-    runtime_raw = str(pytestconfig.getoption("--live-runtime")).strip() or "sandbox"
+    runtime_raw = str(pytestconfig.getoption("--live-runtime")).strip() or "prod"
     try:
         live_profile = _resolve_live_profile(str(pytestconfig.getoption("--live-profile")))
     except ValueError as e:
@@ -485,11 +485,10 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
     network_raw = str(pytestconfig.getoption("--live-network")).strip()
     if network_raw:
         print(
-            "Warning: --live-network is deprecated; live runtime determines network. "
-            "Use --live-runtime sandbox|prod."
+            "Warning: --live-network is deprecated; live orchestration supports prod only."
         )
     try:
-        runtime = resolve_runtime(runtime_raw, default="sandbox")
+        runtime = resolve_runtime(runtime_raw, default="prod")
         network = resolve_network(runtime=runtime, explicit_network=network_raw or None)
         if runtime == "prod":
             require_prod_override(
@@ -498,7 +497,7 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
                 action="live tests on production Telegram",
                 example=(
                     "TELECRAFT_ALLOW_PROD_LIVE=1 ./.venv/bin/python -m pytest "
-                    "tests/live/... --run-live --live-runtime prod --allow-prod-live"
+                    "tests/live/... --run-live --allow-prod-live"
                 ),
             )
     except RuntimeIsolationError as e:

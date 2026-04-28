@@ -14,10 +14,12 @@ from telecraft.mtproto.transport.base import Endpoint
 from telecraft.mtproto.transport.intermediate import IntermediateFraming
 from telecraft.mtproto.transport.tcp import TcpTransport
 
-TEST_DCS: dict[int, tuple[str, int]] = {
-    1: ("149.154.175.10", 443),
-    2: ("149.154.167.40", 443),
-    3: ("149.154.175.117", 443),
+PROD_DCS: dict[int, tuple[str, int]] = {
+    1: ("149.154.175.50", 443),
+    2: ("149.154.167.51", 443),
+    3: ("149.154.175.100", 443),
+    4: ("149.154.167.91", 443),
+    5: ("91.108.56.130", 443),
 }
 
 
@@ -31,7 +33,7 @@ async def _run(args: argparse.Namespace) -> int:
     if args.host is not None:
         host, port = args.host, args.port
     else:
-        host, port = TEST_DCS[args.dc]
+        host, port = PROD_DCS[args.dc]
 
     framing = IntermediateFraming() if args.framing == "intermediate" else AbridgedFraming()
     transport = TcpTransport(endpoint=Endpoint(host=host, port=port), framing=framing)
@@ -73,13 +75,13 @@ async def _run(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Smoke-test MTProto auth_key exchange (test DCs).")
+    p = argparse.ArgumentParser(description="Smoke-test MTProto auth_key exchange (prod DCs).")
     p.add_argument(
         "--dc",
         type=int,
-        choices=sorted(TEST_DCS.keys()),
+        choices=sorted(PROD_DCS.keys()),
         default=2,
-        help="Test DC number",
+        help="Prod DC number",
     )
     p.add_argument("--host", type=str, default=None, help="Override host (disables --dc mapping)")
     p.add_argument("--port", type=int, default=443, help="Port (when using --host)")

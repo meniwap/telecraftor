@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from telecraft.bot.events import MessageEvent
 
@@ -61,7 +62,8 @@ class ConversationManager:
         if filt is None:
             composed = _same_peer
         else:
-            composed = lambda e: _same_peer(e) and bool(filt(e))
+            def composed(e: MessageEvent) -> bool:
+                return _same_peer(e) and bool(filt(e))
 
         kwargs = dict(reply_kwargs or {})
         await event.reply(text, **kwargs)

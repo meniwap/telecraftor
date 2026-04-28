@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Any
 
 from telecraft.tl.generated.functions import (
     LangpackGetDifference,
+    LangpackGetLangPack,
     LangpackGetLanguage,
     LangpackGetLanguages,
-    LangpackGetLangPack,
     LangpackGetStrings,
 )
 

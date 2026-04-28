@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from telecraft.client.apis._utils import resolve_input_user
-from telecraft.client.peers import PeerRef
+from telecraft.client.peers import Peer, PeerRef
 from telecraft.tl.generated.functions import UsersGetFullUser, UsersGetUsers
 from telecraft.tl.generated.types import InputUserSelf
 
@@ -26,7 +26,7 @@ class UsersAPI:
         *,
         timeout: float = 20.0,
     ) -> Any:
-        if isinstance(users, (str, tuple)):
+        if isinstance(users, (Peer, str, int, tuple)):
             refs: list[Any] = [users]
         else:
             refs = list(users)

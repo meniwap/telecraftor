@@ -8,10 +8,12 @@ import os
 from telecraft.client.mtproto import ClientInit, MtprotoClient
 from telecraft.schema.pinned_layer import LAYER
 
-TEST_DCS: dict[int, tuple[str, int]] = {
-    1: ("149.154.175.10", 443),
-    2: ("149.154.167.40", 443),
-    3: ("149.154.175.117", 443),
+PROD_DCS: dict[int, tuple[str, int]] = {
+    1: ("149.154.175.50", 443),
+    2: ("149.154.167.51", 443),
+    3: ("149.154.175.100", 443),
+    4: ("149.154.167.91", 443),
+    5: ("91.108.56.130", 443),
 }
 
 
@@ -39,9 +41,10 @@ async def _run(args: argparse.Namespace) -> int:
     if args.host is not None:
         host, port = args.host, args.port
     else:
-        host, port = TEST_DCS[args.dc]
+        host, port = PROD_DCS[args.dc]
 
     client = MtprotoClient(
+        network="prod",
         dc_id=args.dc,
         host=host if args.host is not None else None,
         port=port,
@@ -73,9 +76,9 @@ def main() -> int:
     p.add_argument(
         "--dc",
         type=int,
-        choices=sorted(TEST_DCS.keys()),
+        choices=sorted(PROD_DCS.keys()),
         default=2,
-        help="Test DC number",
+        help="Prod DC number",
     )
     p.add_argument("--host", type=str, default=None, help="Override host (disables --dc mapping)")
     p.add_argument("--port", type=int, default=443, help="Port (when using --host)")
