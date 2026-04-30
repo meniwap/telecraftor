@@ -182,7 +182,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default="",
         help=(
             "Second account username/phone for cross-account tests "
-            "(use bare username, e.g. meniwap)"
+            "(use bare username, e.g. second_account_username)"
         ),
     )
     group.addoption(

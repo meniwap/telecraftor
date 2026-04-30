@@ -80,7 +80,7 @@ def test_client_v2_api_delegation() -> None:
 
     out = asyncio.run(c.messages.send("user:1", "hello", silent=True))
     assert out["ok"] is True
-    resolved = asyncio.run(c.peers.resolve("@meniwap"))
+    resolved = asyncio.run(c.peers.resolve("@example_user"))
     assert resolved["peer_id"] == 123
     contacts = asyncio.run(c.contacts.list())
     assert contacts == []

@@ -34,7 +34,7 @@
 - `tests/live/core/**`: core live lane without second account (`-m "live and live_core"`)
   - `live_core_safe`: safe/reversible core smoke subset
   - `live_core_destructive`: destructive core subset (requires `--live-destructive`)
-- `tests/live/second_account/**`: `@meniwap` membership lane only (`-m "live_second_account"`)
+- `tests/live/second_account/**`: second-account membership lane only (`-m "live_second_account"`)
 - `tests/live/optional/**`: unstable/expensive lane (`-m "live_optional"`)
 - `tests/live/optional/test_live_prod_safe_baseline.py`: curated prod-safe optional baseline
   (`-m "live_prod_safe"`)

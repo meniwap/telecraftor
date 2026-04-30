@@ -28,8 +28,11 @@ jobs:
       - name: Install package + dev tools
         run: python -m pip install -e ".[dev]"
 
+      - name: Repo hygiene
+        run: python tools/check_repo_hygiene.py
+
       - name: Ruff
-        run: python -m ruff check src tests tools apps
+        run: python -m ruff check src tests tools apps examples
 
       - name: Mypy
         run: python -m mypy src
@@ -45,3 +48,6 @@ jobs:
 
       - name: Package build
         run: python -m build
+
+      - name: Package artifact hygiene
+        run: python tools/check_repo_hygiene.py --artifacts

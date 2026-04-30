@@ -12,7 +12,6 @@ It is event-driven and pulls updates from Telegram using the `Dispatcher`.
 3. Set your Telegram API credentials in `apps/env.sh`.
 
 ```bash
-cd /Users/meniwap/telecraftor
 python3 -m venv .venv
 ./.venv/bin/python -m pip install -U pip
 ./.venv/bin/python -m pip install -e ".[dev]"
@@ -28,8 +27,6 @@ Optional:
 - `TELEGRAM_PASSWORD` (if 2FA is enabled)
 
 ## Runtime safety
-
-Telecraft app orchestration is production-only. Production is blocked unless both are set:
 
 Production is blocked unless both are set:
 - `--allow-prod`
