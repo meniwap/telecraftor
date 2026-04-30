@@ -8,6 +8,7 @@ dist/
 build/
 *.egg-info/
 .DS_Store
+cachkl
 
 # Local editor/agent metadata
 .cursor/
@@ -16,13 +17,19 @@ build/
 .sessions/
 session.json
 *.session.json
+*.sqlite
+*.sqlite3
 
 # Local env files (never commit)
 .env
 apps/env.sh
+apps/bot_config.json
 
-# Live QA reports
-reports/live/
+# Runtime outputs and generated reports
+downloads/
+reports/*
+!reports/.gitkeep
+experiments/
 
 # Temporary test files
 _temp_*.py

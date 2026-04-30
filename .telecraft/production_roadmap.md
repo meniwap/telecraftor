@@ -74,8 +74,8 @@ Before starting production-readiness work, read this file, pick one item, update
 - priority: `P1`
 - status: `done`
 - goal: Separate production demos from experimental/manual scripts.
-- next_action: Keep future exploratory scripts under `apps/manual_labs/`; keep production demos documented in `apps/README.md`.
-- evidence: Reclassified app entrypoints in `apps/README.md`, moved `apps/test_new_features.py` to `apps/manual_labs/test_new_features.py`, added `apps/manual_labs/README.md`, removed local `.DS_Store`/`__pycache__` artifacts from the worktree, and verified ruff, mypy, `tests/unit/apps`, not-live pytest, live collect-only, and dry help commands.
+- next_action: Keep future exploratory scripts outside the tracked library tree; keep production demos documented in `apps/README.md` and clean examples in `examples/`.
+- evidence: Reclassified app entrypoints in `apps/README.md`, removed tracked manual labs and non-MTProto Bot API demo code, added clean examples, removed runtime artifacts from the tracked tree, and verified ruff, mypy, not-live pytest, live collect-only, and dry help commands.
 - blocked: `false`
 
 ### PROD-008 - Second Account / Admin Hardening
@@ -83,7 +83,7 @@ Before starting production-readiness work, read this file, pick one item, update
 - status: `done`
 - goal: Make ban/unban/promote/kick/add/remove flows verifiable with cleanup guarantees.
 - next_action: Run the gated second-account admin lane manually only with explicit approval and a controlled second account.
-- evidence: Added `.telecraft/second_account_admin_hardening.md` and a gated live suite at `tests/live/second_account/test_live_admin_moderation_meniwap.py` covering promote/demote and ban/unban/kick rollback with cleanup registration. The lane is excluded from prod-safe/default runs and requires `--live-second-account`, `--live-destructive`, and `--live-admin`. Verified by live collect-only; destructive live was not run.
+- evidence: Added `.telecraft/second_account_admin_hardening.md` and a gated live suite at `tests/live/second_account/test_live_admin_moderation_second_account.py` covering promote/demote and ban/unban/kick rollback with cleanup registration. The lane is excluded from prod-safe/default runs and requires `--live-second-account`, `--live-destructive`, and `--live-admin`. Verified by live collect-only; destructive live was not run.
 - blocked: `false`
 
 ### PROD-009 - Soak / Reliability Runs

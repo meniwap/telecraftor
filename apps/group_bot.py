@@ -67,7 +67,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument(
         "--config",
         type=str,
-        default="apps/bot_config.json",
+        default="apps/bot_config.example.json",
         help="Path to group-bot JSON config",
     )
     p.add_argument(

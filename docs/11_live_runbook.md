@@ -98,7 +98,7 @@ TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/second_account -m "live_
   --run-live \
   --allow-prod-live \
   --live-destructive \
-  --live-second-account meniwap \
+  --live-second-account second_account_username \
   --live-audit-peer auto \
   --live-report-dir reports/live
 ```
@@ -112,14 +112,14 @@ excluded from `prod_safe`, and requires explicit admin opt-in:
 
 ```bash
 TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest \
-  tests/live/second_account/test_live_admin_moderation_meniwap.py \
+  tests/live/second_account/test_live_admin_moderation_second_account.py \
   -m "live_second_account and live_admin" \
   -vv -s \
   --run-live \
   --allow-prod-live \
   --live-destructive \
   --live-admin \
-  --live-second-account meniwap \
+  --live-second-account second_account_username \
   --live-audit-peer auto \
   --live-report-dir reports/live
 ```

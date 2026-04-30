@@ -3,7 +3,7 @@
 This guide describes the production-ready group bot entrypoint:
 - `apps/group_bot.py`
 - plugins under `apps/bot_plugins/`
-- config file `apps/bot_config.json`
+- placeholder config template `apps/bot_config.example.json`
 
 It is designed for MTProto bot sessions (`auth.importBotAuthorization`) and reuses Telecraft's
 `Router` / `Dispatcher` stack.
@@ -59,7 +59,8 @@ It is designed for MTProto bot sessions (`auth.importBotAuthorization`) and reus
 
 ## Config schema
 
-Main file: `apps/bot_config.json`.
+Start from `apps/bot_config.example.json`, copy it to a local ignored config path, and fill in
+your group/channel and admin IDs.
 
 Key fields:
 - `allowed_peers`: list of `@username` or `channel:ID` / `chat:ID`
@@ -84,7 +85,8 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod -
 2) Start in prod:
 
 ```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py --runtime prod --allow-prod --config apps/bot_config.json
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py \
+  --runtime prod --allow-prod --config path/to/groupbot.local.json
 ```
 
 3) Explicit hard-gated form:
@@ -93,10 +95,10 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py --runtime prod --all
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py \
   --runtime prod \
   --allow-prod \
-  --config apps/bot_config.json
+  --config path/to/groupbot.local.json
 ```
 
-## Group QA checklist (`@telecraftorbotandi`)
+## Group QA checklist
 
 Pre-flight:
 - Bot is admin with:

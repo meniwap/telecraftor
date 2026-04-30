@@ -1,112 +1,12 @@
-# telecraft
+# Telecraft
 
-Telegram client library (MTProto-first). Work in progress.
+Telecraft is an async Telegram MTProto client library. The project is MTProto-first: it is meant
+to provide a stable foundation for user sessions, bot sessions over MTProto, typed client
+namespaces, media helpers, update dispatching, and internal production automation.
 
-## V2 API (structured client)
+Current status: `0.1.x` is the internal production-readiness line. Public release work is deferred.
 
-Primary high-level API is now `Client` with topic namespaces:
-
-```python
-from telecraft.client import Client, ClientInit
-
-client = Client(
-    network="prod",
-    session_path=".sessions/prod_dc4.session.json",
-    init=ClientInit(api_id=12345, api_hash="..."),
-)
-await client.connect()
-await client.messages.send("@username", "hello")
-await client.chats.members.add("channel:123", "@meniwap")
-await client.admin.promote("channel:123", "@meniwap")
-await client.close()
-```
-
-Additional examples:
-
-```python
-await client.help.config()
-await client.users.full("self")
-await client.langpack.languages(lang_pack="")
-await client.auth.export_login_token()
-await client.uploads.upload_file("/tmp/photo.jpg")
-await client.bots.get_commands()
-```
-
-Namespaces:
-- `client.messages` (`client.messages.scheduled`, `client.messages.web`, `client.messages.discussion`, `client.messages.receipts`, `client.messages.effects`, `client.messages.sent_media`, `client.messages.gifs`, `client.messages.paid_reactions`, `client.messages.inline`, `client.messages.inline.prepared`, `client.messages.history_import`, `client.messages.chat_theme`, `client.messages.suggested_posts`, `client.messages.fact_checks`, `client.messages.sponsored`, `client.messages.saved_tags`, `client.messages.attach_menu`)
-- `client.search`
-- `client.drafts`
-- `client.reports`
-- `client.help`
-- `client.auth`
-- `client.bots`
-- `client.users`
-- `client.media`
-- `client.uploads`
-- `client.langpack`
-- `client.chats` (`client.chats.members`, `client.chats.invites`)
-- `client.admin`
-- `client.contacts`
-- `client.polls`
-- `client.folders`
-- `client.dialogs` (`client.dialogs.pinned`, `client.dialogs.unread`, `client.dialogs.filters`)
-- `client.stickers` (`client.stickers.sets`, `client.stickers.search`, `client.stickers.recent`, `client.stickers.favorites`, `client.stickers.emoji`)
-- `client.topics` (`client.topics.forum`)
-- `client.reactions` (`client.reactions.defaults`, `client.reactions.chat`)
-- `client.privacy` (`client.privacy.global_settings`)
-- `client.notifications` (`client.notifications.reactions`, `client.notifications.contact_signup`)
-- `client.games` (`client.games.scores`)
-- `client.saved` (`client.saved.gifs`, `client.saved.dialogs`, `client.saved.history`, `client.saved.reaction_tags`, `client.saved.pinned`)
-- `client.stars` (`client.stars.transactions`, `client.stars.revenue`, `client.stars.forms`)
-- `client.gifts` (`client.gifts.saved`, `client.gifts.resale`, `client.gifts.unique`)
-- `client.business` (`client.business.links`, `client.business.profile`, `client.business.quick_replies`)
-- `client.chatlists` (`client.chatlists.invites`, `client.chatlists.updates`, `client.chatlists.suggestions`)
-- `client.stories` (`client.stories.capabilities`, `client.stories.feed`, `client.stories.links`, `client.stories.views`, `client.stories.reactions`, `client.stories.stealth`, `client.stories.peers`, `client.stories.albums`)
-- `client.channels` (`client.channels.settings`, `client.channels.search_posts`)
-- `client.stats` (`client.stats.channels`, `client.stats.graph`, `client.stats.public_forwards`)
-- `client.discovery` (`client.discovery.channels`, `client.discovery.bots`, `client.discovery.sponsored`)
-- `client.account` (`client.account.sessions`, `client.account.web_sessions`, `client.account.content`, `client.account.ttl`, `client.account.terms`, `client.account.themes`, `client.account.wallpapers`, `client.account.profile_tab`, `client.account.gift_themes`, `client.account.music`, `client.account.music.saved`, `client.account.paid_messages`, `client.account.passkeys`)
-- `client.calls` (`client.calls.group`, `client.calls.group.chain`, `client.calls.stream`, `client.calls.conference`)
-- `client.premium` (`client.premium.boosts`)
-- `client.takeout` (`client.takeout.messages`, `client.takeout.media`)
-- `client.webapps`
-- `client.todos`
-- `client.translate`
-- `client.peers`
-- `client.profile`
-- `client.presence`
-- `client.updates`
-
-Low-level `MtprotoClient` is still available from `telecraft.client.mtproto` for direct/raw operations.
-
-## Stability and Support
-
-- `0.1.x` is the internal line (private milestones, no public release commitment by default)
-- `0.2.x` is the first public line (`alpha` / `beta` / `rc` / stable)
-- stable APIs follow `Additive + Deprecation`; experimental APIs are best-effort
-- public releases require the manual `prod_safe` live gate before tagging
-
-Docs:
-- Support policy: `docs/17_support_policy.md`
-- Release process: `docs/18_release_process.md`
-
-## Userbot vs bot guides
-
-- Userbot guide: `docs/14_userbot_guide.md`
-- MTProto bot guide (bot token over MTProto): `docs/15_mtproto_bot_guide.md`
-- Group bot guide (plugin-based MTProto bot): `docs/16_group_bot_guide.md`
-
-Quick bot flow:
-
-```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/bot_keyboard_demo.py --runtime prod --allow-prod --target @meniwap
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py --runtime prod --allow-prod --config apps/bot_config.json
-```
-
-## Development
-
-Create a virtualenv and install dev dependencies:
+## Install
 
 ```bash
 python3 -m venv .venv
@@ -115,262 +15,67 @@ python -m pip install -U pip
 python -m pip install -e ".[dev]"
 ```
 
-Run checks:
+## Minimal Use
+
+```python
+from telecraft.client import Client, ClientInit
+
+client = Client(
+    network="prod",
+    session_path=".sessions/prod/current",
+    init=ClientInit(api_id=12345, api_hash="..."),
+)
+
+await client.connect()
+try:
+    me = await client.users.full("self")
+    await client.messages.send("@your_username", "hello from Telecraft")
+finally:
+    await client.close()
+```
+
+Low-level MTProto access remains available through `telecraft.client.mtproto.MtprotoClient`.
+
+## Examples
+
+Clean runnable examples live in `examples/`:
+
+- `examples/01_get_me.py`
+- `examples/02_send_message.py`
+- `examples/03_download_media.py`
+- `examples/04_userbot_echo.py`
+- `examples/05_mtproto_bot_keyboard.py`
+- `examples/group_bot/`
+
+Internal operator tools remain under `apps/`. They are for local development and operations, not
+package identity. Use `apps/bot_config.example.json` as the placeholder-only group bot config
+template.
+
+## Testing
+
+Internal production gate:
 
 ```bash
-python -m pytest -m "not live"
-python -m ruff check src tests tools apps
+python tools/check_repo_hygiene.py
+python -m ruff check src tests tools apps examples
 python -m mypy src
+python -m pytest tests/meta -q
+python -m pytest -m "not live" -q
+python -m pytest tests/live --collect-only -q
+python -m build
+python tools/check_repo_hygiene.py --artifacts
 ```
 
-Run live destructive suite manually:
+Live tests are opt-in and may touch Telegram. Do not run destructive, paid, admin, second-account,
+calls-write, or stories-write lanes without explicit approval. See `docs/11_live_runbook.md`.
 
-```bash
-python -m pytest -m live -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-destructive \
-  --live-second-account meniwap \
-  --live-audit-peer auto \
-  --live-report-dir reports/live
-```
+## Docs
 
-`--live-second-account` should be passed as a bare username (`meniwap`) because pytest
-interprets leading `@` as a response-file prefix.
-
-Poll/scheduled step is disabled by default. Enable it explicitly:
-
-```bash
-python -m pytest tests/live/test_aggressive_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-destructive \
-  --live-second-account meniwap \
-  --live-enable-polls
-```
-
-Poll close behavior:
-- default: warning-only if `close` fails
-- strict: fail test on close errors with `--live-strict-polls-close`
-
-Run optional API expansion lanes:
-
-```bash
-python -m pytest tests/live/optional -m "live_optional" -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-audit-peer auto \
-  --live-report-dir reports/live
-```
-
-Run safe non-paid optional lanes only (no core / no second-account / no paid / no stories-write / no channel-admin):
-
-```bash
-python -m pytest tests/live/optional \
-  -m "live_optional and not live_paid and not live_business and not live_chatlists and not live_stories_write and not live_channel_admin" \
-  -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-audit-peer auto \
-  --live-report-dir reports/live
-```
-
-Business lane (opt-in):
-
-```bash
-python -m pytest tests/live/optional/test_live_business_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-business
-```
-
-`business` and `chatlists` live lanes are fail-fast: unsupported/account errors fail the test.
-
-Chatlists lane (opt-in):
-
-```bash
-python -m pytest tests/live/optional/test_live_chatlists_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-chatlists
-```
-
-Chatlists lane requires env:
-- `TELECRAFT_LIVE_CHATLIST_SLUG` (valid invite slug, without `https://t.me/addlist/` prefix)
-
-Stories write lane (opt-in):
-
-```bash
-python -m pytest tests/live/optional/test_live_stories_write_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-stories-write
-```
-
-Channel admin lane (opt-in):
-
-```bash
-python -m pytest tests/live/optional/test_live_channels_admin_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-channel-admin
-```
-
-Calls readonly lane (opt-in):
-
-```bash
-python -m pytest tests/live/optional/test_live_calls_readonly_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-calls
-```
-
-Calls write lane (opt-in, destructive):
-
-```bash
-python -m pytest tests/live/optional/test_live_calls_write_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-calls-write \
-  --live-destructive
-```
-
-Takeout lane (opt-in):
-
-```bash
-python -m pytest tests/live/optional/test_live_takeout_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-takeout
-```
-
-WebApps lane (opt-in):
-
-```bash
-python -m pytest tests/live/optional/test_live_webapps_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-webapps
-```
-
-Premium lane (opt-in):
-
-```bash
-python -m pytest tests/live/optional/test_live_premium_boosts_readonly_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-premium
-```
-
-Sponsored lane (opt-in, admin-bound):
-
-```bash
-python -m pytest tests/live/optional/test_live_channels_sponsored_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-sponsored \
-  --live-admin
-```
-
-Passkeys lane (opt-in):
-
-```bash
-python -m pytest tests/live/optional/test_live_passkeys_suite.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-passkeys
-```
-
-Enable paid gifts/stars lane explicitly (never on by default):
-
-```bash
-python -m pytest tests/live/optional/test_live_gifts_paid.py -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-paid \
-  --live-audit-peer auto \
-  --live-report-dir reports/live
-```
-
-Production live runs are hard-blocked by default. To run against prod intentionally:
-
-```bash
-TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core -m live_core -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-destructive
-```
-
-Production safe reliability smoke (recommended for manual prod checks):
-
-```bash
-TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/core tests/live/optional \
-  -m "live and (live_core_safe or live_prod_safe)" \
-  -vv -s \
-  --run-live \
-  --allow-prod-live \
-  --live-profile prod_safe \
-  --live-audit-peer auto \
-  --live-report-dir reports/live
-```
-
-This profile auto-skips destructive/admin/paid/second-account/calls-write lanes and runs a
-connection health probe (`profile.me()`) after each step.
-
-## Client: peer resolution (userbot-friendly)
-
-`telecraft` is MTProto-first and async-only. For userbots you typically want to target peers by:
-- `@username` (resolve on-demand)
-- `+phone` (resolve on-demand)
-- cached numeric IDs (after priming / past interactions)
-
-High-level helpers:
-
-```python
-from telecraft.client import Peer
-from telecraft.client.mtproto import MtprotoClient
-
-# ...
-# await client.send_message("@username", "hi")
-# await client.send_message(Peer.channel(123456), "hi")
-```
-
-## Reliability: auto-priming (reply/send “just works”)
-
-Telegram requires `access_hash` to build `InputPeerUser` / `InputPeerChannel`.
-After restarts or when receiving short updates, the cache may be missing hashes.
-
-`telecraft` now applies **best-effort auto-priming + single retry** in common paths:
-- `MtprotoClient.send_message(...)` / `send_message_user(...)` / `send_message_channel(...)`
-- `MessageEvent.reply(...)` / `ChatActionEvent.reply(...)`
-
-If a send fails due to missing access_hash, the client will run a small `prime_entities()` (dialogs fetch) and retry once.
-
-### Verify manually (cold start)
-
-1. Stop your userbot.
-2. Move aside the entities cache for your current session. Example (prod):
-   - session pointer: `.sessions/prod/current` (points to e.g. `.sessions/prod/prod_dc4.session.json`)
-   - entities cache: same basename, e.g. `.sessions/prod/prod_dc4.entities.json`
-   - move it: `mv .sessions/prod/prod_dc4.entities.json .sessions/prod/prod_dc4.entities.json.bak`
-3. Start `apps/command_bot.py` again and send `/ping` from a dialog that exists in your recent dialogs.
-4. Expected: it replies `pong` in the same chat (and does not fall back to Saved Messages).
-## Client: Media MVP (send_file / download_media)
-
-Minimal high-level helpers (photo/document):
-
-```python
-# Send local file (auto-detect photo vs document)
-await client.send_file("@username", "pic.jpg", caption="hi")
-
-# Force as document
-await client.send_file("@username", "archive.zip", as_photo=False)
-
-# Download from a MessageEvent (or a TL message object)
-path = await client.download_media(event, dest="downloads/")
-print("saved:", path)
-```
-
-## Bot runner (stable userbots)
-
-Use `telecraft.bot.run_userbot()` to run a Router/Dispatcher with reconnect/backoff.
+- Overview: `docs/00_overview.md`
+- Architecture: `docs/01_architecture.md`
+- Testing strategy: `docs/09_testing_strategy.md`
+- Userbot guide: `docs/14_userbot_guide.md`
+- MTProto bot guide: `docs/15_mtproto_bot_guide.md`
+- Group bot guide: `docs/16_group_bot_guide.md`
+- Support policy: `docs/17_support_policy.md`
+- Release process: `docs/18_release_process.md`

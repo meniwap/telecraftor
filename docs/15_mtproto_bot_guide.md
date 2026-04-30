@@ -18,7 +18,6 @@ This is not Bot API HTTP polling/webhooks. The bot still pulls updates through M
 3. Add bot token from BotFather.
 
 ```bash
-cd /Users/meniwap/telecraftor
 python3 -m venv .venv
 ./.venv/bin/python -m pip install -U pip
 ./.venv/bin/python -m pip install -e ".[dev]"
@@ -63,7 +62,8 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py updates --runtime prod --a
 Use the included app:
 
 ```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/bot_keyboard_demo.py --runtime prod --allow-prod --target @meniwap
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/bot_keyboard_demo.py \
+  --runtime prod --allow-prod --target @your_group_or_channel
 ```
 
 What it does:
@@ -78,7 +78,8 @@ What it does:
 Use the production-ready plugin shell:
 
 ```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py --runtime prod --allow-prod --config apps/bot_config.json
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py \
+  --runtime prod --allow-prod --config path/to/groupbot.local.json
 ```
 
 For full architecture/config/QA details see:

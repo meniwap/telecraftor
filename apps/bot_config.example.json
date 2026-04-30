@@ -1,0 +1,5 @@
+{
+  "allowed_peers": ["@your_group_or_channel"],
+  "admin_user_ids": [],
+  "read_only_mode": true
+}
