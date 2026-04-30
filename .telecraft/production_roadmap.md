@@ -48,11 +48,11 @@ Before starting production-readiness work, read this file, pick one item, update
 
 ### PROD-004 - Prod-Safe Live Gate Expansion
 - priority: `P0`
-- status: `todo`
+- status: `done`
 - goal: Make the production-safe live gate meaningful without touching paid/admin/second-account/destructive lanes.
-- next_action: Expand `live_prod_safe` baseline with safe read-only checks: profile, dialogs, search, stickers, saved dialogs, tags, wallpapers/themes/help.
-- evidence: Pending.
-- blocked: Requires valid prod session.
+- next_action: Keep future prod-safe additions read-only/metadata-only and require health_probe fail=0 evidence.
+- evidence: Expanded `live_prod_safe` baseline into 7 read-only steps: identity/profile, dialogs, messages discovery, stickers/reactions, saved surface, account appearance, and help/config. Local gates passed: ruff, mypy, tests/meta, not-live pytest, and live collect-only. Prod-safe smoke passed with 2 selected / 2 passed; final artifacts: `reports/live/prod/20260430T113038Z-1abf8c35` (core safe, 4 health probes pass / 0 fail) and `reports/live/prod/20260430T113043Z-188292b4` (prod-safe baseline, 7 health probes pass / 0 fail).
+- blocked: `false`
 
 ### PROD-005 - Internal Version / Release Readiness
 - priority: `P1`
