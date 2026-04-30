@@ -14,6 +14,18 @@ The format follows a simplified Keep a Changelog style:
 
 ### Added
 
+- Pending.
+
+### Changed
+
+- Pending.
+
+## [0.1.0] - 2026-04-30
+
+Internal milestone only; not a public release.
+
+### Added
+
 - Governance and release-readiness process docs (`support policy`, `release process`)
 - Support contract and deprecation registry meta files + enforcement tests
 - `tools/release_check.py` for manual public-release readiness validation
