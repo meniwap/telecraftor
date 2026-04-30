@@ -18,7 +18,7 @@ Before starting production-readiness work, read this file, pick one item, update
 - Live collect-only: green
 - Sandbox: out of scope
 - Core MTProto/client runtime: do not touch unless explicitly approved
-- Current prod session: blocked/manual, user will refresh later
+- Current prod session: active/verified manually on 2026-04-30
 
 ## Roadmap Items
 
@@ -32,11 +32,11 @@ Before starting production-readiness work, read this file, pick one item, update
 
 ### PROD-002 - Prod Session Preflight
 - priority: `P0`
-- status: `blocked`
+- status: `done`
 - goal: Ensure live prod checks start only with a valid active production session.
-- next_action: After user refreshes session, verify `apps/run.py me` and prod-safe live connect.
-- evidence: Pending.
-- blocked: Manual session refresh required. Current session is inactive/invalid; do not treat as code bug.
+- next_action: Maintain session hygiene; do not reuse the same session concurrently across projects.
+- evidence: `apps/run.py me` passed for user `voldelfi`; prod-safe live smoke passed with 2 selected / 2 passed (`live_core_safe` + `live_prod_safe`). Artifacts were created under `reports/live/prod/20260430T111907Z-2463fde2` and `reports/live/prod/20260430T111911Z-dda87981`.
+- blocked: `false`
 
 ### PROD-003 - CI / Quality Gate Alignment
 - priority: `P0`
