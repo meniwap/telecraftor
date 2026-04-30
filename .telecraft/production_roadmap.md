@@ -64,11 +64,11 @@ Before starting production-readiness work, read this file, pick one item, update
 
 ### PROD-006 - API Surface Organization
 - priority: `P1`
-- status: `todo`
+- status: `done`
 - goal: Keep API modules maintainable as the library grows.
-- next_action: Plan non-breaking split for large API files: messages, account, calls, stories, channels.
-- evidence: Pending.
-- blocked: No public API break allowed.
+- next_action: Execute future splits one namespace at a time, starting with `messages.py`, without changing public imports or `Client` attributes.
+- evidence: Added internal organization plan at `.telecraft/api_surface_organization.md` with current file sizes, non-breaking rules, namespace-by-namespace split targets, acceptance criteria, and verification gates. No runtime code was changed.
+- blocked: `false`
 
 ### PROD-007 - Apps / Demo Cleanup
 - priority: `P1`
