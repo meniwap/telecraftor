@@ -45,6 +45,7 @@ markers = [
   "live_takeout: optional takeout lane",
   "live_webapps: optional webapps lane",
   "live_admin: optional admin-sensitive lane",
+  "live_soak: optional long-running reliability lane",
   "live_stories_write: optional stories write lane",
   "live_channel_admin: optional channel admin lane",
 ]

@@ -80,24 +80,24 @@ Before starting production-readiness work, read this file, pick one item, update
 
 ### PROD-008 - Second Account / Admin Hardening
 - priority: `P2`
-- status: `todo`
+- status: `done`
 - goal: Make ban/unban/promote/kick/add/remove flows verifiable with cleanup guarantees.
-- next_action: Define manual live lane requirements and rollback checks.
-- evidence: Pending.
-- blocked: Requires second account and explicit user approval.
+- next_action: Run the gated second-account admin lane manually only with explicit approval and a controlled second account.
+- evidence: Added `.telecraft/second_account_admin_hardening.md` and a gated live suite at `tests/live/second_account/test_live_admin_moderation_meniwap.py` covering promote/demote and ban/unban/kick rollback with cleanup registration. The lane is excluded from prod-safe/default runs and requires `--live-second-account`, `--live-destructive`, and `--live-admin`. Verified by live collect-only; destructive live was not run.
+- blocked: `false`
 
 ### PROD-009 - Soak / Reliability Runs
 - priority: `P2`
-- status: `todo`
+- status: `done`
 - goal: Prove long-running stability: updates, reconnects, flood waits, timeouts.
-- next_action: Design manual soak suite with clear duration and artifacts.
-- evidence: Pending.
-- blocked: Requires valid prod session.
+- next_action: Run the soak lane manually for 15/30/60 minute windows before public beta/RC releases.
+- evidence: Added `.telecraft/reliability_soak_plan.md`, `--live-soak`, `--live-soak-duration`, marker `live_soak`, and a gated read-only soak suite at `tests/live/optional/test_live_prod_soak_suite.py`. The lane is excluded from prod-safe/default runs and produces normal live artifacts when opted in. Verified by live collect-only; long-running live soak was not run.
+- blocked: `false`
 
 ### PROD-010 - Public Beta Readiness
 - priority: `P3`
-- status: `todo`
+- status: `done`
 - goal: Prepare for future public `0.2.x` beta.
-- next_action: Confirm support tiers, changelog discipline, release checklist, package build, and public docs.
-- evidence: Pending.
-- blocked: Depends on P0/P1 completion.
+- next_action: When starting public `0.2.x`, follow `.telecraft/public_beta_readiness.md` and `docs/18_release_process.md` before tagging.
+- evidence: Added `.telecraft/public_beta_readiness.md` with alpha/beta/rc/stable gates, required non-live checks, prod-safe evidence, soak expectations, and release-check commands. Public beta remains manual and gated; no publish automation was added. Local verification passed: ruff, mypy, tests/meta, not-live pytest, live collect-only, and package build.
+- blocked: `false`

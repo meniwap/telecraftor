@@ -62,6 +62,8 @@
   (requires `--live-calls`)
 - `tests/live/optional/test_live_account_music_readonly_suite.py`: account music readonly lane
 - `tests/live/optional/test_live_passkeys_suite.py`: passkeys lane (requires `--live-passkeys`)
+- `tests/live/optional/test_live_prod_soak_suite.py`: long-running production reliability lane
+  (requires `--live-soak`)
 - `tests/live/optional/test_live_stats_readonly_suite.py`: stats readonly lane (requires `--live-admin`)
 - `tests/live/optional/test_live_reports_suite.py`: report lane (requires `--live-admin`)
 - all live lanes are gated by `--run-live`
@@ -79,13 +81,14 @@
 - takeout lane additionally requires `--live-takeout`
 - webapps lane additionally requires `--live-webapps`
 - admin-sensitive lanes additionally require `--live-admin`
+- soak lane additionally requires `--live-soak`; tune runtime with `--live-soak-duration <seconds>`
 - stories write lane additionally requires `--live-stories-write`
 - channel admin lane additionally requires `--live-channel-admin`
 - bot lane additionally requires `--live-bot`
 - premium lane additionally requires `--live-premium`
 - sponsored lane additionally requires `--live-sponsored`
 - passkeys lane additionally requires `--live-passkeys`
-- `prod_safe` profile auto-skips destructive/admin/paid/second-account/calls-write lanes
+- `prod_safe` profile auto-skips destructive/admin/paid/second-account/calls-write/soak lanes
 - `prod_safe` profile is recommended for manual prod reliability smoke runs
 - audit trail is written to Telegram + local report files (`reports/live/prod/<run_id>/`)
 

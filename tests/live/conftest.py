@@ -62,6 +62,8 @@ class LiveConfig:
     enable_takeout: bool
     enable_webapps: bool
     enable_admin: bool
+    enable_soak: bool
+    soak_duration: float
     enable_stories_write: bool
     enable_channel_admin: bool
 
@@ -305,6 +307,19 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Enable optional admin-sensitive live lane",
     )
     group.addoption(
+        "--live-soak",
+        action="store_true",
+        default=False,
+        help="Enable optional long-running reliability soak lane",
+    )
+    group.addoption(
+        "--live-soak-duration",
+        action="store",
+        type=float,
+        default=300.0,
+        help="Soak lane duration in seconds. Default: 300",
+    )
+    group.addoption(
         "--live-stories-write",
         action="store_true",
         default=False,
@@ -355,6 +370,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "live_takeout: optional takeout lane")
     config.addinivalue_line("markers", "live_webapps: optional webapps lane")
     config.addinivalue_line("markers", "live_admin: optional admin-sensitive lane")
+    config.addinivalue_line("markers", "live_soak: optional long-running reliability lane")
     config.addinivalue_line("markers", "live_stories_write: optional stories write lane")
     config.addinivalue_line("markers", "live_channel_admin: optional channel admin lane")
     config.addinivalue_line("markers", "live_bot: optional bot-session live lane")
@@ -384,6 +400,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         takeout_enabled = bool(config.getoption("--live-takeout"))
         webapps_enabled = bool(config.getoption("--live-webapps"))
         admin_enabled = bool(config.getoption("--live-admin"))
+        soak_enabled = bool(config.getoption("--live-soak"))
         stories_write_enabled = bool(config.getoption("--live-stories-write"))
         channel_admin_enabled = bool(config.getoption("--live-channel-admin"))
         bot_enabled = bool(config.getoption("--live-bot"))
@@ -403,6 +420,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         skip_takeout = pytest.mark.skip(reason="Takeout live tests require --live-takeout")
         skip_webapps = pytest.mark.skip(reason="Webapps live tests require --live-webapps")
         skip_admin = pytest.mark.skip(reason="Admin live tests require --live-admin")
+        skip_soak = pytest.mark.skip(reason="Soak live tests require --live-soak")
         skip_stories_write = pytest.mark.skip(
             reason="Stories write live tests require --live-stories-write"
         )
@@ -440,6 +458,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 item.add_marker(skip_webapps)
             if not admin_enabled and "live_admin" in item.keywords:
                 item.add_marker(skip_admin)
+            if not soak_enabled and "live_soak" in item.keywords:
+                item.add_marker(skip_soak)
             if not stories_write_enabled and "live_stories_write" in item.keywords:
                 item.add_marker(skip_stories_write)
             if not channel_admin_enabled and "live_channel_admin" in item.keywords:
@@ -459,6 +479,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                     or "live_channel_admin" in item.keywords
                     or "live_calls_write" in item.keywords
                     or "live_admin" in item.keywords
+                    or "live_soak" in item.keywords
                 ):
                     item.add_marker(skip_prod_safe_profile)
         return
@@ -572,6 +593,8 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
         enable_takeout=bool(pytestconfig.getoption("--live-takeout")),
         enable_webapps=bool(pytestconfig.getoption("--live-webapps")),
         enable_admin=bool(pytestconfig.getoption("--live-admin")),
+        enable_soak=bool(pytestconfig.getoption("--live-soak")),
+        soak_duration=float(pytestconfig.getoption("--live-soak-duration")),
         enable_stories_write=bool(pytestconfig.getoption("--live-stories-write")),
         enable_channel_admin=bool(pytestconfig.getoption("--live-channel-admin")),
     )
