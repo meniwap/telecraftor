@@ -1,10 +1,9 @@
 # Live Tests
 
-This folder contains manual Telegram live lanes:
+This folder contains the slim manual Telegram live smoke layer:
 
-- `core/`
-- `second_account/`
-- `optional/`
+- `core/test_live_core_suite.py`
+- `optional/test_live_prod_safe_baseline.py`
 
 Full commands and safety policy are documented in:
 

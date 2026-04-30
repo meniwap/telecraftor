@@ -57,7 +57,6 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py updates --runtime prod --a
 Examples:
 - `apps/echo_bot.py`
 - `apps/command_bot.py`
-- `apps/selftest_bot.py`
 
 ```bash
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/command_bot.py --runtime prod --allow-prod

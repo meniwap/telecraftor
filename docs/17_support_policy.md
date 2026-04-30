@@ -60,8 +60,8 @@ Rules:
 
 For public releases (`0.2.x` line and above), Telecraft requires a manual production live gate:
 
-- `live_core_safe`
-- `live_prod_safe` optional baseline
+- core prod-safe smoke
+- prod-safe baseline
 
 This gate is run manually and validated by `tools/release_check.py` using the generated live artifacts.
 

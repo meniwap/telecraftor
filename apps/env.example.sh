@@ -14,5 +14,5 @@ export TELEGRAM_PASSWORD="PUT_YOUR_2FA_PASSWORD_HERE"
 # Optional (live bot lane helper peer, e.g. @telecraftorbotandi)
 export TELECRAFT_LIVE_BOT_TEST_PEER="@your_group_or_channel"
 
-# Optional (override bot session path for tests/live --live-bot)
+# Optional (override bot session path for manual bot checks)
 export TELEGRAM_BOT_SESSION_PATH=""

@@ -155,23 +155,19 @@ from telecraft.client.client import Client
 
 MATRIX_PATH = Path("tests/meta/v2_method_matrix.yaml")
 ALLOWED_STABILITY = {"experimental", "stable"}
-ALLOWED_TIER = {"unit", "live_core", "live_second_account", "live_optional"}
+ALLOWED_TIER = {
+    "unit",
+    "manual_live_optional",
+    "external_manual",
+    "unsupported_or_experimental",
+}
 SCENARIOS_STABLE_UNIT_MIN = {
     "delegates_to_raw",
     "forwards_args",
     "returns_expected_shape",
     "handles_rpc_error",
 }
-SCENARIOS_STABLE_SECOND_ACCOUNT_MIN = SCENARIOS_STABLE_UNIT_MIN | {
-    "roundtrip_live",
-    "cleanup_on_failure",
-}
-TEST_DIRS_FOR_NAMING = (
-    Path("tests/unit/client/v2"),
-    Path("tests/live/core"),
-    Path("tests/live/second_account"),
-    Path("tests/live/optional"),
-)
+TEST_DIRS_FOR_NAMING = (Path("tests/unit/client/v2"),)
 NAME_RE = re.compile(r"^test_[a-z0-9_]+__[a-z0-9_]+__[a-z0-9_]+$")
 
 
@@ -581,14 +577,7 @@ def test_v2_method_matrix_is_complete_and_valid() -> None:
         assert ref not in seen, f"Duplicate matrix row: {namespace}.{method}"
         seen.add(ref)
 
-        if stability == "stable" and tier == "live_second_account":
-            expected = set(SCENARIOS_STABLE_SECOND_ACCOUNT_MIN)
-            if timeout_support.get(ref, False):
-                expected.add("passes_timeout")
-            assert expected.issubset(set(required_scenarios)), (
-                f"{namespace}.{method} must include second-account stable minimum scenarios"
-            )
-        elif stability == "stable":
+        if stability == "stable" and tier == "unit":
             expected = set(SCENARIOS_STABLE_UNIT_MIN)
             if timeout_support.get(ref, False):
                 expected.add("passes_timeout")
@@ -610,6 +599,8 @@ def test_v2_required_scenarios_have_named_tests() -> None:
 
     missing: list[str] = []
     for row in matrix:
+        if row["tier"] != "unit":
+            continue
         namespace = str(row["namespace"])
         method = str(row["method"])
         for scenario in row["required_scenarios"]:

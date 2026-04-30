@@ -99,7 +99,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--tier",
-        choices=("unit", "live_core", "live_second_account", "live_optional"),
+        choices=(
+            "unit",
+            "manual_live_optional",
+            "external_manual",
+            "unsupported_or_experimental",
+        ),
         default="unit",
         help="Default test tier for newly generated rows.",
     )

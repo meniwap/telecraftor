@@ -71,21 +71,11 @@ ship privately without the public release gate flow.
 - `todos`
 - `translate`
 
-## Live Optional Lanes (opt-in flags)
+## Manual Validation
 
-- `--live-business`
-- `--live-chatlists`
-- `--live-calls`
-- `--live-calls-write`
-- `--live-takeout`
-- `--live-webapps`
-- `--live-admin`
-- `--live-stories-write`
-- `--live-channel-admin`
-- `--live-paid`
-- `--live-premium`
-- `--live-sponsored`
-- `--live-passkeys`
+The method matrix may classify methods as `manual_live_optional` or `external_manual` when useful
+validation depends on Telegram state, account permissions, paid features, or multi-account flows.
+Those classifications document capability risk; they do not imply tracked live test lanes.
 
 ## Governance
 
@@ -94,4 +84,5 @@ ship privately without the public release gate flow.
 - Support tier and live-gate policy are defined in `tests/meta/v2_support_contract.json`.
 - Stable deprecations are tracked in `tests/meta/v2_deprecations.json` (minimum window: 2 minors).
 - Required unit naming format: `test_<namespace>__<method>__<scenario>`.
-- Promotion from `experimental` to `stable` requires explicit matrix updates after live validation.
+- Promotion from `experimental` to `stable` requires explicit matrix/support-contract updates and
+  suitable deterministic coverage.

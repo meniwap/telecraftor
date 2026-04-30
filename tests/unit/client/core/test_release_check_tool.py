@@ -136,6 +136,33 @@ def test_release_check__fails_when_prod_safe_artifacts_missing(tmp_path: Path) -
     assert rc == 1
 
 
+def test_release_check__internal_0_1_line_does_not_require_prod_safe_artifacts(
+    tmp_path: Path,
+) -> None:
+    mod = _load_release_check_module()
+    _create_repo(tmp_path, version="0.1.1")
+
+    rc = mod.run(
+        [
+            "--version",
+            "0.1.1",
+            "--release-type",
+            "stable",
+            "--write-dir",
+            str(tmp_path / "out"),
+        ],
+        root=tmp_path,
+    )
+    assert rc == 0
+
+    manifest = json.loads(
+        (tmp_path / "out/release_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["is_public_release_line"] is False
+    assert manifest["checks"]["prod_safe_gate_required"] is False
+    assert manifest["prod_safe_runs"]["core"] == "not required for internal 0.1.x line"
+
+
 def test_release_check__fails_when_artifacts_report_failures(tmp_path: Path) -> None:
     mod = _load_release_check_module()
     _create_repo(tmp_path)

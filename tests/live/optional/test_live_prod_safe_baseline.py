@@ -6,17 +6,16 @@ from typing import Any
 import pytest
 
 from telecraft.client import Client
-from tests.live._suite_shared import finalize_run, resolve_or_create_audit_peer, run_step
+from tests.live._suite_shared import finalize_run, resolve_live_audit_peer, run_step
 
-pytestmark = [pytest.mark.live, pytest.mark.live_optional, pytest.mark.live_prod_safe]
+pytestmark = [pytest.mark.live, pytest.mark.live_prod_safe]
 
 
 async def _run_prod_safe_baseline(client: Client, ctx: Any, reporter: Any) -> None:
     await client.connect(timeout=ctx.cfg.timeout)
     results: list[Any] = []
     resource_ids: dict[str, object] = {}
-
-    reporter.audit_peer = await resolve_or_create_audit_peer(client, ctx, reporter)
+    reporter.audit_peer = resolve_live_audit_peer(ctx)
 
     async def step_identity_profile() -> str:
         me = await client.profile.me(timeout=ctx.cfg.timeout)
@@ -62,20 +61,14 @@ async def _run_prod_safe_baseline(client: Client, ctx: Any, reporter: Any) -> No
 
     async def step_messages_discovery() -> str:
         search_global = await client.search.global_messages(limit=1, timeout=ctx.cfg.timeout)
-        search_counters = await client.search.counters(
-            str(reporter.audit_peer),
-            timeout=ctx.cfg.timeout,
-        )
         saved_tags = await client.messages.saved_tags.defaults(timeout=ctx.cfg.timeout)
         attach_menu = await client.messages.attach_menu.bots(timeout=ctx.cfg.timeout)
 
         resource_ids["search_global_type"] = type(search_global).__name__
-        resource_ids["search_counters_type"] = type(search_counters).__name__
         resource_ids["saved_tags_type"] = type(saved_tags).__name__
         resource_ids["attach_menu_type"] = type(attach_menu).__name__
         return (
             f"global={type(search_global).__name__} "
-            f"counters={type(search_counters).__name__} "
             f"saved_tags={type(saved_tags).__name__} attach_menu={type(attach_menu).__name__}"
         )
 
@@ -178,7 +171,7 @@ async def _run_prod_safe_baseline(client: Client, ctx: Any, reporter: Any) -> No
     )
 
 
-def test_live_prod_safe_baseline__roundtrip__live_optional(
+def test_live_prod_safe_baseline__roundtrip(
     client_v2: Client,
     live_context: Any,
     audit_reporter: Any,
