@@ -5,17 +5,18 @@ It supports both:
 - user accounts (userbot flows)
 - bot accounts logged in via MTProto (`auth.importBotAuthorization`)
 
-## Goals (initial)
+## Goals
 
 - MTProto core + generated TL schema/types.
-- Clean separation between MTProto client and Bot API module.
 - High-level client API (Telethon/Pyrogram style) on top of a raw layer.
 - One consistent event stack (`Router`/`Dispatcher`) for user and bot sessions.
+- Supported in-repo examples under `examples/`.
+- Internal operator scripts under `apps/`.
 
 ## Non-goals (early versions)
 
 - Secret chats (E2E)
 - Voice/video calls
 - TDLib wrapper
-
+- HTTP Bot API client module
 

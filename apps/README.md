@@ -34,7 +34,6 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod -
 ```bash
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/echo_bot.py --runtime prod --allow-prod
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/command_bot.py --runtime prod --allow-prod
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/selftest_bot.py --runtime prod --allow-prod
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/bot_keyboard_demo.py \
   --runtime prod --allow-prod --target @your_group_or_channel
 ```

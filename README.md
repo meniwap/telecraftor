@@ -6,6 +6,13 @@ namespaces, media helpers, update dispatching, and internal production automatio
 
 Current status: `0.1.x` is the internal production-readiness line. Public release work is deferred.
 
+Repository boundary:
+
+- `src/telecraft/`: library/product code
+- `examples/`: supported learning examples that stay in this repository
+- `apps/`: internal operator scripts and demos
+- `tools/manual/`: optional manual diagnostics
+
 ## Install
 
 ```bash
@@ -56,18 +63,18 @@ template.
 Internal production gate:
 
 ```bash
-python tools/check_repo_hygiene.py
-python -m ruff check src tests tools apps examples
-python -m mypy src
-python -m pytest tests/meta -q
-python -m pytest -m "not live" -q
-python -m pytest tests/live --collect-only -q
-python -m build
-python tools/check_repo_hygiene.py --artifacts
+./.venv/bin/python tools/check_repo_hygiene.py
+./.venv/bin/python -m ruff check src tests tools apps examples
+./.venv/bin/python -m mypy src
+./.venv/bin/python -m pytest tests/meta -q
+./.venv/bin/python -m pytest -m "not live" -q
+./.venv/bin/python -m pytest tests/live --collect-only -q
+./.venv/bin/python -m build
+./.venv/bin/python tools/check_repo_hygiene.py --artifacts
 ```
 
-Live tests are opt-in and may touch Telegram. Do not run destructive, paid, admin, second-account,
-calls-write, or stories-write lanes without explicit approval. See `docs/11_live_runbook.md`.
+Live tests are opt-in and production-gated. The tracked live suite is a minimal prod-safe smoke
+layer; do not run real Telegram live tests without explicit approval. See `docs/11_live_runbook.md`.
 
 ## Docs
 

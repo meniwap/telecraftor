@@ -67,7 +67,7 @@
     "namespace": "account.identity",
     "method": "delete_account",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -771,7 +771,7 @@
     "namespace": "business.links",
     "method": "create",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -787,7 +787,7 @@
     "namespace": "business.links",
     "method": "delete",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -803,7 +803,7 @@
     "namespace": "business.links",
     "method": "edit",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -819,7 +819,7 @@
     "namespace": "business.links",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -835,7 +835,7 @@
     "namespace": "business.links",
     "method": "resolve",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -851,7 +851,7 @@
     "namespace": "business.profile",
     "method": "update_away",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -867,7 +867,7 @@
     "namespace": "business.profile",
     "method": "update_greeting",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -883,7 +883,7 @@
     "namespace": "business.profile",
     "method": "update_intro",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -899,7 +899,7 @@
     "namespace": "business.profile",
     "method": "update_location",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -915,7 +915,7 @@
     "namespace": "business.profile",
     "method": "update_work_hours",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -931,7 +931,7 @@
     "namespace": "business.quick_replies",
     "method": "check_shortcut",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -947,7 +947,7 @@
     "namespace": "business.quick_replies",
     "method": "delete_messages",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -963,7 +963,7 @@
     "namespace": "business.quick_replies",
     "method": "delete_shortcut",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -979,7 +979,7 @@
     "namespace": "business.quick_replies",
     "method": "edit_shortcut",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -995,7 +995,7 @@
     "namespace": "business.quick_replies",
     "method": "get_messages",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1011,7 +1011,7 @@
     "namespace": "business.quick_replies",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1027,7 +1027,7 @@
     "namespace": "business.quick_replies",
     "method": "reorder",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1043,7 +1043,7 @@
     "namespace": "business.quick_replies",
     "method": "send",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1059,7 +1059,7 @@
     "namespace": "calls.conference",
     "method": "accept",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1075,7 +1075,7 @@
     "namespace": "calls.conference",
     "method": "confirm",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1091,7 +1091,7 @@
     "namespace": "calls.conference",
     "method": "create",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1107,7 +1107,7 @@
     "namespace": "calls.conference",
     "method": "discard",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1123,7 +1123,7 @@
     "namespace": "calls.conference",
     "method": "reject",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1139,7 +1139,7 @@
     "namespace": "calls.group",
     "method": "create",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1155,7 +1155,7 @@
     "namespace": "calls.group",
     "method": "discard",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1171,7 +1171,7 @@
     "namespace": "calls.group",
     "method": "edit_participant",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1187,7 +1187,7 @@
     "namespace": "calls.group",
     "method": "edit_title",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1203,7 +1203,7 @@
     "namespace": "calls.group",
     "method": "export_invite",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1219,7 +1219,7 @@
     "namespace": "calls.group",
     "method": "get",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1235,7 +1235,7 @@
     "namespace": "calls.group",
     "method": "invite",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1251,7 +1251,7 @@
     "namespace": "calls.group",
     "method": "join",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1267,7 +1267,7 @@
     "namespace": "calls.group",
     "method": "leave",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1283,7 +1283,7 @@
     "namespace": "calls.group",
     "method": "lower_hand",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1299,7 +1299,7 @@
     "namespace": "calls.group",
     "method": "mute",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1315,7 +1315,7 @@
     "namespace": "calls.group",
     "method": "participants",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1331,7 +1331,7 @@
     "namespace": "calls.group",
     "method": "raise_hand",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1347,7 +1347,7 @@
     "namespace": "calls.group",
     "method": "set_volume",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1363,7 +1363,7 @@
     "namespace": "calls.group",
     "method": "start_recording",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1379,7 +1379,7 @@
     "namespace": "calls.group",
     "method": "stop_recording",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1395,7 +1395,7 @@
     "namespace": "calls.group",
     "method": "toggle_record",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1411,7 +1411,7 @@
     "namespace": "calls.group",
     "method": "toggle_settings",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1427,7 +1427,7 @@
     "namespace": "calls.group",
     "method": "unmute",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1443,7 +1443,7 @@
     "namespace": "calls.stream",
     "method": "join_presentation",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1459,7 +1459,7 @@
     "namespace": "calls.stream",
     "method": "leave_presentation",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1475,7 +1475,7 @@
     "namespace": "calls.stream",
     "method": "rtmp_url",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1491,7 +1491,7 @@
     "namespace": "calls.stream",
     "method": "rtmp_url_revoke",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1507,7 +1507,7 @@
     "namespace": "channels",
     "method": "delete_history",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1523,7 +1523,7 @@
     "namespace": "channels",
     "method": "delete_participant_history",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1555,7 +1555,7 @@
     "namespace": "channels",
     "method": "read_history",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1603,7 +1603,7 @@
     "namespace": "channels.settings",
     "method": "report_antispam_false_positive",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1619,7 +1619,7 @@
     "namespace": "channels.settings",
     "method": "set_boosts_to_unblock",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1651,7 +1651,7 @@
     "namespace": "channels.settings",
     "method": "set_emoji_stickers",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1683,7 +1683,7 @@
     "namespace": "channels.settings",
     "method": "set_stickers",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1699,7 +1699,7 @@
     "namespace": "channels.settings",
     "method": "toggle_antispam",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1763,7 +1763,7 @@
     "namespace": "channels.settings",
     "method": "toggle_participants_hidden",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1811,7 +1811,7 @@
     "namespace": "channels.settings",
     "method": "update_color",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1827,7 +1827,7 @@
     "namespace": "channels.settings",
     "method": "update_emoji_status",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1891,7 +1891,7 @@
     "namespace": "chatlists",
     "method": "leave",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1907,7 +1907,7 @@
     "namespace": "chatlists.invites",
     "method": "check",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1923,7 +1923,7 @@
     "namespace": "chatlists.invites",
     "method": "delete",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1939,7 +1939,7 @@
     "namespace": "chatlists.invites",
     "method": "edit",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1955,7 +1955,7 @@
     "namespace": "chatlists.invites",
     "method": "export",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1971,7 +1971,7 @@
     "namespace": "chatlists.invites",
     "method": "join",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -1987,7 +1987,7 @@
     "namespace": "chatlists.invites",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2003,7 +2003,7 @@
     "namespace": "chatlists.suggestions",
     "method": "leave",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2019,7 +2019,7 @@
     "namespace": "chatlists.updates",
     "method": "get",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2035,7 +2035,7 @@
     "namespace": "chatlists.updates",
     "method": "hide",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2051,7 +2051,7 @@
     "namespace": "chatlists.updates",
     "method": "join",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2083,7 +2083,7 @@
     "namespace": "chats",
     "method": "create_channel",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2099,7 +2099,7 @@
     "namespace": "chats",
     "method": "create_group",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2211,7 +2211,7 @@
     "namespace": "chats.invites",
     "method": "create",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2227,7 +2227,7 @@
     "namespace": "chats.invites",
     "method": "delete",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2243,7 +2243,7 @@
     "namespace": "chats.invites",
     "method": "list",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2259,7 +2259,7 @@
     "namespace": "chats.invites",
     "method": "revoke",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2275,7 +2275,7 @@
     "namespace": "chats.members",
     "method": "add",
     "stability": "stable",
-    "tier": "live_second_account",
+    "tier": "external_manual",
     "requires_second_account": true,
     "required_scenarios": [
       "delegates_to_raw",
@@ -2325,7 +2325,7 @@
     "namespace": "chats.members",
     "method": "remove",
     "stability": "stable",
-    "tier": "live_second_account",
+    "tier": "external_manual",
     "requires_second_account": true,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3142,7 +3142,7 @@
     "namespace": "games",
     "method": "kick_football",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3158,7 +3158,7 @@
     "namespace": "games",
     "method": "roll_bowling",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3174,7 +3174,7 @@
     "namespace": "games",
     "method": "roll_dice",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3190,7 +3190,7 @@
     "namespace": "games",
     "method": "send",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3206,7 +3206,7 @@
     "namespace": "games",
     "method": "shoot_basketball",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3222,7 +3222,7 @@
     "namespace": "games",
     "method": "spin_slot_machine",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3238,7 +3238,7 @@
     "namespace": "games",
     "method": "throw_darts",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3254,7 +3254,7 @@
     "namespace": "games.scores",
     "method": "high_scores",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3270,7 +3270,7 @@
     "namespace": "games.scores",
     "method": "set",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3286,7 +3286,7 @@
     "namespace": "games.scores",
     "method": "set_inline",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3302,7 +3302,7 @@
     "namespace": "gifts",
     "method": "catalog",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3318,7 +3318,7 @@
     "namespace": "gifts",
     "method": "check_can_send",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3334,7 +3334,7 @@
     "namespace": "gifts",
     "method": "collections",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3366,7 +3366,7 @@
     "namespace": "gifts.collections",
     "method": "delete",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3398,7 +3398,7 @@
     "namespace": "gifts.collections",
     "method": "reorder",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3446,7 +3446,7 @@
     "namespace": "gifts.resale",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3462,7 +3462,7 @@
     "namespace": "gifts.saved",
     "method": "convert",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3478,7 +3478,7 @@
     "namespace": "gifts.saved",
     "method": "get",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3494,7 +3494,7 @@
     "namespace": "gifts.saved",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3510,7 +3510,7 @@
     "namespace": "gifts.saved",
     "method": "save",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3542,7 +3542,7 @@
     "namespace": "gifts.saved",
     "method": "transfer",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3558,7 +3558,7 @@
     "namespace": "gifts.saved",
     "method": "upgrade",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3574,7 +3574,7 @@
     "namespace": "gifts.saved",
     "method": "upgrade_preview",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3590,7 +3590,7 @@
     "namespace": "gifts.unique",
     "method": "get",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3766,7 +3766,7 @@
     "namespace": "messages",
     "method": "delete",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3782,7 +3782,7 @@
     "namespace": "messages",
     "method": "edit",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3798,7 +3798,7 @@
     "namespace": "messages",
     "method": "forward",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3846,7 +3846,7 @@
     "namespace": "messages",
     "method": "pin",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3862,7 +3862,7 @@
     "namespace": "messages",
     "method": "react",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -3926,7 +3926,7 @@
     "namespace": "messages",
     "method": "send",
     "stability": "stable",
-    "tier": "live_core",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -4694,7 +4694,7 @@
     "namespace": "payments.forms",
     "method": "send",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -4758,7 +4758,7 @@
     "namespace": "payments.stars",
     "method": "refund_charge",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -4838,7 +4838,7 @@
     "namespace": "polls",
     "method": "close",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -4853,7 +4853,7 @@
     "namespace": "polls",
     "method": "delete_scheduled",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -4868,7 +4868,7 @@
     "namespace": "polls",
     "method": "results",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -4883,7 +4883,7 @@
     "namespace": "polls",
     "method": "scheduled",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -4898,7 +4898,7 @@
     "namespace": "polls",
     "method": "send",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -4913,7 +4913,7 @@
     "namespace": "polls",
     "method": "send_quiz",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -4928,7 +4928,7 @@
     "namespace": "polls",
     "method": "send_scheduled_now",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -4943,7 +4943,7 @@
     "namespace": "polls",
     "method": "vote",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5422,7 +5422,7 @@
     "namespace": "saved.dialogs",
     "method": "by_id",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5438,7 +5438,7 @@
     "namespace": "saved.dialogs",
     "method": "list",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5454,7 +5454,7 @@
     "namespace": "saved.gifs",
     "method": "list",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5470,7 +5470,7 @@
     "namespace": "saved.history",
     "method": "list",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5486,7 +5486,7 @@
     "namespace": "saved.pinned",
     "method": "list",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5502,7 +5502,7 @@
     "namespace": "saved.pinned",
     "method": "pin",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5518,7 +5518,7 @@
     "namespace": "saved.pinned",
     "method": "reorder",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5534,7 +5534,7 @@
     "namespace": "saved.reaction_tags",
     "method": "list",
     "stability": "stable",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5742,7 +5742,7 @@
     "namespace": "stars",
     "method": "gift_options",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5758,7 +5758,7 @@
     "namespace": "stars",
     "method": "status",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5774,7 +5774,7 @@
     "namespace": "stars",
     "method": "topup_options",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5790,7 +5790,7 @@
     "namespace": "stars.forms",
     "method": "get",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5806,7 +5806,7 @@
     "namespace": "stars.forms",
     "method": "send",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5822,7 +5822,7 @@
     "namespace": "stars.revenue",
     "method": "stats",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5838,7 +5838,7 @@
     "namespace": "stars.transactions",
     "method": "by_id",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -5854,7 +5854,7 @@
     "namespace": "stars.transactions",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6334,7 +6334,7 @@
     "namespace": "stories",
     "method": "all_read_peers",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6350,7 +6350,7 @@
     "namespace": "stories",
     "method": "chats_to_send",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6366,7 +6366,7 @@
     "namespace": "stories",
     "method": "delete",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6382,7 +6382,7 @@
     "namespace": "stories",
     "method": "edit",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6398,7 +6398,7 @@
     "namespace": "stories",
     "method": "increment_views",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6414,7 +6414,7 @@
     "namespace": "stories",
     "method": "pin",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6430,7 +6430,7 @@
     "namespace": "stories",
     "method": "pin_to_top",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6446,7 +6446,7 @@
     "namespace": "stories",
     "method": "react",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6462,7 +6462,7 @@
     "namespace": "stories",
     "method": "read",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6478,7 +6478,7 @@
     "namespace": "stories",
     "method": "report",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6494,7 +6494,7 @@
     "namespace": "stories",
     "method": "search_posts",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6510,7 +6510,7 @@
     "namespace": "stories",
     "method": "send",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6526,7 +6526,7 @@
     "namespace": "stories",
     "method": "toggle_all_hidden",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6542,7 +6542,7 @@
     "namespace": "stories",
     "method": "toggle_peer_hidden",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6558,7 +6558,7 @@
     "namespace": "stories",
     "method": "views",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6574,7 +6574,7 @@
     "namespace": "stories.albums",
     "method": "create",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6590,7 +6590,7 @@
     "namespace": "stories.albums",
     "method": "delete",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6606,7 +6606,7 @@
     "namespace": "stories.albums",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6622,7 +6622,7 @@
     "namespace": "stories.albums",
     "method": "reorder",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6638,7 +6638,7 @@
     "namespace": "stories.albums",
     "method": "update",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6654,7 +6654,7 @@
     "namespace": "stories.capabilities",
     "method": "can_send",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6670,7 +6670,7 @@
     "namespace": "stories.feed",
     "method": "all",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6686,7 +6686,7 @@
     "namespace": "stories.feed",
     "method": "archive",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6702,7 +6702,7 @@
     "namespace": "stories.feed",
     "method": "by_id",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6718,7 +6718,7 @@
     "namespace": "stories.feed",
     "method": "peer",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6734,7 +6734,7 @@
     "namespace": "stories.feed",
     "method": "pinned",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6750,7 +6750,7 @@
     "namespace": "stories.links",
     "method": "export",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6766,7 +6766,7 @@
     "namespace": "stories.peers",
     "method": "max_ids",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6782,7 +6782,7 @@
     "namespace": "stories.reactions",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6798,7 +6798,7 @@
     "namespace": "stories.stealth",
     "method": "activate",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6814,7 +6814,7 @@
     "namespace": "stories.views",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6830,7 +6830,7 @@
     "namespace": "takeout",
     "method": "finish",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6846,7 +6846,7 @@
     "namespace": "takeout",
     "method": "invoke",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6862,7 +6862,7 @@
     "namespace": "takeout",
     "method": "start",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6878,7 +6878,7 @@
     "namespace": "takeout.media",
     "method": "export",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6894,7 +6894,7 @@
     "namespace": "takeout.media",
     "method": "export_latest",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6910,7 +6910,7 @@
     "namespace": "takeout.messages",
     "method": "export",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -6926,7 +6926,7 @@
     "namespace": "takeout.messages",
     "method": "export_latest",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7260,7 +7260,7 @@
     "namespace": "webapps",
     "method": "invoke_custom",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7276,7 +7276,7 @@
     "namespace": "webapps",
     "method": "invoke_custom_json",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7292,7 +7292,7 @@
     "namespace": "webapps",
     "method": "prolong",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7308,7 +7308,7 @@
     "namespace": "webapps",
     "method": "request",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7324,7 +7324,7 @@
     "namespace": "webapps",
     "method": "request_app",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7340,7 +7340,7 @@
     "namespace": "webapps",
     "method": "request_app_compact",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7356,7 +7356,7 @@
     "namespace": "webapps",
     "method": "request_compact",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7372,7 +7372,7 @@
     "namespace": "webapps",
     "method": "request_fullscreen",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7388,7 +7388,7 @@
     "namespace": "webapps",
     "method": "send_data",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7404,7 +7404,7 @@
     "namespace": "webapps",
     "method": "send_data_json",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7436,7 +7436,7 @@
     "namespace": "account.music",
     "method": "save",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7452,7 +7452,7 @@
     "namespace": "account.music",
     "method": "saved_ids",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7468,7 +7468,7 @@
     "namespace": "account.music.saved",
     "method": "by_id",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7484,7 +7484,7 @@
     "namespace": "account.music.saved",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7500,7 +7500,7 @@
     "namespace": "account.paid_messages",
     "method": "revenue",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7516,7 +7516,7 @@
     "namespace": "account.paid_messages",
     "method": "toggle_exception",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7532,7 +7532,7 @@
     "namespace": "account.passkeys",
     "method": "delete",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7548,7 +7548,7 @@
     "namespace": "account.passkeys",
     "method": "init_registration",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7564,7 +7564,7 @@
     "namespace": "account.passkeys",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7580,7 +7580,7 @@
     "namespace": "account.passkeys",
     "method": "register",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7612,7 +7612,7 @@
     "namespace": "calls.conference",
     "method": "broadcast",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7628,7 +7628,7 @@
     "namespace": "calls.conference",
     "method": "decline_invite",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7644,7 +7644,7 @@
     "namespace": "calls.conference",
     "method": "delete_participants",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7660,7 +7660,7 @@
     "namespace": "calls.conference",
     "method": "invite",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7676,7 +7676,7 @@
     "namespace": "calls.group.chain",
     "method": "blocks",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7724,7 +7724,7 @@
     "namespace": "channels.settings",
     "method": "restrict_sponsored",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7756,7 +7756,7 @@
     "namespace": "discovery.sponsored",
     "method": "peers",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7772,7 +7772,7 @@
     "namespace": "gifts.saved",
     "method": "pin_to_top",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7788,7 +7788,7 @@
     "namespace": "messages.attach_menu",
     "method": "bot",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7804,7 +7804,7 @@
     "namespace": "messages.attach_menu",
     "method": "bots",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7820,7 +7820,7 @@
     "namespace": "messages.attach_menu",
     "method": "toggle_bot",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7964,7 +7964,7 @@
     "namespace": "messages.sponsored",
     "method": "click",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7980,7 +7980,7 @@
     "namespace": "messages.sponsored",
     "method": "get",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -7996,7 +7996,7 @@
     "namespace": "messages.sponsored",
     "method": "report",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8012,7 +8012,7 @@
     "namespace": "messages.sponsored",
     "method": "view",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8060,7 +8060,7 @@
     "namespace": "messages.web",
     "method": "request_main",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8076,7 +8076,7 @@
     "namespace": "messages.web",
     "method": "request_main_fullscreen",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8092,7 +8092,7 @@
     "namespace": "messages.web",
     "method": "request_simple",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8108,7 +8108,7 @@
     "namespace": "premium.boosts",
     "method": "apply",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8124,7 +8124,7 @@
     "namespace": "premium.boosts",
     "method": "list",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8140,7 +8140,7 @@
     "namespace": "premium.boosts",
     "method": "my",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8156,7 +8156,7 @@
     "namespace": "premium.boosts",
     "method": "status",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8172,7 +8172,7 @@
     "namespace": "premium.boosts",
     "method": "user",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8188,7 +8188,7 @@
     "namespace": "reactions",
     "method": "recent",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8204,7 +8204,7 @@
     "namespace": "reactions.chat",
     "method": "set_available",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",
@@ -8220,7 +8220,7 @@
     "namespace": "reactions.defaults",
     "method": "set",
     "stability": "experimental",
-    "tier": "live_optional",
+    "tier": "manual_live_optional",
     "requires_second_account": false,
     "required_scenarios": [
       "delegates_to_raw",

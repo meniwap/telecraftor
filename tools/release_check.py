@@ -271,8 +271,9 @@ def _write_output(write_dir: Path, manifest: ReleaseManifest) -> None:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Validate release readiness for public Telecraft releases and emit release manifest "
-            "artifacts."
+            "Validate Telecraft release readiness and emit release manifest artifacts. Internal "
+            "0.1.x releases do not require live artifacts; public 0.2.x+ releases require the "
+            "remaining prod-safe smoke evidence."
         )
     )
     parser.add_argument("--version", required=True, help="Target package version (e.g. 0.2.0b1)")
@@ -285,12 +286,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--prod-safe-run-core",
         default="",
-        help="Run ID for prod-safe core smoke report (required for public releases).",
+        help="Run ID for prod-safe core smoke report (required for public 0.2.x+ releases).",
     )
     parser.add_argument(
         "--prod-safe-run-baseline",
         default="",
-        help="Run ID for prod-safe optional baseline report (required for public releases).",
+        help="Run ID for prod-safe baseline report (required for public 0.2.x+ releases).",
     )
     parser.add_argument(
         "--write-dir",
@@ -351,15 +352,16 @@ def run(argv: Sequence[str] | None = None, *, root: Path | None = None) -> int:
         if public_line:
             if not args.prod_safe_run_core.strip() or not args.prod_safe_run_baseline.strip():
                 raise ReleaseCheckError(
-                    "Public releases require --prod-safe-run-core and --prod-safe-run-baseline"
+                    "Public 0.2.x+ releases require --prod-safe-run-core and "
+                    "--prod-safe-run-baseline"
                 )
             core = _load_run_artifacts(repo_root, args.prod_safe_run_core.strip())
             baseline = _load_run_artifacts(repo_root, args.prod_safe_run_baseline.strip())
             prod_safe_runs["core"] = asdict(core)
             prod_safe_runs["baseline"] = asdict(baseline)
         else:
-            prod_safe_runs["core"] = "optional for internal 0.1.x line"
-            prod_safe_runs["baseline"] = "optional for internal 0.1.x line"
+            prod_safe_runs["core"] = "not required for internal 0.1.x line"
+            prod_safe_runs["baseline"] = "not required for internal 0.1.x line"
 
     except ReleaseCheckError as ex:
         blockers.append(str(ex))

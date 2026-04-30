@@ -43,29 +43,9 @@ class LiveConfig:
     live_profile: str
     network: str
     session_path: str
-    audit_peer_file: Path
     timeout: float
-    second_account: str
     audit_peer: str
     report_root: Path
-    destructive: bool
-    enable_polls: bool
-    enable_strict_polls_close: bool
-    enable_paid: bool
-    enable_premium: bool
-    enable_sponsored: bool
-    enable_passkeys: bool
-    enable_business: bool
-    enable_chatlists: bool
-    enable_calls: bool
-    enable_calls_write: bool
-    enable_takeout: bool
-    enable_webapps: bool
-    enable_admin: bool
-    enable_soak: bool
-    soak_duration: float
-    enable_stories_write: bool
-    enable_channel_admin: bool
 
 
 @dataclass(slots=True)
@@ -90,18 +70,6 @@ class LiveContext:
             except Exception as e:  # noqa: BLE001
                 errors.append(f"{type(e).__name__}: {e}")
         return errors
-
-
-def _normalize_second_account(raw: str) -> str:
-    s = raw.strip()
-    if not s:
-        return s
-    if s.startswith(("@", "+")):
-        return s
-    if ":" in s or s.isdigit():
-        return s
-    # pytest treats leading '@' as a response-file marker, so we accept bare usernames.
-    return f"@{s}"
 
 
 def _resolve_live_profile(raw: str) -> str:
@@ -144,6 +112,7 @@ class AuditReporter:
         self._write_event(payload)
         if not to_telegram:
             return
+
         target = self.audit_peer or self.ctx.cfg.audit_peer
         if target == "auto":
             return
@@ -155,7 +124,6 @@ class AuditReporter:
                 timeout=min(float(self.ctx.cfg.timeout), 10.0),
             )
         except Exception:  # noqa: BLE001
-            # File logs are authoritative; Telegram logging is best-effort.
             return
 
     async def close(self) -> None:
@@ -171,25 +139,16 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Enable live Telegram tests",
     )
     group.addoption(
-        "--live-destructive",
+        "--allow-prod-live",
         action="store_true",
         default=False,
-        help="Allow destructive live operations (ban/kick/promote/demote/resource create/delete)",
+        help="Allow prod runtime for live tests (requires TELECRAFT_ALLOW_PROD_LIVE=1)",
     )
     group.addoption(
-        "--live-second-account",
+        "--live-profile",
         action="store",
-        default="",
-        help=(
-            "Second account username/phone for cross-account tests "
-            "(use bare username, e.g. second_account_username)"
-        ),
-    )
-    group.addoption(
-        "--live-audit-peer",
-        action="store",
-        default="auto",
-        help="Audit destination peer (@user / channel:ID / auto)",
+        default="default",
+        help="Live execution profile (default/prod_safe). Default: default",
     )
     group.addoption(
         "--live-report-dir",
@@ -205,292 +164,37 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Default RPC timeout",
     )
     group.addoption(
-        "--live-runtime",
+        "--live-audit-peer",
         action="store",
-        default="prod",
-        help="Live runtime lane (prod only). Default: prod",
-    )
-    group.addoption(
-        "--live-profile",
-        action="store",
-        default="default",
-        help="Live execution profile (default/prod_safe). Default: default",
-    )
-    group.addoption(
-        "--allow-prod-live",
-        action="store_true",
-        default=False,
-        help="Allow prod runtime for live tests (requires TELECRAFT_ALLOW_PROD_LIVE=1)",
-    )
-    group.addoption(
-        "--live-network",
-        action="store",
-        default="",
-        help="Deprecated network override; only prod is supported by live orchestration",
-    )
-    group.addoption(
-        "--live-enable-polls",
-        action="store_true",
-        default=False,
-        help="Enable live polls/scheduled step (unstable on some schema versions)",
-    )
-    group.addoption(
-        "--live-strict-polls-close",
-        action="store_true",
-        default=False,
-        help="Fail polls live test if poll close fails",
-    )
-    group.addoption(
-        "--live-paid",
-        action="store_true",
-        default=False,
-        help="Enable paid live steps (stars/gifts spending operations)",
-    )
-    group.addoption(
-        "--live-premium",
-        action="store_true",
-        default=False,
-        help="Enable optional premium live lane",
-    )
-    group.addoption(
-        "--live-sponsored",
-        action="store_true",
-        default=False,
-        help="Enable optional sponsored/admin live lane",
-    )
-    group.addoption(
-        "--live-passkeys",
-        action="store_true",
-        default=False,
-        help="Enable optional passkeys live lane",
-    )
-    group.addoption(
-        "--live-business",
-        action="store_true",
-        default=False,
-        help="Enable optional business live lane",
-    )
-    group.addoption(
-        "--live-chatlists",
-        action="store_true",
-        default=False,
-        help="Enable optional chatlists live lane",
-    )
-    group.addoption(
-        "--live-calls",
-        action="store_true",
-        default=False,
-        help="Enable optional calls readonly live lane",
-    )
-    group.addoption(
-        "--live-calls-write",
-        action="store_true",
-        default=False,
-        help="Enable optional calls write/destructive live lane",
-    )
-    group.addoption(
-        "--live-takeout",
-        action="store_true",
-        default=False,
-        help="Enable optional takeout live lane",
-    )
-    group.addoption(
-        "--live-webapps",
-        action="store_true",
-        default=False,
-        help="Enable optional webapps live lane",
-    )
-    group.addoption(
-        "--live-admin",
-        action="store_true",
-        default=False,
-        help="Enable optional admin-sensitive live lane",
-    )
-    group.addoption(
-        "--live-soak",
-        action="store_true",
-        default=False,
-        help="Enable optional long-running reliability soak lane",
-    )
-    group.addoption(
-        "--live-soak-duration",
-        action="store",
-        type=float,
-        default=300.0,
-        help="Soak lane duration in seconds. Default: 300",
-    )
-    group.addoption(
-        "--live-stories-write",
-        action="store_true",
-        default=False,
-        help="Enable optional stories write live lane",
-    )
-    group.addoption(
-        "--live-channel-admin",
-        action="store_true",
-        default=False,
-        help="Enable optional channel admin live lane",
-    )
-    group.addoption(
-        "--live-bot",
-        action="store_true",
-        default=False,
-        help="Enable optional bot-session live lane",
+        default="auto",
+        help="Optional audit destination peer (@user/channel:ID). 'auto' writes file reports only.",
     )
 
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "unit: fast deterministic tests")
     config.addinivalue_line("markers", "live: live tests against Telegram")
-    config.addinivalue_line("markers", "destructive: mutating live tests")
-    config.addinivalue_line(
-        "markers",
-        "requires_second_account: live tests requiring second account",
-    )
-    config.addinivalue_line(
-        "markers",
-        "requires_business_account: live tests requiring business-enabled account",
-    )
-    config.addinivalue_line("markers", "live_core: live core lane")
-    config.addinivalue_line("markers", "live_core_safe: safe subset of core live lane")
-    config.addinivalue_line(
-        "markers", "live_core_destructive: destructive subset of core live lane"
-    )
-    config.addinivalue_line("markers", "live_second_account: live lane with second account")
-    config.addinivalue_line("markers", "live_optional: optional live lane (unstable/expensive)")
-    config.addinivalue_line("markers", "live_prod_safe: curated optional suite for prod-safe runs")
-    config.addinivalue_line("markers", "live_paid: live lane that may spend Stars")
-    config.addinivalue_line("markers", "live_premium: optional premium lane")
-    config.addinivalue_line("markers", "live_sponsored: optional sponsored lane")
-    config.addinivalue_line("markers", "live_passkeys: optional passkeys lane")
-    config.addinivalue_line("markers", "live_business: optional business lane")
-    config.addinivalue_line("markers", "live_chatlists: optional chatlists lane")
-    config.addinivalue_line("markers", "live_calls: optional calls readonly lane")
-    config.addinivalue_line("markers", "live_calls_write: optional calls write lane")
-    config.addinivalue_line("markers", "live_takeout: optional takeout lane")
-    config.addinivalue_line("markers", "live_webapps: optional webapps lane")
-    config.addinivalue_line("markers", "live_admin: optional admin-sensitive lane")
-    config.addinivalue_line("markers", "live_soak: optional long-running reliability lane")
-    config.addinivalue_line("markers", "live_stories_write: optional stories write lane")
-    config.addinivalue_line("markers", "live_channel_admin: optional channel admin lane")
-    config.addinivalue_line("markers", "live_bot: optional bot-session live lane")
+    config.addinivalue_line("markers", "live_prod_safe: prod-safe live smoke tests")
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    if config.getoption("--run-live"):
-        runtime_raw = str(config.getoption("--live-runtime")).strip().lower() or "prod"
-        try:
-            live_profile = _resolve_live_profile(str(config.getoption("--live-profile")))
-        except ValueError as e:
-            raise pytest.UsageError(str(e)) from e
-        if runtime_raw == "prod" and live_profile != "prod_safe":
-            print(
-                "[telecraft-live] Warning: running live tests on production without "
-                "--live-profile prod_safe (recommended for reliability smoke runs)."
-            )
-        second_raw = str(config.getoption("--live-second-account")).strip()
-        paid_enabled = bool(config.getoption("--live-paid"))
-        premium_enabled = bool(config.getoption("--live-premium"))
-        sponsored_enabled = bool(config.getoption("--live-sponsored"))
-        passkeys_enabled = bool(config.getoption("--live-passkeys"))
-        business_enabled = bool(config.getoption("--live-business"))
-        chatlists_enabled = bool(config.getoption("--live-chatlists"))
-        calls_enabled = bool(config.getoption("--live-calls"))
-        calls_write_enabled = bool(config.getoption("--live-calls-write"))
-        takeout_enabled = bool(config.getoption("--live-takeout"))
-        webapps_enabled = bool(config.getoption("--live-webapps"))
-        admin_enabled = bool(config.getoption("--live-admin"))
-        soak_enabled = bool(config.getoption("--live-soak"))
-        stories_write_enabled = bool(config.getoption("--live-stories-write"))
-        channel_admin_enabled = bool(config.getoption("--live-channel-admin"))
-        bot_enabled = bool(config.getoption("--live-bot"))
-        skip_second = pytest.mark.skip(
-            reason="Second-account tests require --live-second-account <username>"
-        )
-        skip_paid = pytest.mark.skip(reason="Paid live tests require --live-paid")
-        skip_premium = pytest.mark.skip(reason="Premium live tests require --live-premium")
-        skip_sponsored = pytest.mark.skip(reason="Sponsored live tests require --live-sponsored")
-        skip_passkeys = pytest.mark.skip(reason="Passkeys live tests require --live-passkeys")
-        skip_business = pytest.mark.skip(reason="Business live tests require --live-business")
-        skip_chatlists = pytest.mark.skip(reason="Chatlists live tests require --live-chatlists")
-        skip_calls = pytest.mark.skip(reason="Calls live tests require --live-calls")
-        skip_calls_write = pytest.mark.skip(
-            reason="Calls write live tests require --live-calls-write"
-        )
-        skip_takeout = pytest.mark.skip(reason="Takeout live tests require --live-takeout")
-        skip_webapps = pytest.mark.skip(reason="Webapps live tests require --live-webapps")
-        skip_admin = pytest.mark.skip(reason="Admin live tests require --live-admin")
-        skip_soak = pytest.mark.skip(reason="Soak live tests require --live-soak")
-        skip_stories_write = pytest.mark.skip(
-            reason="Stories write live tests require --live-stories-write"
-        )
-        skip_channel_admin = pytest.mark.skip(
-            reason="Channel admin live tests require --live-channel-admin"
-        )
-        skip_bot = pytest.mark.skip(reason="Bot live tests require --live-bot")
-        skip_prod_safe_profile = pytest.mark.skip(
-            reason="Excluded by --live-profile prod_safe policy"
-        )
-        for item in items:
-            if not second_raw and "requires_second_account" in item.keywords:
-                item.add_marker(skip_second)
-            if not paid_enabled and "live_paid" in item.keywords:
-                item.add_marker(skip_paid)
-            if not premium_enabled and "live_premium" in item.keywords:
-                item.add_marker(skip_premium)
-            if not sponsored_enabled and "live_sponsored" in item.keywords:
-                item.add_marker(skip_sponsored)
-            if not passkeys_enabled and "live_passkeys" in item.keywords:
-                item.add_marker(skip_passkeys)
-            if not business_enabled and (
-                "live_business" in item.keywords or "requires_business_account" in item.keywords
-            ):
-                item.add_marker(skip_business)
-            if not chatlists_enabled and "live_chatlists" in item.keywords:
-                item.add_marker(skip_chatlists)
-            if not calls_enabled and "live_calls" in item.keywords:
-                item.add_marker(skip_calls)
-            if not calls_write_enabled and "live_calls_write" in item.keywords:
-                item.add_marker(skip_calls_write)
-            if not takeout_enabled and "live_takeout" in item.keywords:
-                item.add_marker(skip_takeout)
-            if not webapps_enabled and "live_webapps" in item.keywords:
-                item.add_marker(skip_webapps)
-            if not admin_enabled and "live_admin" in item.keywords:
-                item.add_marker(skip_admin)
-            if not soak_enabled and "live_soak" in item.keywords:
-                item.add_marker(skip_soak)
-            if not stories_write_enabled and "live_stories_write" in item.keywords:
-                item.add_marker(skip_stories_write)
-            if not channel_admin_enabled and "live_channel_admin" in item.keywords:
-                item.add_marker(skip_channel_admin)
-            if not bot_enabled and "live_bot" in item.keywords:
-                item.add_marker(skip_bot)
+    try:
+        live_profile = _resolve_live_profile(str(config.getoption("--live-profile")))
+    except ValueError as e:
+        raise pytest.UsageError(str(e)) from e
 
-            if live_profile == "prod_safe":
-                if (
-                    "destructive" in item.keywords
-                    or "live_core_destructive" in item.keywords
-                    or "requires_second_account" in item.keywords
-                    or "live_paid" in item.keywords
-                    or "live_business" in item.keywords
-                    or "live_chatlists" in item.keywords
-                    or "live_stories_write" in item.keywords
-                    or "live_channel_admin" in item.keywords
-                    or "live_calls_write" in item.keywords
-                    or "live_admin" in item.keywords
-                    or "live_soak" in item.keywords
-                ):
-                    item.add_marker(skip_prod_safe_profile)
+    if config.getoption("--run-live"):
+        if live_profile != "prod_safe":
+            print(
+                "[telecraft-live] Warning: --live-profile prod_safe is recommended for "
+                "production smoke runs."
+            )
         return
 
     skip_live = pytest.mark.skip(reason="Live tests require --run-live")
-    skip_second = pytest.mark.skip(reason="Second-account tests require --live-second-account")
     for item in items:
         if "live" in item.keywords:
             item.add_marker(skip_live)
-        if "requires_second_account" in item.keywords:
-            item.add_marker(skip_second)
 
 
 @pytest.fixture
@@ -498,30 +202,22 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
     if not pytestconfig.getoption("--run-live"):
         pytest.skip("Live tests require --run-live")
 
-    runtime_raw = str(pytestconfig.getoption("--live-runtime")).strip() or "prod"
     try:
         live_profile = _resolve_live_profile(str(pytestconfig.getoption("--live-profile")))
-    except ValueError as e:
-        raise pytest.UsageError(str(e)) from e
-    network_raw = str(pytestconfig.getoption("--live-network")).strip()
-    if network_raw:
-        print(
-            "Warning: --live-network is deprecated; live orchestration supports prod only."
+        runtime = resolve_runtime("prod", default="prod")
+        network = resolve_network(runtime=runtime, explicit_network=None)
+        require_prod_override(
+            allow_flag=bool(pytestconfig.getoption("--allow-prod-live")),
+            env_var="TELECRAFT_ALLOW_PROD_LIVE",
+            action="live tests on production Telegram",
+            example=(
+                "TELECRAFT_ALLOW_PROD_LIVE=1 ./.venv/bin/python -m pytest "
+                "tests/live --run-live --allow-prod-live --live-profile prod_safe"
+            ),
         )
-    try:
-        runtime = resolve_runtime(runtime_raw, default="prod")
-        network = resolve_network(runtime=runtime, explicit_network=network_raw or None)
-        if runtime == "prod":
-            require_prod_override(
-                allow_flag=bool(pytestconfig.getoption("--allow-prod-live")),
-                env_var="TELECRAFT_ALLOW_PROD_LIVE",
-                action="live tests on production Telegram",
-                example=(
-                    "TELECRAFT_ALLOW_PROD_LIVE=1 ./.venv/bin/python -m pytest "
-                    "tests/live/... --run-live --allow-prod-live"
-                ),
-            )
     except RuntimeIsolationError as e:
+        raise pytest.UsageError(str(e)) from e
+    except ValueError as e:
         raise pytest.UsageError(str(e)) from e
 
     api_id_raw = _env("TELEGRAM_API_ID")
@@ -555,17 +251,11 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
     report_root_base = Path(str(pytestconfig.getoption("--live-report-dir"))).resolve()
     report_root = resolve_report_root(report_root_base, runtime=runtime).resolve()
     report_root.mkdir(parents=True, exist_ok=True)
-
-    destructive = bool(pytestconfig.getoption("--live-destructive"))
-    second_account_raw = str(pytestconfig.getoption("--live-second-account"))
-    second_account = _normalize_second_account(second_account_raw)
+    audit_peer = str(pytestconfig.getoption("--live-audit-peer")).strip() or "auto"
     print(
         "[telecraft-live] "
         f"runtime={runtime} profile={live_profile} network={network} "
-        f"session={session_path_obj} "
-        f"report_root={report_root} "
-        f"audit_peer={str(pytestconfig.getoption('--live-audit-peer'))} "
-        f"destructive={destructive}",
+        f"session={session_path_obj} report_root={report_root} audit_peer={audit_peer}",
     )
     return LiveConfig(
         api_id=api_id,
@@ -574,29 +264,9 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
         live_profile=live_profile,
         network=network,
         session_path=str(session_path_obj),
-        audit_peer_file=session_paths.audit_peer_file,
         timeout=float(pytestconfig.getoption("--live-timeout")),
-        second_account=second_account,
-        audit_peer=str(pytestconfig.getoption("--live-audit-peer")),
+        audit_peer=audit_peer,
         report_root=report_root,
-        destructive=destructive,
-        enable_polls=bool(pytestconfig.getoption("--live-enable-polls")),
-        enable_strict_polls_close=bool(pytestconfig.getoption("--live-strict-polls-close")),
-        enable_paid=bool(pytestconfig.getoption("--live-paid")),
-        enable_premium=bool(pytestconfig.getoption("--live-premium")),
-        enable_sponsored=bool(pytestconfig.getoption("--live-sponsored")),
-        enable_passkeys=bool(pytestconfig.getoption("--live-passkeys")),
-        enable_business=bool(pytestconfig.getoption("--live-business")),
-        enable_chatlists=bool(pytestconfig.getoption("--live-chatlists")),
-        enable_calls=bool(pytestconfig.getoption("--live-calls")),
-        enable_calls_write=bool(pytestconfig.getoption("--live-calls-write")),
-        enable_takeout=bool(pytestconfig.getoption("--live-takeout")),
-        enable_webapps=bool(pytestconfig.getoption("--live-webapps")),
-        enable_admin=bool(pytestconfig.getoption("--live-admin")),
-        enable_soak=bool(pytestconfig.getoption("--live-soak")),
-        soak_duration=float(pytestconfig.getoption("--live-soak-duration")),
-        enable_stories_write=bool(pytestconfig.getoption("--live-stories-write")),
-        enable_channel_admin=bool(pytestconfig.getoption("--live-channel-admin")),
     )
 
 
@@ -605,45 +275,6 @@ def client_v2(live_config: LiveConfig) -> Client:
     return Client(
         network=live_config.network,
         session_path=live_config.session_path,
-        init=ClientInit(api_id=live_config.api_id, api_hash=live_config.api_hash),
-    )
-
-
-@pytest.fixture
-def bot_client_v2(live_config: LiveConfig, pytestconfig: pytest.Config) -> Client:
-    if not pytestconfig.getoption("--live-bot"):
-        pytest.skip("Bot live tests require --live-bot")
-
-    session_paths = resolve_session_paths(
-        runtime=live_config.runtime,
-        network=live_config.network,
-    )
-    bot_session = _env("TELEGRAM_BOT_SESSION_PATH")
-    if bot_session is None:
-        bot_session = pick_existing_session(
-            session_paths,
-            preferred_dc=2,
-            kind="bot",
-        )
-    bot_session_obj = Path(str(bot_session)).expanduser()
-    if not bot_session_obj.is_absolute():
-        bot_session_obj = (Path.cwd() / bot_session_obj).resolve()
-    if not bot_session_obj.exists():
-        pytest.skip(
-            "No bot session found for bot lane. "
-            "Run login-bot first or set TELEGRAM_BOT_SESSION_PATH."
-        )
-    try:
-        validate_session_matches_network(
-            session_path=bot_session_obj,
-            expected_network=live_config.network,
-        )
-    except RuntimeIsolationError as e:
-        raise pytest.UsageError(str(e)) from e
-
-    return Client(
-        network=live_config.network,
-        session_path=str(bot_session_obj),
         init=ClientInit(api_id=live_config.api_id, api_hash=live_config.api_hash),
     )
 

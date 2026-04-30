@@ -4,6 +4,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 
 def _load_live_conftest_module():
     path = Path("tests/live/conftest.py")
@@ -18,25 +20,8 @@ def _load_live_conftest_module():
 class _DummyConfig:
     def __init__(self, overrides: dict[str, object] | None = None) -> None:
         self._options: dict[str, object] = {
-            "--run-live": True,
-            "--live-runtime": "prod",
+            "--run-live": False,
             "--live-profile": "prod_safe",
-            "--live-second-account": "",
-            "--live-paid": False,
-            "--live-premium": False,
-            "--live-sponsored": False,
-            "--live-passkeys": False,
-            "--live-business": False,
-            "--live-chatlists": False,
-            "--live-calls": False,
-            "--live-calls-write": False,
-            "--live-takeout": False,
-            "--live-webapps": False,
-            "--live-admin": False,
-            "--live-soak": False,
-            "--live-stories-write": False,
-            "--live-channel-admin": False,
-            "--live-bot": False,
         }
         if overrides:
             self._options.update(overrides)
@@ -66,49 +51,29 @@ def _skip_reasons(item: _DummyItem) -> list[str]:
     return reasons
 
 
-def test_live_config__prod_safe_profile__skips_destructive_marked_tests() -> None:
+def test_live_config__skips_live_tests_unless_enabled() -> None:
     mod = _load_live_conftest_module()
     cfg = _DummyConfig()
-    items = [
-        _DummyItem("live", "live_core", "destructive", "live_core_destructive"),
-        _DummyItem("live", "live_optional", "destructive"),
-    ]
+    item = _DummyItem("live", "live_prod_safe")
 
-    mod.pytest_collection_modifyitems(cfg, items)
+    mod.pytest_collection_modifyitems(cfg, [item])
 
-    for item in items:
-        reasons = _skip_reasons(item)
-        assert any("prod_safe policy" in r for r in reasons)
+    assert "Live tests require --run-live" in _skip_reasons(item)
 
 
-def test_live_config__prod_safe_profile__skips_second_account_and_paid_and_admin_lanes() -> None:
+def test_live_config__preserves_live_tests_when_enabled() -> None:
     mod = _load_live_conftest_module()
-    cfg = _DummyConfig()
-    items = [
-        _DummyItem("live", "requires_second_account", "live_second_account"),
-        _DummyItem("live", "live_optional", "live_paid"),
-        _DummyItem("live", "live_optional", "live_admin"),
-        _DummyItem("live", "live_optional", "live_soak"),
-        _DummyItem("live", "live_optional", "live_calls_write"),
-    ]
+    cfg = _DummyConfig({"--run-live": True})
+    item = _DummyItem("live", "live_prod_safe")
 
-    mod.pytest_collection_modifyitems(cfg, items)
+    mod.pytest_collection_modifyitems(cfg, [item])
 
-    for item in items:
-        reasons = _skip_reasons(item)
-        assert any("prod_safe policy" in r for r in reasons)
+    assert not _skip_reasons(item)
 
 
-def test_live_config__prod_safe_profile__preserves_core_safe_and_prod_safe_baseline_tests() -> None:
+def test_live_config__rejects_unknown_live_profile() -> None:
     mod = _load_live_conftest_module()
-    cfg = _DummyConfig({"--live-calls": True})
-    items = [
-        _DummyItem("live", "live_core", "live_core_safe"),
-        _DummyItem("live", "live_optional", "live_prod_safe"),
-    ]
+    cfg = _DummyConfig({"--live-profile": "experimental"})
 
-    mod.pytest_collection_modifyitems(cfg, items)
-
-    for item in items:
-        reasons = _skip_reasons(item)
-        assert not any("prod_safe policy" in r for r in reasons)
+    with pytest.raises(pytest.UsageError, match="Unsupported --live-profile"):
+        mod.pytest_collection_modifyitems(cfg, [])

@@ -128,12 +128,7 @@ Regression:
 - verify throttling under chat spam
 - verify db persistence (`warnings`, `top`, `modlog`, schedules)
 
-## Optional live automation lane
+## Testing
 
-New optional lane:
-- `tests/live/bot/test_live_group_bot_suite.py`
-
-Gate:
-- requires `--run-live --live-bot`
-- requires both user and bot sessions
-- requires env `TELECRAFT_LIVE_BOT_TEST_PEER` (group/channel where both can operate)
+The group bot is an internal operator app. Use the manual checklist above plus deterministic
+router/dispatcher unit tests. There is no tracked live automation lane for it in the slim repo.

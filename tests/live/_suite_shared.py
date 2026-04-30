@@ -6,7 +6,6 @@ from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from telecraft.client import Client
@@ -64,6 +63,13 @@ def classify_live_error(err: Exception) -> str:
         return "rpc"
 
     return "unknown"
+
+
+def resolve_live_audit_peer(ctx: Any) -> str | None:
+    peer = str(getattr(ctx.cfg, "audit_peer", "auto")).strip()
+    if not peer or peer == "auto":
+        return None
+    return peer
 
 
 def _is_prod_safe_profile(reporter: Any) -> bool:
@@ -165,148 +171,6 @@ async def run_step(
             details=details,
             error_class=error_class,
         )
-
-
-async def resolve_or_create_audit_peer(client: Client, ctx: Any, reporter: Any) -> str:
-    if ctx.cfg.audit_peer != "auto":
-        return ctx.cfg.audit_peer
-
-    cfg_file = Path(ctx.cfg.audit_peer_file)
-    if cfg_file.exists():
-        s = cfg_file.read_text(encoding="utf-8").strip()
-        if s:
-            return s
-    legacy = Path(".sessions/live_audit_peer.txt")
-    if legacy.exists():
-        s = legacy.read_text(encoding="utf-8").strip()
-        if s:
-            cfg_file.parent.mkdir(parents=True, exist_ok=True)
-            cfg_file.write_text(s + "\n", encoding="utf-8", newline="\n")
-            return s
-
-    created = await client.chats.create_channel(
-        title="telecraft-audit-v3",
-        about="Telecraft V3 live audit log stream",
-        broadcast=False,
-        megagroup=True,
-        timeout=ctx.cfg.timeout,
-    )
-    cid = extract_channel_id(created)
-    if cid is None:
-        raise RuntimeError("Failed to create audit group/channel")
-
-    peer = f"channel:{cid}"
-    cfg_file.parent.mkdir(parents=True, exist_ok=True)
-    cfg_file.write_text(peer + "\n", encoding="utf-8", newline="\n")
-    await reporter.emit(
-        client=client,
-        status="PASS",
-        step="audit-provision",
-        details=f"Created persistent audit peer {peer!r}",
-        to_telegram=False,
-    )
-    return peer
-
-
-def extract_message_id(obj: Any) -> int | None:
-    updates = getattr(obj, "updates", None)
-    if isinstance(updates, list):
-        for u in updates:
-            msg = getattr(u, "message", None)
-            mid = getattr(msg, "id", None)
-            if isinstance(mid, int):
-                return mid
-    mid = getattr(obj, "id", None)
-    return int(mid) if isinstance(mid, int) else None
-
-
-def extract_chat_id(obj: Any) -> int | None:
-    sources = [obj, getattr(obj, "updates", None)]
-    for src in sources:
-        chats = getattr(src, "chats", None)
-        if not isinstance(chats, list):
-            continue
-        for c in chats:
-            if getattr(c, "TL_NAME", "") in {"chat", "chatForbidden"}:
-                cid = getattr(c, "id", None)
-                if isinstance(cid, int):
-                    return int(cid)
-    return None
-
-
-def extract_channel_id(obj: Any) -> int | None:
-    sources = [obj, getattr(obj, "updates", None)]
-    for src in sources:
-        chats = getattr(src, "chats", None)
-        if not isinstance(chats, list):
-            continue
-        for c in chats:
-            if getattr(c, "TL_NAME", "") in {"channel", "channelForbidden"}:
-                cid = getattr(c, "id", None)
-                if isinstance(cid, int):
-                    return int(cid)
-    return None
-
-
-def parse_user_id(peer: Any) -> int:
-    uid = getattr(peer, "peer_id", None)
-    if not isinstance(uid, int):
-        raise RuntimeError("Expected second account to resolve to a user peer")
-    return int(uid)
-
-
-def is_private_or_not_found_error(err: Exception) -> bool:
-    msg = str(err).upper()
-    return any(
-        token in msg
-        for token in (
-            "CHANNEL_PRIVATE",
-            "CHANNEL_INVALID",
-            "CHAT_ID_INVALID",
-            "PEER_ID_INVALID",
-        )
-    )
-
-
-def is_chat_write_forbidden_error(err: Exception) -> bool:
-    return "CHAT_WRITE_FORBIDDEN" in str(err).upper()
-
-
-def is_schema_decode_mismatch_error(err: Exception) -> bool:
-    msg = str(err)
-    upper = msg.upper()
-    return (
-        "UNKNOWN CONSTRUCTOR ID" in upper
-        or "RECEIVER LOOP CRASHED" in upper
-        or type(err).__name__ in {"RpcSenderError", "TLCodecError"}
-    )
-
-
-async def create_temp_write_peer(
-    *,
-    client: Client,
-    ctx: Any,
-    resource_ids: dict[str, object],
-    key_prefix: str,
-) -> str:
-    created = await client.chats.create_channel(
-        title=f"tc-live-{key_prefix}-{ctx.run_id}",
-        about="Telecraft live writable peer",
-        broadcast=False,
-        megagroup=True,
-        timeout=ctx.cfg.timeout,
-    )
-    cid = extract_channel_id(created)
-    if cid is None:
-        raise RuntimeError("Failed to create temporary writable channel")
-    peer = f"channel:{cid}"
-    resource_ids[f"{key_prefix}_peer"] = peer
-
-    async def _cleanup() -> None:
-        await client.chats.delete_channel(peer, timeout=ctx.cfg.timeout)
-
-    ctx.add_cleanup(_cleanup)
-    return peer
 
 
 async def finalize_run(
