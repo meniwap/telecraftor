@@ -87,6 +87,7 @@ Sensitive flags:
 - `--live-premium`
 - `--live-sponsored`
 - `--live-passkeys`
+- `--live-soak`
 
 ## Second Account Lane
 
@@ -103,6 +104,56 @@ TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest tests/live/second_account -m "live_
 ```
 
 Pass the username without `@` because pytest treats leading `@` as a response-file marker.
+
+## Second Account Admin Hardening Lane
+
+This lane verifies promote/demote and ban/unban/kick rollback behavior. It is destructive,
+excluded from `prod_safe`, and requires explicit admin opt-in:
+
+```bash
+TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest \
+  tests/live/second_account/test_live_admin_moderation_meniwap.py \
+  -m "live_second_account and live_admin" \
+  -vv -s \
+  --run-live \
+  --allow-prod-live \
+  --live-destructive \
+  --live-admin \
+  --live-second-account meniwap \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+Expected behavior:
+- temporary megagroup/channel is created
+- second account is added, promoted, demoted, banned, unbanned, kicked, and unbanned again
+- cleanup demotes/unbans the second account and deletes the temporary group
+- `cleanup_errors=0` in `artifacts.json`
+
+## Soak / Reliability Lane
+
+Use this manually to prove longer-running read stability. It does not run in `prod_safe`
+because it is intentionally slower:
+
+```bash
+TELECRAFT_ALLOW_PROD_LIVE=1 python -m pytest \
+  tests/live/optional/test_live_prod_soak_suite.py \
+  -m "live_soak" \
+  -vv -s \
+  --run-live \
+  --allow-prod-live \
+  --live-soak \
+  --live-soak-duration 900 \
+  --live-audit-peer auto \
+  --live-report-dir reports/live
+```
+
+The soak loop repeatedly exercises read-only health paths:
+- `profile.me`
+- `dialogs.list(limit=1)`
+- `help.config`
+
+Start with 15 minutes (`900` seconds), then increase to 30-60 minutes for release candidates.
 
 ## Reading Results
 

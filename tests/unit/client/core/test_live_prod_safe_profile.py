@@ -33,6 +33,7 @@ class _DummyConfig:
             "--live-takeout": False,
             "--live-webapps": False,
             "--live-admin": False,
+            "--live-soak": False,
             "--live-stories-write": False,
             "--live-channel-admin": False,
             "--live-bot": False,
@@ -87,6 +88,7 @@ def test_live_config__prod_safe_profile__skips_second_account_and_paid_and_admin
         _DummyItem("live", "requires_second_account", "live_second_account"),
         _DummyItem("live", "live_optional", "live_paid"),
         _DummyItem("live", "live_optional", "live_admin"),
+        _DummyItem("live", "live_optional", "live_soak"),
         _DummyItem("live", "live_optional", "live_calls_write"),
     ]
 
