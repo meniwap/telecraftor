@@ -56,10 +56,10 @@ Before starting production-readiness work, read this file, pick one item, update
 
 ### PROD-005 - Internal Version / Release Readiness
 - priority: `P1`
-- status: `todo`
+- status: `done`
 - goal: Align project versioning with internal `0.1.x` and later public `0.2.x`.
-- next_action: Prepare `0.1.0` internal milestone plan, changelog entry, and dry-run release check.
-- evidence: Pending.
+- next_action: Use `0.1.x` for internal milestones only; reserve `0.2.x` for the first public release line with mandatory prod-safe evidence.
+- evidence: Bumped project version to `0.1.0`, added `CHANGELOG.md` entry marking it as an internal milestone, package build produced `telecraft-0.1.0` sdist/wheel, and `tools/release_check.py --version 0.1.0 --release-type stable --dry-run` passed. Local gates passed: ruff, mypy, tests/meta, not-live pytest, and live collect-only.
 - blocked: `false`
 
 ### PROD-006 - API Surface Organization
