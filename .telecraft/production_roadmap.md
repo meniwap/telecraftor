@@ -72,10 +72,10 @@ Before starting production-readiness work, read this file, pick one item, update
 
 ### PROD-007 - Apps / Demo Cleanup
 - priority: `P1`
-- status: `todo`
+- status: `done`
 - goal: Separate production demos from experimental/manual scripts.
-- next_action: Reclassify large demo scripts into clear demos or manual labs.
-- evidence: Pending.
+- next_action: Keep future exploratory scripts under `apps/manual_labs/`; keep production demos documented in `apps/README.md`.
+- evidence: Reclassified app entrypoints in `apps/README.md`, moved `apps/test_new_features.py` to `apps/manual_labs/test_new_features.py`, added `apps/manual_labs/README.md`, removed local `.DS_Store`/`__pycache__` artifacts from the worktree, and verified ruff, mypy, `tests/unit/apps`, not-live pytest, live collect-only, and dry help commands.
 - blocked: `false`
 
 ### PROD-008 - Second Account / Admin Hardening

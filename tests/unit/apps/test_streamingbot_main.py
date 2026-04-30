@@ -13,6 +13,7 @@ from apps.streamingbot.main import (
     STOPPED_STREAM_TEXT,
     WELCOME_TEXT,
     StreamingBotApp,
+    main,
 )
 from apps.streamingbot.state import OffsetStore
 
@@ -111,6 +112,17 @@ def test_streamingbot_main__non_private_message_gets_fallback(tmp_path: Path) ->
         assert client.sent_messages[0]["text"] == NON_PRIVATE_FALLBACK
 
     asyncio.run(scenario())
+
+
+def test_streamingbot_main__help_exits_before_loading_token(capsys: Any) -> None:
+    try:
+        main(["--help"])
+    except SystemExit as ex:
+        assert ex.code == 0
+    else:
+        raise AssertionError("Expected --help to exit")
+
+    assert "draft-streaming demo" in capsys.readouterr().out
 
 
 def test_streamingbot_main__start_sends_welcome_and_reply_keyboard(tmp_path: Path) -> None:

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 import hashlib
 import logging
 import os
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -503,6 +505,12 @@ class StreamingBotApp:
         await self._send_private_reply(chat_id=chat_id, text=text, update_id=update_id)
 
 
+def _build_parser() -> argparse.ArgumentParser:
+    return argparse.ArgumentParser(
+        description="Run the Telecraft Bot API draft-streaming demo.",
+    )
+
+
 async def _async_main() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -520,7 +528,8 @@ async def _async_main() -> None:
     await app.run_forever()
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
+    _build_parser().parse_args(list(argv) if argv is not None else None)
     try:
         asyncio.run(_async_main())
     except KeyboardInterrupt:

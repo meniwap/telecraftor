@@ -4,11 +4,12 @@
 
 הרצה:
     source apps/env.sh
-    ./.venv/bin/python apps/test_new_features.py
+    ./.venv/bin/python apps/manual_labs/test_new_features.py
 
 מה צריך לפני:
     1. להריץ login:
-       TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login --allow-prod --dc 4
+       TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login \
+           --runtime prod --allow-prod --dc 4
     2. לוודא ש-env.sh מכיל API_ID ו-API_HASH
 """
 
