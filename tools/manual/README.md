@@ -12,3 +12,6 @@ Run them with the project virtualenv from the repository root, for example:
 Most scripts expect `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, and an existing session path or the
 repo's default session discovery layout. They may connect to Telegram production, so treat them as
 manual checks rather than deterministic tests.
+
+`smoke_auth_key.py` redacts raw auth-key material by default. Only pass
+`--unsafe-include-auth-key` for local debugging, and never paste that output into public reports.

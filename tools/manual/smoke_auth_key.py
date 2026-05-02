@@ -61,8 +61,11 @@ async def _run(args: argparse.Namespace) -> int:
         "auth_key_id_hex": res.auth_key_id.hex(),
         "server_salt_hex": res.server_salt.hex(),
         "server_time": res.server_time,
-        "auth_key_b64": _b64(res.auth_key),
     }
+    if args.unsafe_include_auth_key:
+        summary["auth_key_b64"] = _b64(res.auth_key)
+    else:
+        summary["auth_key_b64"] = "<redacted; pass --unsafe-include-auth-key for local debugging>"
 
     if args.out is not None:
         out_path = Path(args.out)
@@ -93,6 +96,12 @@ def main() -> int:
     )
     p.add_argument("--timeout", type=float, default=30.0, help="Overall timeout (seconds)")
     p.add_argument("--out", type=str, default=None, help="Write JSON output to this path")
+    p.add_argument(
+        "--unsafe-include-auth-key",
+        action="store_true",
+        default=False,
+        help="Include raw auth_key_b64 in output. Unsafe: do not paste or commit this output.",
+    )
     args = p.parse_args()
 
     return asyncio.run(_run(args))

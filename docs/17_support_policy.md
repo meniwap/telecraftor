@@ -5,10 +5,11 @@ This document defines Telecraft's public support contract for the V2 API surface
 ## Release lines
 
 - `0.1.x`: internal line (no public support commitment by default)
-- `0.2.x`: first public line (`alpha` / `beta` / `rc` / stable)
+- `0.2.x`: public beta and release-candidate line, starting with `0.2.0b1`
 
 `0.1.x` can move fast and is allowed to change without public release obligations.
 When a version is released publicly from the `0.2.x` line, the policy below applies.
+The first public distribution target is GitHub releases, not PyPI.
 
 ## Stability labels
 

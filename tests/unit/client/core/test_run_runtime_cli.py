@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import importlib.util
 import sys
 from pathlib import Path
@@ -97,3 +98,30 @@ def test_run_runtime_cli__resolve_runtime_context__supports_bot_session_kind(
     ctx = run._resolve_runtime_context(args, allow_missing_session=True)
     assert ctx.session_kind == "bot"
     assert ctx.session_path.endswith("prod_dc2.bot.session.json")
+
+
+def test_run_runtime_cli__keepalive_pings_while_waiting() -> None:
+    run = _load_run_module()
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.pings = 0
+
+        async def ping(self, *, timeout: float = 20.0) -> object:
+            _ = timeout
+            self.pings += 1
+            return object()
+
+    async def _exercise() -> FakeClient:
+        client = FakeClient()
+        stop = asyncio.Event()
+        task = asyncio.create_task(
+            run._keepalive_while_waiting(client, stop, interval=0.01, timeout=0.01)
+        )
+        await asyncio.sleep(0.035)
+        stop.set()
+        await task
+        return client
+
+    client = asyncio.run(_exercise())
+    assert client.pings >= 1

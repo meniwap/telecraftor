@@ -22,6 +22,8 @@ source apps/env.sh
 
 `apps/run.py` is the main local CLI. Production is guarded by both
 `TELECRAFT_ALLOW_PROD=1` and `--allow-prod`.
+For user login, the phone number is read before opening the Telegram connection; after the code is
+sent, the CLI keeps the connection alive while waiting for code or 2FA input.
 
 ```bash
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login --runtime prod --allow-prod --dc 2

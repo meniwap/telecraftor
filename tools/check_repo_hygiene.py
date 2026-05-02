@@ -9,18 +9,31 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 
 FORBIDDEN_TRACKED_DIRS = (
+    ".cursor/",
+    ".mypy_cache/",
+    ".pytest_cache/",
+    ".ruff_cache/",
+    ".sessions/",
+    ".telecraft/",
+    ".venv/",
+    "build/",
+    "dist/",
     "downloads/",
-    "reports/channel_exports/",
-    "reports/debug_tl/",
+    "reports/",
     "apps/manual_labs/",
     "apps/streamingbot/",
 )
 FORBIDDEN_TRACKED_EXACT = {
+    ".DS_Store",
     ".env",
+    "cachkl",
     "apps/env.sh",
     "apps/bot_config.json",
 }
 FORBIDDEN_SUFFIXES = (
+    ".db",
+    ".log",
+    ".pyo",
     ".pyc",
     ".session.json",
     ".sqlite",
@@ -28,6 +41,15 @@ FORBIDDEN_SUFFIXES = (
 )
 
 FORBIDDEN_ARTIFACT_DIRS = (
+    ".cursor/",
+    ".mypy_cache/",
+    ".pytest_cache/",
+    ".ruff_cache/",
+    ".sessions/",
+    ".telecraft/",
+    ".venv/",
+    "build/",
+    "dist/",
     "downloads/",
     "reports/",
     "apps/manual_labs/",

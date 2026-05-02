@@ -4,13 +4,45 @@ build-backend = "hatchling.build"
 
 [project]
 name = "telecraft"
-version = "0.1.0"
-description = "Telegram MTProto client library (MTProto-first)."
+version = "0.2.0b1"
+description = "Async MTProto-first Telegram client library for user and bot sessions."
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT-0"
+license-files = ["LICENSE"]
+authors = [
+  { name = "meniwap" },
+]
+keywords = [
+  "telegram",
+  "mtproto",
+  "bot",
+  "userbot",
+  "asyncio",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Framework :: AsyncIO",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT No Attribution License (MIT-0)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Communications :: Chat",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
   "cryptography>=42",
 ]
+
+[project.urls]
+Homepage = "https://github.com/meniwap/telecraftor"
+Repository = "https://github.com/meniwap/telecraftor"
+Issues = "https://github.com/meniwap/telecraftor/issues"
+Documentation = "https://github.com/meniwap/telecraftor#readme"
 
 [project.optional-dependencies]
 dev = [
@@ -41,3 +73,20 @@ python_version = "3.10"
 mypy_path = "src"
 strict = true
 exclude = "src/telecraft/tl/generated"
+
+[tool.hatch.build]
+exclude = [
+  "/.cursor",
+  "/.mypy_cache",
+  "/.pytest_cache",
+  "/.ruff_cache",
+  "/.sessions",
+  "/.telecraft",
+  "/.venv",
+  "/build",
+  "/dist",
+  "/downloads",
+  "/reports",
+  "/.DS_Store",
+  "/cachkl",
+]

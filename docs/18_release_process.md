@@ -1,6 +1,8 @@
 # Release Process
 
 This document defines the manual process for Telecraft release readiness.
+The first public beta is GitHub-only; do not publish to PyPI in this line unless a later release
+plan explicitly adds that step.
 
 ## Release Lines
 
@@ -48,6 +50,18 @@ Record the run IDs for the core smoke and baseline artifacts, then validate:
 
 `tools/release_check.py` always validates version, changelog, support contract, and deprecations.
 It requires live artifact IDs only for public `0.2.x+` release lines.
+
+## GitHub Beta Release
+
+After all gates pass:
+
+```bash
+git tag v0.2.0b1
+git push origin v0.2.0b1
+```
+
+Create a GitHub prerelease using the changelog entry and include that this beta is MTProto-only,
+with no HTTP Bot API module.
 
 ## Abort Rules
 
