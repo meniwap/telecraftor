@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import struct
 
+import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
-from telecraft.mtproto.crypto.hashes import sha1
+from telecraft.core.bytes import xor_bytes
+from telecraft.mtproto.crypto.aes_ige import AesIge
+from telecraft.mtproto.crypto.hashes import sha1, sha256
 from telecraft.mtproto.crypto.rsa import (
+    RsaError,
     RsaPublicKey,
     fingerprint_from_der_spki,
     rsa_encrypt_raw,
+    rsa_encrypt_rsa_pad,
     rsa_key_size_bytes,
 )
 
@@ -80,3 +85,50 @@ def test_encrypt_raw_roundtrips_and_has_sha1_prefix() -> None:
     padded = m_bytes[1:]
     assert padded[:20] == sha1(data)
     assert padded[20 : 20 + len(data)] == data
+
+
+def _decrypt_rsa_pad_payload(private: rsa.RSAPrivateKey, ciphertext: bytes) -> bytes:
+    priv = private.private_numbers()
+    n = priv.public_numbers.n
+    d = priv.d
+    block = pow(int.from_bytes(ciphertext, "big", signed=False), d, n).to_bytes(
+        256,
+        "big",
+        signed=False,
+    )
+
+    temp_key_xor = block[:32]
+    aes_encrypted = block[32:]
+    temp_key = xor_bytes(temp_key_xor, sha256(aes_encrypted))
+    data_with_hash = AesIge(key=temp_key, iv=b"\x00" * 32).decrypt(aes_encrypted)
+    data_with_padding = data_with_hash[:192][::-1]
+    digest = data_with_hash[192:]
+
+    assert digest == sha256(temp_key + data_with_padding)
+    return data_with_padding
+
+
+def test_encrypt_rsa_pad_roundtrips_formatting_and_size() -> None:
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public = private.public_key()
+    der = public.public_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+    data = b"hello mtproto rsa pad"
+    ct = rsa_encrypt_rsa_pad(der, data)
+
+    assert len(ct) == rsa_key_size_bytes(der) == 256
+    assert _decrypt_rsa_pad_payload(private, ct).startswith(data)
+
+
+def test_encrypt_rsa_pad_rejects_payloads_over_144_bytes() -> None:
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    der = private.public_key().public_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+    with pytest.raises(RsaError, match="too long"):
+        rsa_encrypt_rsa_pad(der, b"x" * 145)

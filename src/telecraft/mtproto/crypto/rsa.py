@@ -6,7 +6,10 @@ from dataclasses import dataclass
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
-from .hashes import sha1
+from telecraft.core.bytes import xor_bytes
+from telecraft.mtproto.crypto.aes_ige import AesIge
+
+from .hashes import sha1, sha256
 
 
 class RsaError(Exception):
@@ -109,12 +112,53 @@ def rsa_encrypt_raw(der_spki: bytes, data: bytes) -> bytes:
     return c.to_bytes(k, "big", signed=False)
 
 
+def rsa_encrypt_rsa_pad(der_spki: bytes, data: bytes) -> bytes:
+    """
+    Telegram RSA_PAD encryption for req_DH_params.encrypted_data.
+
+    This follows the MTProto auth-key generation spec for 2048-bit server RSA
+    keys. The input TL serialization must be at most 144 bytes and the final
+    ciphertext is exactly 256 bytes.
+    """
+
+    pub = load_rsa_public_key_der_spki(der_spki)
+    numbers = pub.public_numbers()
+    n = numbers.n
+    e = numbers.e
+    k = (pub.key_size + 7) // 8
+    if k != 256:
+        raise RsaError("RSA_PAD requires a 2048-bit RSA key")
+    if len(data) > 144:
+        raise RsaError("Data too long for MTProto RSA_PAD")
+
+    import os
+
+    data_with_padding = data + os.urandom(192 - len(data))
+    data_pad_reversed = data_with_padding[::-1]
+    zero_iv = b"\x00" * 32
+
+    for _ in range(256):
+        temp_key = os.urandom(32)
+        data_with_hash = data_pad_reversed + sha256(temp_key + data_with_padding)
+        aes_encrypted = AesIge(key=temp_key, iv=zero_iv).encrypt(data_with_hash)
+        temp_key_xor = xor_bytes(temp_key, sha256(aes_encrypted))
+        key_aes_encrypted = temp_key_xor + aes_encrypted
+        if len(key_aes_encrypted) != 256:
+            raise RsaError("RSA_PAD internal length mismatch")
+        m = int.from_bytes(key_aes_encrypted, "big", signed=False)
+        if m < n:
+            c = pow(m, e, n)
+            return c.to_bytes(k, "big", signed=False)
+
+    raise RsaError("RSA_PAD failed to produce a value smaller than RSA modulus")
+
+
 @dataclass(frozen=True, slots=True)
 class RsaPublicKey:
     """
     Convenience wrapper used by MTProto auth flow:
     - match key by `fingerprint`
-    - encrypt `data` with PKCS1v1.5
+    - encrypt auth data with Telegram RSA_PAD
     """
 
     der_spki: bytes
@@ -132,3 +176,6 @@ class RsaPublicKey:
 
     def encrypt_raw(self, data: bytes) -> bytes:
         return rsa_encrypt_raw(self.der_spki, data)
+
+    def encrypt_rsa_pad(self, data: bytes) -> bytes:
+        return rsa_encrypt_rsa_pad(self.der_spki, data)

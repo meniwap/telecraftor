@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import gzip
 import logging
 import re
 import struct
@@ -10,6 +9,7 @@ from typing import Any, Protocol, cast
 
 from telecraft.mtproto.core.msg_id import MsgIdGenerator
 from telecraft.mtproto.core.state import MtprotoState
+from telecraft.mtproto.gzip_utils import decompress_limited
 from telecraft.tl.codec import MsgContainer, RpcResult, TLCodecError, loads
 from telecraft.tl.generated.types import (
     BadMsgNotification,
@@ -160,7 +160,7 @@ def _collect_req_msg_ids(payload: bytes, out: set[int], *, depth: int = 0) -> No
     if cid == _GZIP_PACKED_CONSTRUCTOR_ID:
         try:
             packed, _ = _read_tl_bytes_from(payload, start=4)
-            unpacked = gzip.decompress(packed)
+            unpacked = decompress_limited(packed)
         except Exception:  # noqa: BLE001
             return
         _collect_req_msg_ids(unpacked, out, depth=depth + 1)

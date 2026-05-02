@@ -3,10 +3,11 @@ from __future__ import annotations
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
+from telecraft.core.bytes import xor_bytes
 from telecraft.mtproto.auth.handshake import decrypt_server_dh_inner, rsa_encrypt_inner_data
 from telecraft.mtproto.auth.kdf import tmp_aes_key_iv
 from telecraft.mtproto.crypto.aes_ige import AesIge
-from telecraft.mtproto.crypto.hashes import sha1
+from telecraft.mtproto.crypto.hashes import sha1, sha256
 from telecraft.mtproto.crypto.rsa import RsaPublicKey
 from telecraft.tl.codec import dumps
 from telecraft.tl.generated.types import PQInnerData, ServerDhInnerData, ServerDhParamsOk
@@ -44,7 +45,7 @@ def test_decrypt_server_dh_inner_strips_sha1_prefix() -> None:
     assert out == inner
 
 
-def test_rsa_encrypt_inner_data_uses_mtproto_raw_padding() -> None:
+def test_rsa_encrypt_inner_data_uses_mtproto_rsa_pad() -> None:
     private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     der = private.public_key().public_bytes(
         encoding=Encoding.DER,
@@ -72,9 +73,13 @@ def test_rsa_encrypt_inner_data_uses_mtproto_raw_padding() -> None:
     m_int = pow(int.from_bytes(ct, "big", signed=False), d, n)
     m_bytes = m_int.to_bytes(k, "big", signed=False)
 
-    assert m_bytes[0] == 0
-    padded = m_bytes[1:]
+    temp_key_xor = m_bytes[:32]
+    aes_encrypted = m_bytes[32:]
+    temp_key = xor_bytes(temp_key_xor, sha256(aes_encrypted))
+    data_with_hash = AesIge(key=temp_key, iv=b"\x00" * 32).decrypt(aes_encrypted)
+    data_with_padding = data_with_hash[:192][::-1]
+    digest = data_with_hash[192:]
 
     inner_bytes = dumps(inner)
-    assert padded[:20] == sha1(inner_bytes)
-    assert padded[20 : 20 + len(inner_bytes)] == inner_bytes
+    assert digest == sha256(temp_key + data_with_padding)
+    assert data_with_padding.startswith(inner_bytes)

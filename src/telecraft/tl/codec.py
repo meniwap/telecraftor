@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import gzip
 import os
 import struct
 from dataclasses import dataclass, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from telecraft.mtproto.gzip_utils import decompress_limited
 
 VECTOR_CONSTRUCTOR_ID = 0x1CB5C415
 
@@ -513,7 +514,7 @@ class TLReader:
         if cid == _GZIP_PACKED_CONSTRUCTOR_ID:
             packed = self.read_bytes()
             try:
-                unpacked = gzip.decompress(packed)
+                unpacked = decompress_limited(packed)
             except Exception as e:  # noqa: BLE001
                 raise TLCodecError("Failed to decompress gzip_packed payload") from e
             return TLReader(unpacked).read_object(path=f"{path}.gzip_packed")

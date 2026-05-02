@@ -3,7 +3,10 @@ from __future__ import annotations
 import gzip
 import struct
 
-from telecraft.tl.codec import MsgContainer, RpcResult, dumps, loads
+import pytest
+
+from telecraft.mtproto.gzip_utils import MAX_GZIP_UNPACKED_SIZE
+from telecraft.tl.codec import MsgContainer, RpcResult, TLCodecError, dumps, loads
 from telecraft.tl.generated.types import Pong
 
 
@@ -38,6 +41,23 @@ def test_parse_gzip_packed_unwraps() -> None:
     obj = loads(data)
     assert isinstance(obj, Pong)
     assert obj.ping_id == 2
+
+
+def test_parse_gzip_packed_rejects_oversized_payload() -> None:
+    packed = gzip.compress(b"\x00" * (MAX_GZIP_UNPACKED_SIZE + 1))
+    gzip_packed_cid = 812830625  # 0x3072CFA1
+    data = struct.pack("<i", gzip_packed_cid) + _tl_bytes(packed)
+
+    with pytest.raises(TLCodecError, match="gzip_packed"):
+        loads(data)
+
+
+def test_parse_gzip_packed_rejects_malformed_payload() -> None:
+    gzip_packed_cid = 812830625  # 0x3072CFA1
+    data = struct.pack("<i", gzip_packed_cid) + _tl_bytes(b"not gzip")
+
+    with pytest.raises(TLCodecError, match="gzip_packed"):
+        loads(data)
 
 
 def test_parse_msg_container() -> None:

@@ -44,3 +44,27 @@ def test_session_file_rejects_invalid_salt() -> None:
             auth_key=b"\x11" * 256,
             server_salt=b"\x22" * 7,
         ).validate()
+
+
+def test_session_file_accepts_256_byte_auth_key() -> None:
+    MtprotoSession(
+        dc_id=2,
+        host="x",
+        port=443,
+        framing="intermediate",
+        auth_key=b"\x11" * 256,
+        server_salt=b"\x22" * 8,
+    ).validate()
+
+
+@pytest.mark.parametrize("auth_key", [b"\x11" * 255, b"\x11" * 257, b"\x11" * 31])
+def test_session_file_rejects_non_256_byte_auth_key(auth_key: bytes) -> None:
+    with pytest.raises(SessionError, match="auth_key"):
+        MtprotoSession(
+            dc_id=2,
+            host="x",
+            port=443,
+            framing="intermediate",
+            auth_key=auth_key,
+            server_salt=b"\x22" * 8,
+        ).validate()
