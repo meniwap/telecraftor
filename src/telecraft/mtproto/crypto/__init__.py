@@ -6,6 +6,7 @@ from .rsa import (
     fingerprint_from_der_spki,
     rsa_encrypt_pkcs1v15,
     rsa_encrypt_raw,
+    rsa_encrypt_rsa_pad,
     rsa_key_size_bytes,
 )
 
@@ -16,6 +17,7 @@ __all__ = [
     "random_bytes",
     "rsa_encrypt_pkcs1v15",
     "rsa_encrypt_raw",
+    "rsa_encrypt_rsa_pad",
     "rsa_key_size_bytes",
     "sha1",
     "sha256",

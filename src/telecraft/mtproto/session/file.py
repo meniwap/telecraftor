@@ -46,8 +46,8 @@ class MtprotoSession:
             raise SessionError("Invalid port")
         if self.framing not in {"intermediate", "abridged"}:
             raise SessionError("Invalid framing")
-        if not isinstance(self.auth_key, (bytes, bytearray)) or len(self.auth_key) < 32:
-            raise SessionError("Invalid auth_key")
+        if not isinstance(self.auth_key, (bytes, bytearray)) or len(self.auth_key) != 256:
+            raise SessionError("Invalid auth_key (must be 256 bytes)")
         if not isinstance(self.server_salt, (bytes, bytearray)) or len(self.server_salt) != 8:
             raise SessionError("Invalid server_salt (must be 8 bytes)")
         if self.session_id is not None and len(self.session_id) != 8:

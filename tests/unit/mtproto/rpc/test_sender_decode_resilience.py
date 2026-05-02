@@ -2,21 +2,25 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import gzip
 import struct
 from dataclasses import dataclass
 
 import pytest
 
+from telecraft.mtproto.gzip_utils import MAX_GZIP_UNPACKED_SIZE
 from telecraft.mtproto.rpc.sender import (
     MtprotoEncryptedSender,
     RpcDecodeError,
     TLCodecError,
     _PendingCall,
+    extract_req_msg_ids_from_payload,
 )
 from telecraft.tl.codec import dumps
 from telecraft.tl.generated.types import Pong
 
 _RPC_RESULT_CONSTRUCTOR_ID = -212046591
+_GZIP_PACKED_CONSTRUCTOR_ID = 812830625
 
 
 @dataclass
@@ -72,6 +76,21 @@ def _rpc_result_body(req_msg_id: int, result_payload: bytes) -> bytes:
     )
 
 
+def _tl_bytes(data: bytes) -> bytes:
+    ln = len(data)
+    if ln < 254:
+        out = bytes([ln]) + data
+        out += b"\x00" * ((4 - ((1 + ln) % 4)) % 4)
+        return out
+    out = bytes([254]) + struct.pack("<I", ln)[:3] + data
+    out += b"\x00" * ((4 - ((4 + ln) % 4)) % 4)
+    return out
+
+
+def _gzip_packed(payload: bytes) -> bytes:
+    return struct.pack("<i", _GZIP_PACKED_CONSTRUCTOR_ID) + _tl_bytes(gzip.compress(payload))
+
+
 def _build_sender_with_pending_calls() -> tuple[MtprotoEncryptedSender, _PendingCall, _PendingCall]:
     sender = MtprotoEncryptedSender(
         _FakeTransport(),
@@ -108,6 +127,24 @@ def test_sender__decode_error__fails_only_relevant_call() -> None:
         assert not call2.future.done()
 
     asyncio.run(_run())
+
+
+def test_sender__extract_req_msg_ids__unwraps_bounded_gzip() -> None:
+    body = _gzip_packed(_rpc_result_body(101, struct.pack("<i", 6)))
+
+    assert extract_req_msg_ids_from_payload(body) == {101}
+
+
+def test_sender__extract_req_msg_ids__ignores_oversized_gzip() -> None:
+    body = _gzip_packed(b"\x00" * (MAX_GZIP_UNPACKED_SIZE + 1))
+
+    assert extract_req_msg_ids_from_payload(body) == set()
+
+
+def test_sender__extract_req_msg_ids__ignores_malformed_gzip() -> None:
+    body = struct.pack("<i", _GZIP_PACKED_CONSTRUCTOR_ID) + _tl_bytes(b"not gzip")
+
+    assert extract_req_msg_ids_from_payload(body) == set()
 
 
 def test_sender__decode_error__loop_continues_and_next_call_succeeds() -> None:
