@@ -786,19 +786,12 @@ class MtprotoClient:
             text: Message text
             reply_to_msg_id: Optional message ID to reply to
             silent: Send without notification
-            reply_markup: Optional keyboard markup (InlineKeyboard.build() or ReplyKeyboard.build())
+            reply_markup: Optional raw Telegram ReplyMarkup TL object
             timeout: RPC timeout in seconds
         """
         from secrets import randbits
 
         from telecraft.tl.generated.types import InputReplyToMessage
-
-        if reply_markup is not None:
-            # Allow passing builders directly.
-            from telecraft.client.keyboards import InlineKeyboard, ReplyKeyboard
-
-            if isinstance(reply_markup, (InlineKeyboard, ReplyKeyboard)):
-                reply_markup = reply_markup.build()
 
         reply_to = None
         if reply_to_msg_id is not None:
@@ -873,14 +866,8 @@ class MtprotoClient:
             text: Message text
             reply_to_msg_id: Optional message ID to reply to
             silent: Send without notification
-            reply_markup: Optional keyboard (use InlineKeyboard or ReplyKeyboard builders)
+            reply_markup: Optional raw Telegram ReplyMarkup TL object
             timeout: RPC timeout in seconds
-
-        Example with inline keyboard:
-            from telecraft.client.keyboards import InlineKeyboard
-            kb = InlineKeyboard()
-            kb.button("Click", callback_data="click").button("Visit", url="https://t.me")
-            await client.send_message(peer, "Hello!", reply_markup=kb.build())
         """
         p = await self.resolve_peer(peer, timeout=timeout)
 

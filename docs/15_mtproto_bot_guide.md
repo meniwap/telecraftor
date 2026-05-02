@@ -58,22 +58,6 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py updates --runtime prod --allow-prod --session-kind bot
 ```
 
-## Run the keyboard demo
-
-Use the included app:
-
-```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/bot_keyboard_demo.py \
-  --runtime prod --allow-prod --target @your_group_or_channel
-```
-
-What it does:
-- sends: `אני חתול`
-- adds inline buttons: `כן` / `לא`
-- handles callback queries
-- answers callback with a toast
-- best-effort edits the original message with the selected choice
-
 ## Run the group bot (plugin-based)
 
 Use the production-ready plugin shell:
@@ -89,21 +73,7 @@ For full architecture/config/QA details see:
 ## Important Telegram behavior
 
 - A user must start/open the bot chat before the bot can DM them.
-- Callback queries come from inline keyboard clicks; answer them quickly to avoid client-side spinner.
 - In `process_no_reply` backlog mode, event replies are intentionally suppressed (`allow_reply=False`).
-
-## Minimal callback-query pattern
-
-```python
-from telecraft.bot import Router, callback_data_startswith
-
-router = Router()
-
-@router.on_callback_query(callback_data_startswith("cat_"))
-async def on_cat_choice(e):
-    choice = e.data_text or ""
-    await e.answer(message=f"picked: {choice}")
-```
 
 ## Related V2 APIs for bots
 
@@ -111,7 +81,6 @@ async def on_cat_choice(e):
 - `client.bots.set_commands(...)`
 - `client.bots.get_commands(...)`
 - `client.bots.set_menu_button(...)`
-- `client.messages.set_bot_callback_answer(...)`
 - `client.messages.set_inline_bot_results(...)`
 - `client.messages.set_bot_shipping_results(...)`
 - `client.messages.set_bot_precheckout_results(...)`

@@ -2,28 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
-from bot_plugins.shared import ctx_from_router, peer_ref, require_admin
-from telecraft.bot import (
-    CallbackQueryEvent,
-    MessageEvent,
-    Router,
-    and_,
-    callback_data_startswith,
-    command,
-    incoming,
-)
-from telecraft.client.keyboards import InlineKeyboard
-
-
-def _menu_markup(*, read_only: bool) -> object:
-    kb = InlineKeyboard()
-    kb.button("עזרה", callback_data="gb:help").button("סטטוס", callback_data="gb:status").row()
-    if read_only:
-        kb.button("כבה dry-run", callback_data="gb:readonly:off")
-    else:
-        kb.button("הפעל dry-run", callback_data="gb:readonly:on")
-    kb.button("תפריט", callback_data="gb:menu")
-    return kb.build()
+from bot_plugins.shared import ctx_from_router, require_admin
+from telecraft.bot import MessageEvent, Router, and_, command, incoming
 
 
 def _help_text() -> str:
@@ -38,34 +18,19 @@ def _help_text() -> str:
     )
 
 
-def _status_text(*, peer_key: str | None, read_only: bool) -> str:
-    return (
-        "סטטוס בוט:\n"
-        f"- peer: {peer_key or 'unknown'}\n"
-        f"- read_only_mode: {read_only}\n"
-    )
-
-
 async def setup(router: Router) -> None:
     ctx = ctx_from_router(router)
 
     @router.on_message(and_(incoming(), command("start")), stop=True)
     async def _on_start(event: MessageEvent) -> None:
-        key = ctx.event_peer_key(event)
-        read_only = ctx.get_peer_read_only(key)
         await event.reply(
             "שלום! זה Group Bot על MTProto.\n"
-            "כאן אפשר לפתוח תפריט ולעבוד עם מודרציה/סטטיסטיקות.",
-            reply_markup=_menu_markup(read_only=read_only),
+            "שלח /help לרשימת פקודות או /settings להגדרות dry-run.",
         )
 
     @router.on_message(and_(incoming(), command("help")), stop=True)
     async def _on_help(event: MessageEvent) -> None:
-        key = ctx.event_peer_key(event)
-        await event.reply(
-            _help_text(),
-            reply_markup=_menu_markup(read_only=ctx.get_peer_read_only(key)),
-        )
+        await event.reply(_help_text())
 
     @router.on_message(and_(incoming(), command("id")), stop=True)
     async def _on_id(event: MessageEvent) -> None:
@@ -84,9 +49,8 @@ async def setup(router: Router) -> None:
         read_only = ctx.get_peer_read_only(key)
         await event.reply(
             "הגדרות מהירות:\n"
-            "- שימוש בכפתורים למטה\n"
-            "- או הקלד `readonly on` / `readonly off` תוך 45 שניות",
-            reply_markup=_menu_markup(read_only=read_only),
+            f"- מצב נוכחי: read_only_mode={read_only}\n"
+            "- הקלד `readonly on` / `readonly off` תוך 45 שניות",
         )
         try:
             answer = await router.ask(
@@ -108,82 +72,6 @@ async def setup(router: Router) -> None:
             await answer.reply("dry-run כובה לקבוצה הזו.")
             return
         await answer.reply("קלט לא מזוהה. נסה שוב עם /settings.")
-
-    @router.on_callback_query(callback_data_startswith("gb:"), stop=True)
-    async def _on_callback(event: CallbackQueryEvent) -> None:
-        data = (event.data_text or "").strip().lower()
-        key = ctx.peer_key(event.peer_type, event.peer_id)
-        read_only = ctx.get_peer_read_only(key)
-
-        if data == "gb:help":
-            await event.answer(message="פותח עזרה", alert=False)
-            ref = peer_ref(event.peer_type, event.peer_id)
-            if ref is not None:
-                await ctx.app.messages.send(
-                    ref,
-                    _help_text(),
-                    reply_to_msg_id=event.msg_id,
-                    timeout=ctx.timeout,
-                )
-            return
-
-        if data == "gb:status":
-            await event.answer(message="סטטוס", alert=False)
-            ref = peer_ref(event.peer_type, event.peer_id)
-            if ref is not None:
-                await ctx.app.messages.send(
-                    ref,
-                    _status_text(peer_key=key, read_only=read_only),
-                    reply_to_msg_id=event.msg_id,
-                    timeout=ctx.timeout,
-                )
-            return
-
-        if data in {"gb:readonly:on", "gb:readonly:off"}:
-            allowed = await ctx.is_admin(
-                peer_type=event.peer_type,
-                peer_id=event.peer_id,
-                user_id=event.user_id,
-            )
-            if not allowed:
-                await event.answer(message="אין הרשאה", alert=True)
-                return
-            if key is None:
-                await event.answer(message="peer לא מזוהה", alert=True)
-                return
-            target_value = data.endswith(":on")
-            ctx.set_peer_read_only(key, target_value)
-            await event.answer(message="עודכן", alert=False)
-            ref = peer_ref(event.peer_type, event.peer_id)
-            if ref is not None and event.msg_id is not None:
-                try:
-                    await ctx.app.messages.edit(
-                        ref,
-                        int(event.msg_id),
-                        _status_text(peer_key=key, read_only=target_value),
-                        timeout=ctx.timeout,
-                    )
-                except Exception:
-                    await ctx.app.messages.send(
-                        ref,
-                        _status_text(peer_key=key, read_only=target_value),
-                        timeout=ctx.timeout,
-                    )
-            return
-
-        if data == "gb:menu":
-            await event.answer(message="תפריט", alert=False)
-            ref = peer_ref(event.peer_type, event.peer_id)
-            if ref is not None:
-                await ctx.app.messages.send(
-                    ref,
-                    "תפריט ראשי",
-                    reply_markup=_menu_markup(read_only=read_only),
-                    timeout=ctx.timeout,
-                )
-            return
-
-        await event.answer(message="לא זוהה", alert=False)
 
 
 async def teardown(router: Router) -> None:

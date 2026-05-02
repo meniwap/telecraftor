@@ -27,7 +27,7 @@ It is designed for MTProto bot sessions (`auth.importBotAuthorization`) and reus
 
 - `apps/bot_plugins/core.py`
   - `/start`, `/help`, `/id`, `/settings`
-  - inline callbacks (`gb:*`) and read-only toggle
+  - text-based read-only toggle through `/settings`
 - `apps/bot_plugins/moderation.py`
   - `/warn`, `/warnings`, `/unwarn`
   - `/mute`, `/unmute` (backward-compatible aliases)
@@ -110,9 +110,8 @@ Pre-flight:
 
 Smoke:
 - `/start` -> menu
-- callback tap -> immediate answer (spinner clears)
 - `/help`, `/id` output correctness
-- `/settings` toggles read-only
+- `/settings` toggles read-only through typed `readonly on` / `readonly off`
 - `/warn` / `/warnings` counters
 - `/mute <user> 1` and `/unmute <user>`
 - `/restrict <user> media 1` and `/unrestrict <user>`

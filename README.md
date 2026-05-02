@@ -119,13 +119,6 @@ Run a bot session check:
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-prod --session-kind bot
 ```
 
-Run the inline keyboard demo:
-
-```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/bot_keyboard_demo.py \
-  --runtime prod --allow-prod --target @your_group_or_channel
-```
-
 ## Examples
 
 Runnable examples live in `examples/`:
@@ -134,7 +127,6 @@ Runnable examples live in `examples/`:
 - `examples/02_send_message.py`
 - `examples/03_download_media.py`
 - `examples/04_userbot_echo.py`
-- `examples/05_mtproto_bot_keyboard.py`
 - `examples/group_bot/`
 
 Internal operator scripts and demos live in `apps/`.
