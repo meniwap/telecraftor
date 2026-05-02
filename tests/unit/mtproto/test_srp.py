@@ -1,12 +1,28 @@
 from __future__ import annotations
 
-from telecraft.mtproto.auth.srp import make_input_check_password_srp
+import hashlib
+
+from telecraft.mtproto.auth.srp import _kdf_password_hash, make_input_check_password_srp
+from telecraft.mtproto.crypto.hashes import sha256
 from telecraft.tl.generated.types import (
     AccountPassword,
     InputCheckPasswordSrp,
     PasswordKdfAlgoSha256Sha256Pbkdf2Hmacsha512iter100000Sha256ModPow,
     SecurePasswordKdfAlgoSha512,
 )
+
+
+def test_srp_kdf_matches_telegram_salted_hash_formula() -> None:
+    password = "p@ssw0rd"
+    salt1 = b"salt-one"
+    salt2 = b"salt-two"
+
+    sh1 = sha256(salt1 + password.encode("utf-8") + salt1)
+    ph1 = sha256(salt2 + sh1 + salt2)
+    pbk = hashlib.pbkdf2_hmac("sha512", ph1, salt1, 2, dklen=64)
+    expected = sha256(salt2 + pbk + salt2)
+
+    assert _kdf_password_hash(password, salt1=salt1, salt2=salt2, iterations=2) == expected
 
 
 def test_srp_builds_input_check_password() -> None:

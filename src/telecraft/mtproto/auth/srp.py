@@ -34,6 +34,10 @@ def _be_to_int(b: bytes) -> int:
     return int.from_bytes(b, "big", signed=False)
 
 
+def _salted_hash(data: bytes, salt: bytes) -> bytes:
+    return sha256(salt + data + salt)
+
+
 def _kdf_password_hash(
     password: str, *, salt1: bytes, salt2: bytes, iterations: int = 100_000
 ) -> bytes:
@@ -45,17 +49,15 @@ def _kdf_password_hash(
     """
 
     pw = password.encode("utf-8")
-    hpw = sha256(pw)
 
-    # PH1 := H(H(password) | salt1 | H(password) | salt2)
-    ph1 = sha256(hpw + salt1 + hpw + salt2)
+    # PH1 := SH(SH(password, salt1), salt2)
+    ph1 = _salted_hash(_salted_hash(pw, salt1), salt2)
 
     # PBKDF2-HMAC-SHA512(PH1, salt1, 100000)
     pbk = hashlib.pbkdf2_hmac("sha512", ph1, salt1, iterations, dklen=64)
 
-    # PH2 := H(PBKDF2(...) | salt2)
-    ph2 = sha256(pbk + salt2)
-    return ph2
+    # PH2 := SH(PBKDF2(...), salt2)
+    return _salted_hash(pbk, salt2)
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,6 +144,8 @@ def make_input_check_password_srp(
     a_raw = random_bytes(256)
     a = _be_to_int(a_raw)
     A = pow(g, a, p)
+    if A == 0:
+        raise SrpError("Invalid SRP A=0")
     A_bytes = _int_to_be(A, p_len)
 
     # u := H(A | B)
