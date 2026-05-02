@@ -70,7 +70,7 @@ async def _keepalive_while_waiting(
     while not stop.is_set():
         try:
             await asyncio.wait_for(stop.wait(), timeout=interval)
-        except TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             pass
         if stop.is_set():
             return
