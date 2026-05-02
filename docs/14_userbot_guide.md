@@ -82,7 +82,6 @@ await Dispatcher(client=app.raw, router=router, ignore_outgoing=False).run()
 ## Common pitfalls
 
 - User accounts cannot behave exactly like Bot API bots in every Telegram client UX flow.
-- Inline/reply keyboard interactions that are bot-centric may not appear/behave the same for user accounts.
 - Sending to channels/DMs may need entity priming (`access_hash` cache). `Dispatcher` does best-effort priming on startup.
 - If you accidentally load a non-prod session, runtime isolation blocks startup.
 

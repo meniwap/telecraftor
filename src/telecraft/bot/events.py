@@ -1033,7 +1033,7 @@ class ReactionEvent:
 @dataclass(slots=True)
 class CallbackQueryEvent:
     """
-    Bot callback query event (inline keyboard button click).
+    Bot callback query event.
 
     Supports:
     - updateBotCallbackQuery (message in chat/channel)

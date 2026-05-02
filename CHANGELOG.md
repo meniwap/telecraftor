@@ -20,6 +20,10 @@ The format follows a simplified Keep a Changelog style:
 
 - Pending.
 
+### Removed
+
+- Removed the public keyboard demo/example, keyboard builder helper, and keyboard-focused docs.
+
 ## [0.2.0b1] - 2026-05-02
 
 First public beta for GitHub distribution.
