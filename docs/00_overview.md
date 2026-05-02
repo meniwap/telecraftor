@@ -5,6 +5,8 @@ It supports both:
 - user accounts (userbot flows)
 - bot accounts logged in via MTProto (`auth.importBotAuthorization`)
 
+Current public beta line: `0.2.x`.
+
 ## Goals
 
 - MTProto core + generated TL schema/types.
@@ -19,4 +21,3 @@ It supports both:
 - Voice/video calls
 - TDLib wrapper
 - HTTP Bot API client module
-

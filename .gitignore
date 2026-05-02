@@ -12,6 +12,7 @@ cachkl
 
 # Local editor/agent metadata
 .cursor/
+.telecraft/
 
 # Local auth/session artifacts (never commit)
 .sessions/
@@ -19,6 +20,8 @@ session.json
 *.session.json
 *.sqlite
 *.sqlite3
+*.db
+*.log
 
 # Local env files (never commit)
 .env

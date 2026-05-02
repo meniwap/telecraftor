@@ -1,51 +1,134 @@
 # Telecraft
 
-Telecraft is an async Telegram MTProto client library. The project is MTProto-first: it is meant
-to provide a stable foundation for user sessions, bot sessions over MTProto, typed client
-namespaces, media helpers, update dispatching, and internal production automation.
+Telecraft is an async, MTProto-first Telegram client library for Python.
 
-Current status: `0.1.x` is the internal production-readiness line. Public release work is deferred.
+It supports:
 
-Repository boundary:
+- user sessions for userbot workflows
+- bot sessions through MTProto login with `auth.importBotAuthorization`
+- typed high-level client namespaces for messages, dialogs, media, bots, admin helpers, and more
+- an event stack for MTProto update routing with `Router` and `Dispatcher`
 
-- `src/telecraft/`: library/product code
-- `examples/`: supported learning examples that stay in this repository
-- `apps/`: internal operator scripts and demos
-- `tools/manual/`: optional manual diagnostics
+Public beta status: `0.2.0b1`.
+
+Telecraft does **not** implement the HTTP Telegram Bot API in this beta. Bot accounts are supported
+through MTProto, so you still need Telegram API credentials plus a bot token from BotFather.
 
 ## Install
+
+From GitHub:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
-python -m pip install -e ".[dev]"
+python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.0b1"
+```
+
+For local development from a clone:
+
+```bash
+python3 -m venv .venv
+./.venv/bin/python -m pip install -U pip
+./.venv/bin/python -m pip install -e ".[dev]"
+```
+
+## Credentials
+
+Create an API app at Telegram and export your credentials:
+
+```bash
+export TELEGRAM_API_ID="12345"
+export TELEGRAM_API_HASH="your_api_hash"
+```
+
+For bot sessions, also export:
+
+```bash
+export TELEGRAM_BOT_TOKEN="123456:ABC..."
+```
+
+Local sessions contain Telegram auth keys. Treat `.sessions/` like passwords and never commit it.
+
+## Login
+
+The local operator CLI is under `apps/`. Production access is intentionally double-gated:
+
+```bash
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login --runtime prod --allow-prod
+```
+
+The phone prompt happens before Telecraft opens a Telegram connection. After the code is sent,
+Telecraft keeps the connection alive while you type the code or 2FA password.
+
+Check the session:
+
+```bash
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-prod
+```
+
+Send a message:
+
+```bash
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py send @your_username "hello from Telecraft" --runtime prod --allow-prod
 ```
 
 ## Minimal Use
 
 ```python
+import asyncio
+
 from telecraft.client import Client, ClientInit
 
-client = Client(
-    network="prod",
-    session_path=".sessions/prod/current",
-    init=ClientInit(api_id=12345, api_hash="..."),
-)
 
-await client.connect()
-try:
-    me = await client.users.full("self")
-    await client.messages.send("@your_username", "hello from Telecraft")
-finally:
-    await client.close()
+async def main() -> None:
+    client = Client(
+        network="prod",
+        session_path=".sessions/prod/current",
+        init=ClientInit(
+            api_id=12345,
+            api_hash="your_api_hash",
+        ),
+    )
+
+    await client.connect()
+    try:
+        me = await client.profile.me()
+        print(me)
+        await client.messages.send("@your_username", "hello from Telecraft")
+    finally:
+        await client.close()
+
+
+asyncio.run(main())
 ```
 
-Low-level MTProto access remains available through `telecraft.client.mtproto.MtprotoClient`.
+## MTProto Bot Session
+
+Login a bot account through MTProto:
+
+```bash
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod
+```
+
+Bot sessions use a separate pointer at `.sessions/prod/current_bot`.
+
+Run a bot session check:
+
+```bash
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-prod --session-kind bot
+```
+
+Run the inline keyboard demo:
+
+```bash
+TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/bot_keyboard_demo.py \
+  --runtime prod --allow-prod --target @your_group_or_channel
+```
 
 ## Examples
 
-Clean runnable examples live in `examples/`:
+Runnable examples live in `examples/`:
 
 - `examples/01_get_me.py`
 - `examples/02_send_message.py`
@@ -54,13 +137,11 @@ Clean runnable examples live in `examples/`:
 - `examples/05_mtproto_bot_keyboard.py`
 - `examples/group_bot/`
 
-Internal operator tools remain under `apps/`. They are for local development and operations, not
-package identity. Use `apps/bot_config.example.json` as the placeholder-only group bot config
-template.
+Internal operator scripts and demos live in `apps/`.
 
 ## Testing
 
-Internal production gate:
+Normal local gate:
 
 ```bash
 ./.venv/bin/python tools/check_repo_hygiene.py
@@ -73,8 +154,14 @@ Internal production gate:
 ./.venv/bin/python tools/check_repo_hygiene.py --artifacts
 ```
 
-Live tests are opt-in and production-gated. The tracked live suite is a minimal prod-safe smoke
-layer; do not run real Telegram live tests without explicit approval. See `docs/11_live_runbook.md`.
+Live tests are opt-in, production-gated, and documented in `docs/11_live_runbook.md`.
+
+## Safety
+
+- This is beta software. Test with accounts and chats where mistakes are acceptable.
+- Telegram sessions contain high-value auth material. Do not share session files or diagnostic logs.
+- Public releases are provided under MIT-0, without warranty or liability.
+- Destructive/admin-heavy flows should be tested manually with controlled accounts before real use.
 
 ## Docs
 

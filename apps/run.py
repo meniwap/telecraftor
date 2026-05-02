@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from telecraft.client.runtime_isolation import (
     RuntimeIsolationError,
@@ -52,6 +54,54 @@ def _session_client_args(session_path: str) -> tuple[int, str, int, str]:
 
     s = load_session_file(session_path)
     return int(s.dc_id), str(s.host), int(s.port), str(s.framing)
+
+
+async def _prompt_input(prompt: str) -> str:
+    return (await asyncio.to_thread(input, prompt)).strip()
+
+
+async def _keepalive_while_waiting(
+    client: Any,
+    stop: asyncio.Event,
+    *,
+    interval: float,
+    timeout: float,
+) -> None:
+    while not stop.is_set():
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=interval)
+        except TimeoutError:
+            pass
+        if stop.is_set():
+            return
+        try:
+            await client.ping(timeout=timeout)
+        except Exception as e:  # noqa: BLE001
+            print(
+                "Warning: keepalive ping failed while waiting for input: "
+                f"{type(e).__name__}: {e}"
+            )
+
+
+async def _prompt_with_keepalive(client: Any, prompt: str, *, timeout: float) -> str:
+    stop = asyncio.Event()
+    interval = max(5.0, min(float(timeout) / 2.0, 15.0))
+    ping_timeout = max(3.0, min(float(timeout), 10.0))
+    task = asyncio.create_task(
+        _keepalive_while_waiting(
+            client,
+            stop,
+            interval=interval,
+            timeout=ping_timeout,
+        )
+    )
+    try:
+        return await _prompt_input(prompt)
+    finally:
+        stop.set()
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
 
 def _resolve_runtime_network(args: argparse.Namespace) -> tuple[str, str]:
@@ -170,7 +220,11 @@ async def _cmd_login(args: argparse.Namespace) -> int:
             print("Sent code. (check Telegram/SMS)")
 
             phone_code_hash = sent.phone_code_hash
-            code = args.code or input("Code: ").strip()
+            code = args.code or await _prompt_with_keepalive(
+                client,
+                "Code: ",
+                timeout=args.timeout,
+            )
             try:
                 auth = await client.sign_in(
                     phone_number=phone_number,
@@ -180,9 +234,13 @@ async def _cmd_login(args: argparse.Namespace) -> int:
                 )
             except RpcErrorException as e:
                 if e.message == "SESSION_PASSWORD_NEEDED":
-                    pw = args.password or os.environ.get("TELEGRAM_PASSWORD") or input(
-                        "2FA password: "
-                    ).strip()
+                    pw = args.password or os.environ.get("TELEGRAM_PASSWORD")
+                    if not pw:
+                        pw = await _prompt_with_keepalive(
+                            client,
+                            "2FA password: ",
+                            timeout=args.timeout,
+                        )
                     authz = await client.check_password(pw, timeout=args.timeout)
                     print("Logged in OK.")
                     write_current_session_pointer(
@@ -207,8 +265,16 @@ async def _cmd_login(args: argparse.Namespace) -> int:
 
             # Sign-up required (new account)
             if getattr(auth, "TL_NAME", None) == "auth.authorizationSignUpRequired":
-                first = args.first_name or input("First name: ").strip()
-                last = args.last_name or input("Last name (optional): ").strip()
+                first = args.first_name or await _prompt_with_keepalive(
+                    client,
+                    "First name: ",
+                    timeout=args.timeout,
+                )
+                last = args.last_name or await _prompt_with_keepalive(
+                    client,
+                    "Last name (optional): ",
+                    timeout=args.timeout,
+                )
                 _ = await client.sign_up(
                     phone_number=phone_number,
                     phone_code_hash=phone_code_hash,
