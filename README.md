@@ -18,8 +18,9 @@ through MTProto, so you still need Telegram API credentials plus a bot token fro
 
 - This is an MTProto-first beta, not a stable drop-in replacement for Telethon or Pyrogram.
 - HTTP Bot API is intentionally not included; bot sessions use MTProto.
-- RSA-PAD is implemented for the MTProto auth-key exchange.
 - Secret chats, calls, and full TDLib parity are not in scope for this beta.
+
+RSA-PAD is implemented for the MTProto auth-key exchange.
 
 ## Install
 
