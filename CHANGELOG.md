@@ -24,6 +24,20 @@ The format follows a simplified Keep a Changelog style:
 
 - Pending.
 
+## [0.2.0b3] - 2026-05-03
+
+PyPI publishing prep beta for the public release line.
+
+### Added
+
+- Added GitHub Actions publishing through PyPI Trusted Publishing/OIDC for pushed version tags.
+- Documented the required pending trusted publisher setup for the first PyPI upload.
+
+### Changed
+
+- Made PyPI the normal install path in the README.
+- Updated release docs and support policy to include PyPI distribution for public releases.
+
 ## [0.2.0b2] - 2026-05-03
 
 Focused hardening beta for the public GitHub release line.
