@@ -154,7 +154,7 @@ def rsa_encrypt_inner_data(inner: PQInnerData, key: RsaPublicKey) -> bytes:
     if key.fingerprint == 0:
         raise AuthHandshakeError("Invalid RSA key fingerprint")
     data = dumps(inner)
-    return key.encrypt_rsa_pad(data)
+    return key.encrypt_raw(data)
 
 
 def decrypt_server_dh_inner(server_dh: ServerDhParamsOk, *, new_nonce: bytes) -> ServerDhInnerData:

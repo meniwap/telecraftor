@@ -78,9 +78,7 @@ def rsa_encrypt_pkcs1v15(der_spki: bytes, plaintext: bytes) -> bytes:
 
 def rsa_encrypt_raw(der_spki: bytes, data: bytes) -> bytes:
     """
-    Legacy raw RSA helper retained for compatibility/tests.
-
-    The current MTProto auth-key exchange uses RSA-PAD.
+    MTProto raw RSA encryption used by the current auth-key exchange.
 
     Telegram expects RSA encryption of a 255-byte buffer:
         sha1(data) + data + random_padding
@@ -116,7 +114,7 @@ def rsa_encrypt_raw(der_spki: bytes, data: bytes) -> bytes:
 
 def rsa_encrypt_rsa_pad(der_spki: bytes, data: bytes) -> bytes:
     """
-    Telegram RSA_PAD encryption for req_DH_params.encrypted_data.
+    Telegram RSA_PAD encryption helper for the dc-aware auth flow.
 
     This follows the MTProto auth-key generation spec for 2048-bit server RSA
     keys. The input TL serialization must be at most 144 bytes and the final
@@ -160,7 +158,7 @@ class RsaPublicKey:
     """
     Convenience wrapper used by MTProto auth flow:
     - match key by `fingerprint`
-    - encrypt auth data with Telegram RSA_PAD
+    - encrypt auth data with MTProto raw RSA padding
     """
 
     der_spki: bytes
