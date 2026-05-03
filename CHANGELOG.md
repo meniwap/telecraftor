@@ -22,7 +22,27 @@ The format follows a simplified Keep a Changelog style:
 
 ### Removed
 
+- Pending.
+
+## [0.2.0b2] - 2026-05-03
+
+Focused hardening beta for the public GitHub release line.
+
+### Changed
+
+- Updated README/security wording so 2FA is typed interactively by default and RSA-PAD is documented
+  as implemented, not a limitation.
+
+### Removed
+
 - Removed the public keyboard demo/example, keyboard builder helper, and keyboard-focused docs.
+
+### Security
+
+- Implemented RSA-PAD for the MTProto auth-key exchange.
+- Hardened DH auth results so `auth_key` and `g_b` are fixed 256-byte values.
+- Tightened session validation to reject malformed auth keys that are not exactly 256 bytes.
+- Added bounded gzip unpacking for MTProto/TL gzip payloads.
 
 ## [0.2.0b1] - 2026-05-02
 

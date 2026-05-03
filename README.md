@@ -9,7 +9,7 @@ It supports:
 - typed high-level client namespaces for messages, dialogs, media, bots, admin helpers, and more
 - an event stack for MTProto update routing with `Router` and `Dispatcher`
 
-Public beta status: `0.2.0b1`.
+Public beta status: `0.2.0b2`.
 
 Telecraft does **not** implement the HTTP Telegram Bot API in this beta. Bot accounts are supported
 through MTProto, so you still need Telegram API credentials plus a bot token from BotFather.
@@ -30,7 +30,7 @@ From GitHub:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
-python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.0b1"
+python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.0b2"
 ```
 
 For local development from a clone:
