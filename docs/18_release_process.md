@@ -1,8 +1,8 @@
 # Release Process
 
 This document defines the manual process for Telecraft release readiness.
-The first public beta is GitHub-only; do not publish to PyPI in this line unless a later release
-plan explicitly adds that step.
+Public beta releases may be published to GitHub Releases and PyPI after the release gate passes.
+PyPI publishing uses Trusted Publishing through GitHub Actions, not stored PyPI credentials.
 
 ## Release Lines
 
@@ -41,27 +41,49 @@ Record the run IDs for the core smoke and baseline artifacts, then validate:
 
 ```bash
 ./.venv/bin/python tools/release_check.py \
-  --version 0.2.0b1 \
+  --version 0.2.0b3 \
   --release-type beta \
   --prod-safe-run-core <run_id_core> \
   --prod-safe-run-baseline <run_id_baseline> \
-  --write-dir reports/releases/0.2.0b1
+  --write-dir reports/releases/0.2.0b3
 ```
 
 `tools/release_check.py` always validates version, changelog, support contract, and deprecations.
 It requires live artifact IDs only for public `0.2.x+` release lines.
+If release readiness output is written to a tracked path, include it in the release prep commit.
+If it is written under ignored `reports/` paths, verify it is not staged before tagging.
 
-## GitHub Beta Release
+## PyPI Trusted Publishing
+
+Before pushing a release tag for a project that does not exist on PyPI yet, create a pending
+trusted publisher in PyPI:
+
+- PyPI project name: `telecraft`
+- owner: `meniwap`
+- repository: `telecraftor`
+- workflow filename: `publish.yml`
+- environment: `pypi`
+
+Do not store a PyPI API token, username, or password in GitHub secrets. The release workflow uses
+GitHub Actions OIDC with `pypa/gh-action-pypi-publish@release/v1`.
+
+## Public Beta Release
 
 After all gates pass:
 
 ```bash
-git tag v0.2.0b1
-git push origin v0.2.0b1
+git tag v0.2.0b3
+git push origin main
+git push origin v0.2.0b3
 ```
 
-Create a GitHub prerelease using the changelog entry and include that this beta is MTProto-only,
-with no HTTP Bot API module.
+Pushing the version tag triggers the PyPI publish workflow. Create a GitHub prerelease using the
+changelog entry and include that this beta is MTProto-only, with no HTTP Bot API module.
+
+## Emergency Manual Upload
+
+Manual `twine` upload is a break-glass fallback only. Prefer the Trusted Publishing workflow for
+normal releases, and do not add long-lived PyPI credentials to GitHub.
 
 ## Abort Rules
 

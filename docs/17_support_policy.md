@@ -9,7 +9,7 @@ This document defines Telecraft's public support contract for the V2 API surface
 
 `0.1.x` can move fast and is allowed to change without public release obligations.
 When a version is released publicly from the `0.2.x` line, the policy below applies.
-The first public distribution target is GitHub releases, not PyPI.
+Public releases may be distributed through GitHub Releases and PyPI.
 
 ## Stability labels
 
