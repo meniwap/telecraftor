@@ -20,3 +20,15 @@ quick-ack and then **no** `ServerDhParamsOk/Fail` response (timeout).
 Telecraft mitigates this by preferring the current primary keys (see `telecraft.mtproto.auth.server_keys`)
 and keeping legacy keys as fallback. If auth starts timing out again, check RSA key selection order first.
 
+## MTProto auth handshake gotcha: RSA padding mode
+
+The `0.2.0b4` hotfix uses the classic raw RSA padding flow for
+`req_DH_params.encrypted_data`:
+
+```text
+sha1(data) + data + random_padding
+```
+
+This restores live compatibility with Telegram for the current `p_q_inner_data` handshake.
+The RSA-PAD helper remains available in code, but should only become the active path together with
+the dc-aware `p_q_inner_data_dc` handshake shape.

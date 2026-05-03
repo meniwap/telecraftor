@@ -41,11 +41,11 @@ Record the run IDs for the core smoke and baseline artifacts, then validate:
 
 ```bash
 ./.venv/bin/python tools/release_check.py \
-  --version 0.2.0b3 \
+  --version 0.2.0b4 \
   --release-type beta \
   --prod-safe-run-core <run_id_core> \
   --prod-safe-run-baseline <run_id_baseline> \
-  --write-dir reports/releases/0.2.0b3
+  --write-dir reports/releases/0.2.0b4
 ```
 
 `tools/release_check.py` always validates version, changelog, support contract, and deprecations.
@@ -72,9 +72,9 @@ GitHub Actions OIDC with `pypa/gh-action-pypi-publish@release/v1`.
 After all gates pass:
 
 ```bash
-git tag v0.2.0b3
+git tag v0.2.0b4
 git push origin main
-git push origin v0.2.0b3
+git push origin v0.2.0b4
 ```
 
 Pushing the version tag triggers the PyPI publish workflow. Create a GitHub prerelease using the

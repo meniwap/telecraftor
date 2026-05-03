@@ -24,6 +24,17 @@ The format follows a simplified Keep a Changelog style:
 
 - Pending.
 
+## [0.2.0b4] - 2026-05-04
+
+Hotfix beta for MTProto user login compatibility.
+
+### Fixed
+
+- Restored the auth-key exchange `req_DH_params` payload to the classic raw RSA padding flow
+  (`sha1(data) + data + random_padding`) used by the current `p_q_inner_data` handshake.
+- Documented that the RSA-PAD helper is retained for a future dc-aware handshake update, but is
+  no longer the active auth-key exchange path in this beta.
+
 ## [0.2.0b3] - 2026-05-03
 
 PyPI publishing prep beta for the public release line.
