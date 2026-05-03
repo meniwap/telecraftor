@@ -78,7 +78,9 @@ def rsa_encrypt_pkcs1v15(der_spki: bytes, plaintext: bytes) -> bytes:
 
 def rsa_encrypt_raw(der_spki: bytes, data: bytes) -> bytes:
     """
-    MTProto "raw RSA" encryption used during auth key exchange.
+    Legacy raw RSA helper retained for compatibility/tests.
+
+    The current MTProto auth-key exchange uses RSA-PAD.
 
     Telegram expects RSA encryption of a 255-byte buffer:
         sha1(data) + data + random_padding
