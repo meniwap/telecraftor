@@ -226,6 +226,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mapfile -t promoted_files < <(find promoted -maxdepth 1 -type f -print)
+          if [[ "${#promoted_files[@]}" -ne 2 ]]; then
+            echo "Expected exactly one promoted wheel and one promoted sdist; found ${#promoted_files[@]} files." >&2
+            printf '%s\n' "${promoted_files[@]}" >&2
+            exit 1
+          fi
           test "$(find promoted -maxdepth 1 -name '*.whl' | wc -l)" -eq 1
           test "$(find promoted -maxdepth 1 -name '*.tar.gz' | wc -l)" -eq 1
           test -f "promoted/telecraft-${PACKAGE_VERSION}-py3-none-any.whl"
