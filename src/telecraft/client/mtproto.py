@@ -317,8 +317,14 @@ class MtprotoClient:
                 self._msg_id_gen = msg_id_gen
                 self._incoming = incoming
 
-                # Restore entity cache (enables DM/channel replies after restarts).
-                self._load_entities_cache()
+                # Access hashes are scoped to the authorization that produced
+                # them.  A fresh auth key must never load a same-named cache left
+                # behind by an older login; doing so causes CHANNEL_INVALID and
+                # PEER_ID_INVALID failures. Existing sessions may restore theirs.
+                if sess is not None:
+                    self._load_entities_cache()
+                else:
+                    self.entities = EntityCache()
 
                 # Bootstrap as a "real" API client.
                 if self._init is not None:
@@ -472,7 +478,9 @@ class MtprotoClient:
         )
         updates_engine = UpdatesEngine(
             invoke_api=lambda req: self.invoke_api(req, timeout=timeout),
-            resolve_input_channel=lambda channel_id: self.entities.input_channel(int(channel_id)),
+            resolve_input_channel=lambda channel_id: self.entities.input_channel_or_none(
+                int(channel_id)
+            ),
         )
         initial_state = self._load_updates_state()
         await updates_engine.initialize(initial_state=initial_state)
@@ -1118,6 +1126,7 @@ class MtprotoClient:
             DocumentAttributeFilename,
             InputMediaUploadedDocument,
             InputMediaUploadedPhoto,
+            InputPeerSelf,
             InputReplyToMessage,
         )
 
@@ -1178,12 +1187,15 @@ class MtprotoClient:
                 todo_item_id=None,
             )
 
-        p2 = await self.resolve_peer(peer, timeout=timeout)
-        try:
-            input_peer = self.entities.input_peer(p2)
-        except EntityCacheError:
-            await self._prime_entities_for_reply(want=p2, timeout=timeout)
-            input_peer = self.entities.input_peer(p2)
+        if isinstance(peer, str) and peer.strip().lower() == "self":
+            input_peer = InputPeerSelf()
+        else:
+            p2 = await self.resolve_peer(peer, timeout=timeout)
+            try:
+                input_peer = self.entities.input_peer(p2)
+            except EntityCacheError:
+                await self._prime_entities_for_reply(want=p2, timeout=timeout)
+                input_peer = self.entities.input_peer(p2)
         res = await self.invoke_api(
             MessagesSendMedia(
                 flags=0,
@@ -1246,6 +1258,7 @@ class MtprotoClient:
             DocumentAttributeFilename,
             InputMediaUploadedDocument,
             InputMediaUploadedPhoto,
+            InputPeerSelf,
             InputReplyToMessage,
             InputSingleMedia,
         )
@@ -1258,12 +1271,15 @@ class MtprotoClient:
         if captions is not None and len(captions) != len(paths):
             raise MtprotoClientError("send_album: captions must match paths length")
 
-        p = await self.resolve_peer(peer, timeout=timeout)
-        try:
-            input_peer = self.entities.input_peer(p)
-        except EntityCacheError:
-            await self._prime_entities_for_reply(want=p, timeout=timeout)
-            input_peer = self.entities.input_peer(p)
+        if isinstance(peer, str) and peer.strip().lower() == "self":
+            input_peer = InputPeerSelf()
+        else:
+            p = await self.resolve_peer(peer, timeout=timeout)
+            try:
+                input_peer = self.entities.input_peer(p)
+            except EntityCacheError:
+                await self._prime_entities_for_reply(want=p, timeout=timeout)
+                input_peer = self.entities.input_peer(p)
 
         # Upload all files and build media list
         multi_media: list[Any] = []

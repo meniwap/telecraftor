@@ -59,6 +59,8 @@ Production-hardening release candidate for public MTProto user and bot sessions.
   closed fast-response and blocked-send shutdown races.
 - Made update recovery atomic across `seq`, `pts`, and `qts` gaps, including immediate persisted
   state catch-up, replay ordering, bounded-queue rollback, and restart recovery for channel state.
+- Kept context-bound `min` access hashes and entity caches from older logins out of peer
+  resolution, and isolated permanently unavailable channels without terminating global updates.
 - Made middleware continuation one-shot so a teardown failure cannot execute a downstream handler
   twice, and guaranteed userbot cleanup when startup fails.
 - Serialized update-consumer startup and shutdown so concurrent callers cannot create duplicate
@@ -67,6 +69,8 @@ Production-hardening release candidate for public MTProto user and bot sessions.
   their first byte is written, with atomic replacement and failure cleanup.
 - Hardened media downloads against path traversal, symlink escape, partial overwrite, and
   unbounded in-memory downloads, and rejected truncated or oversized declared media payloads.
+- Routed Saved Messages media and album uploads through `InputPeerSelf`, matching the working text
+  message path instead of resolving `self` as a username.
 - Aligned live-report cleanup counts with the sanitized release-evidence schema.
 
 ### Security

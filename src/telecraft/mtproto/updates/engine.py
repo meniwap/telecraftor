@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, cast
 
+from telecraft.mtproto.rpc.sender import RpcErrorException
 from telecraft.mtproto.updates.state import UpdatesState
 from telecraft.tl.generated.functions import (
     UpdatesGetChannelDifference,
@@ -35,6 +36,14 @@ from telecraft.tl.generated.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+_CHANNEL_DIFFERENCE_UNAVAILABLE_ERRORS = frozenset(
+    {
+        "CHANNEL_INVALID",
+        "CHANNEL_PRIVATE",
+        "CHANNEL_PUBLIC_GROUP_NA",
+    }
+)
 
 
 class UpdatesEngineError(Exception):
@@ -424,6 +433,10 @@ class UpdatesEngine:
     @staticmethod
     def _input_channel_from_chats(channel_id: int, chats: list[Any]) -> InputChannel | None:
         for chat in chats:
+            # `min` access hashes are context-bound and cannot be used for
+            # updates.getChannelDifference.
+            if bool(getattr(chat, "min", False)):
+                continue
             chat_id = getattr(chat, "id", None)
             access_hash = getattr(chat, "access_hash", None)
             if isinstance(chat_id, int) and chat_id == channel_id and isinstance(access_hash, int):
@@ -612,15 +625,27 @@ class UpdatesEngine:
         """Fetch a channel difference transactionally and paginate until ``final``."""
         if input_channel is None:
             if self._resolve_input_channel is None:
-                raise UpdatesEngineError(
-                    f"No InputChannel resolver for channelDifference channel_id={channel_id}"
+                logger.warning(
+                    "Skipping channel difference without an InputChannel resolver "
+                    "channel_id=%s",
+                    channel_id,
                 )
+                self._channel_pts.pop(int(channel_id), None)
+                return AppliedUpdates.empty()
             try:
                 input_channel = self._resolve_input_channel(int(channel_id))
             except Exception as ex:  # noqa: BLE001
                 raise UpdatesEngineError(
                     f"Failed to resolve InputChannel channel_id={channel_id}"
                 ) from ex
+            if input_channel is None:
+                logger.warning(
+                    "Skipping channel difference without a reusable full access hash "
+                    "channel_id=%s",
+                    channel_id,
+                )
+                self._channel_pts.pop(int(channel_id), None)
+                return AppliedUpdates.empty()
 
         pts = int(self._channel_pts.get(int(channel_id), 1))
         force = int(channel_id) not in self._channel_pts
@@ -637,16 +662,30 @@ class UpdatesEngine:
                 pts,
                 force,
             )
-            diff = await self._invoke_api(
-                UpdatesGetChannelDifference(
-                    flags=0,
-                    force=force,
-                    channel=input_channel,
-                    filter=ChannelMessagesFilterEmpty(),
-                    pts=int(pts),
-                    limit=100,
+            try:
+                diff = await self._invoke_api(
+                    UpdatesGetChannelDifference(
+                        flags=0,
+                        force=force,
+                        channel=input_channel,
+                        filter=ChannelMessagesFilterEmpty(),
+                        pts=int(pts),
+                        limit=100,
+                    )
                 )
-            )
+            except RpcErrorException as exc:
+                if str(exc.message).upper() not in _CHANNEL_DIFFERENCE_UNAVAILABLE_ERRORS:
+                    raise
+                # A user may leave, lose access to, or receive a min constructor
+                # for a channel while global updates continue.  Isolate that
+                # channel instead of terminating every update consumer.
+                logger.warning(
+                    "Channel difference unavailable; isolating channel_id=%s error=%s",
+                    channel_id,
+                    exc.message,
+                )
+                self._channel_pts.pop(int(channel_id), None)
+                return AppliedUpdates.empty()
 
             if isinstance(diff, UpdatesChannelDifferenceEmpty):
                 logger.info(
