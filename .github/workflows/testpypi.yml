@@ -99,13 +99,23 @@ jobs:
 
       - name: Build and validate distributions
         id: artifact-digests
+        env:
+          PACKAGE_VERSION: ${{ steps.package-version.outputs.version }}
         run: |
           set -euo pipefail
           python -m build
           python -m twine check --strict dist/*
           python tools/check_repo_hygiene.py --artifacts
-          wheel="$(find dist -maxdepth 1 -name '*.whl' -print -quit)"
-          sdist="$(find dist -maxdepth 1 -name '*.tar.gz' -print -quit)"
+          mapfile -t distributions < <(find dist -maxdepth 1 -type f -print)
+          if [[ "${#distributions[@]}" -ne 2 ]]; then
+            echo "Expected exactly one wheel and one sdist; found ${#distributions[@]} files." >&2
+            printf '%s\n' "${distributions[@]}" >&2
+            exit 1
+          fi
+          wheel="dist/telecraft-${PACKAGE_VERSION}-py3-none-any.whl"
+          sdist="dist/telecraft-${PACKAGE_VERSION}.tar.gz"
+          test -f "$wheel"
+          test -f "$sdist"
           echo "wheel_sha256=$(sha256sum "$wheel" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
           echo "sdist_sha256=$(sha256sum "$sdist" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
