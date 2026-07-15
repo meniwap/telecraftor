@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from telecraft.mtproto.rpc.sender import RpcErrorException
 from telecraft.mtproto.updates.engine import UpdatesEngine
 from telecraft.mtproto.updates.state import UpdatesState
 from telecraft.tl.generated.functions import UpdatesGetDifference
@@ -335,3 +336,219 @@ def test_channel_recovery_can_use_access_hash_from_same_envelope() -> None:
     assert len(requests) == 1
     assert requests[0].channel == InputChannel(channel_id=123, access_hash=456)
     assert engine._channel_pts[123] == 9
+
+
+def test_channel_recovery_ignores_min_hash_and_uses_full_cached_entity() -> None:
+    requests: list[Any] = []
+
+    async def invoke(req: Any) -> Any:
+        requests.append(req)
+        return UpdatesChannelDifferenceEmpty(flags=1, final=True, pts=9, timeout=None)
+
+    engine = UpdatesEngine(
+        invoke_api=invoke,
+        resolve_input_channel=lambda channel_id: InputChannel(
+            channel_id=channel_id,
+            access_hash=789,
+        ),
+    )
+    engine.state = UpdatesState(pts=10, qts=0, date=100, seq=5)
+    trigger = UpdateChannelTooLong(flags=0, channel_id=123, pts=None)
+    min_channel = SimpleNamespace(
+        TL_NAME="channel",
+        id=123,
+        access_hash=456,
+        min=True,
+    )
+    envelope = Updates(
+        updates=[trigger],
+        users=[],
+        chats=[min_channel],
+        date=200,
+        seq=6,
+    )
+
+    asyncio.run(engine.apply(envelope))
+
+    assert len(requests) == 1
+    assert requests[0].channel == InputChannel(channel_id=123, access_hash=789)
+
+
+def test_unresolvable_channel_is_isolated_without_stopping_global_updates() -> None:
+    async def invoke(_req: Any) -> Any:
+        raise AssertionError("a channel without a full access hash cannot be queried")
+
+    engine = UpdatesEngine(
+        invoke_api=invoke,
+        resolve_input_channel=lambda _channel_id: None,
+    )
+    engine.state = UpdatesState(pts=10, qts=0, date=100, seq=5)
+    trigger = UpdateChannelTooLong(flags=0, channel_id=123, pts=None)
+    envelope = Updates(
+        updates=[trigger],
+        users=[],
+        chats=[],
+        date=200,
+        seq=6,
+    )
+
+    applied = asyncio.run(engine.apply(envelope))
+
+    assert applied.updates == []
+    assert applied.new_messages == []
+    assert engine.state == UpdatesState(pts=10, qts=0, date=200, seq=6)
+    assert 123 not in engine._channel_pts
+
+
+@pytest.mark.parametrize(
+    "error_message",
+    ["CHANNEL_INVALID", "CHANNEL_PRIVATE", "CHANNEL_PUBLIC_GROUP_NA"],
+)
+def test_permanently_unavailable_channel_error_is_isolated(error_message: str) -> None:
+    async def invoke(_req: Any) -> Any:
+        raise RpcErrorException(code=400, message=error_message)
+
+    engine = UpdatesEngine(
+        invoke_api=invoke,
+        resolve_input_channel=lambda channel_id: InputChannel(
+            channel_id=channel_id,
+            access_hash=789,
+        ),
+    )
+    engine.state = UpdatesState(pts=10, qts=0, date=100, seq=5)
+    engine._channel_pts[123] = 8
+
+    applied = asyncio.run(
+        engine.apply(UpdateChannelTooLong(flags=0, channel_id=123, pts=None))
+    )
+
+    assert applied.updates == []
+    assert applied.new_messages == []
+    assert 123 not in engine._channel_pts
+
+
+def test_unavailable_channel_does_not_block_other_channel_in_same_envelope() -> None:
+    async def invoke(req: Any) -> Any:
+        if int(req.channel.channel_id) == 123:
+            raise RpcErrorException(code=400, message="CHANNEL_PRIVATE")
+        return UpdatesChannelDifferenceEmpty(flags=1, final=True, pts=12, timeout=None)
+
+    engine = UpdatesEngine(invoke_api=invoke)
+    engine.state = UpdatesState(pts=10, qts=0, date=100, seq=5)
+    first = UpdateChannelTooLong(flags=0, channel_id=123, pts=None)
+    second = UpdateChannelTooLong(flags=0, channel_id=456, pts=None)
+    envelope = Updates(
+        updates=[first, second],
+        users=[],
+        chats=[
+            SimpleNamespace(TL_NAME="channel", id=123, access_hash=111, min=False),
+            SimpleNamespace(TL_NAME="channel", id=456, access_hash=222, min=False),
+        ],
+        date=200,
+        seq=6,
+    )
+
+    applied = asyncio.run(engine.apply(envelope))
+
+    assert applied.updates == []
+    assert 123 not in engine._channel_pts
+    assert engine._channel_pts[456] == 12
+    assert engine.state == UpdatesState(pts=10, qts=0, date=200, seq=6)
+
+
+def test_channel_pages_are_not_partially_delivered_if_access_is_lost() -> None:
+    calls = 0
+    partial_message = SimpleNamespace(TL_NAME="message", id=1)
+
+    async def invoke(_req: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return UpdatesChannelDifference(
+                flags=0,
+                final=False,
+                pts=9,
+                timeout=None,
+                new_messages=[partial_message],
+                other_updates=[],
+                chats=[],
+                users=[],
+            )
+        raise RpcErrorException(code=406, message="CHANNEL_PRIVATE")
+
+    engine = UpdatesEngine(
+        invoke_api=invoke,
+        resolve_input_channel=lambda channel_id: InputChannel(
+            channel_id=channel_id,
+            access_hash=789,
+        ),
+    )
+    engine.state = UpdatesState(pts=10, qts=0, date=100, seq=5)
+
+    applied = asyncio.run(
+        engine.apply(UpdateChannelTooLong(flags=0, channel_id=123, pts=None))
+    )
+
+    assert calls == 2
+    assert applied.new_messages == []
+    assert applied.updates == []
+    assert 123 not in engine._channel_pts
+
+
+def test_startup_difference_is_not_aborted_by_min_only_channel() -> None:
+    trigger = UpdateChannelTooLong(flags=0, channel_id=123, pts=None)
+    min_channel = SimpleNamespace(
+        TL_NAME="channel",
+        id=123,
+        access_hash=456,
+        min=True,
+    )
+    calls: list[Any] = []
+
+    async def invoke(req: Any) -> Any:
+        calls.append(req)
+        assert isinstance(req, UpdatesGetDifference)
+        return UpdatesDifference(
+            new_messages=[],
+            new_encrypted_messages=[],
+            other_updates=[trigger],
+            chats=[min_channel],
+            users=[],
+            state=TlUpdatesState(pts=11, qts=0, date=150, seq=6, unread_count=0),
+        )
+
+    engine = UpdatesEngine(
+        invoke_api=invoke,
+        resolve_input_channel=lambda _channel_id: None,
+    )
+    state = asyncio.run(
+        engine.initialize(initial_state=UpdatesState(pts=10, qts=0, date=100, seq=5))
+    )
+    catch_up = engine.take_initial_catch_up()
+
+    assert len(calls) == 1
+    assert state == UpdatesState(pts=11, qts=0, date=150, seq=6)
+    assert catch_up is not None
+    assert catch_up[1].updates == []
+    assert catch_up[1].new_messages == []
+
+
+def test_unexpected_channel_rpc_error_still_propagates_transactionally() -> None:
+    async def invoke(_req: Any) -> Any:
+        raise RpcErrorException(code=500, message="RPC_CALL_FAIL")
+
+    engine = UpdatesEngine(
+        invoke_api=invoke,
+        resolve_input_channel=lambda channel_id: InputChannel(
+            channel_id=channel_id,
+            access_hash=789,
+        ),
+    )
+    engine.state = UpdatesState(pts=10, qts=0, date=100, seq=5)
+    engine._channel_pts[123] = 8
+
+    with pytest.raises(RpcErrorException, match="RPC_CALL_FAIL"):
+        asyncio.run(engine.apply(UpdateChannelTooLong(flags=0, channel_id=123, pts=None)))
+
+    assert engine.state == UpdatesState(pts=10, qts=0, date=100, seq=5)
+    assert engine._channel_pts[123] == 8

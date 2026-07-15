@@ -83,6 +83,29 @@ def test_connect_bootstrap_failure_tears_down_and_allows_reconnect(
     asyncio.run(_run())
 
 
+def test_fresh_auth_does_not_reuse_entity_cache_from_an_older_login(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    async def _run() -> None:
+        _install_fake_network(monkeypatch)
+        client = MtprotoClient(session_path=tmp_path / "fresh.session.json")
+        client.entities.user_access_hash[1] = 111
+        client.entities.channel_access_hash[2] = 222
+
+        def fail_if_loaded() -> None:
+            raise AssertionError("fresh auth must not load an old entity cache")
+
+        monkeypatch.setattr(client, "_load_entities_cache", fail_if_loaded)
+        await client.connect()
+
+        assert client.entities.user_access_hash == {}
+        assert client.entities.channel_access_hash == {}
+        await client.close()
+
+    asyncio.run(_run())
+
+
 def test_transport_connect_failure_still_closes_and_clears_partial_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

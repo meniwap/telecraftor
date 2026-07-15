@@ -69,3 +69,30 @@ def test_send_file_routes_to_send_media_document(tmp_path: Path) -> None:
     send_req = [x for x in seen if getattr(x, "TL_NAME", None) == "messages.sendMedia"][-1]
     media = getattr(send_req, "media", None)
     assert getattr(media, "TL_NAME", None) == "inputMediaUploadedDocument"
+
+
+def test_send_file_self_uses_input_peer_self_without_username_resolution(
+    tmp_path: Path,
+) -> None:
+    p = tmp_path / "self.txt"
+    p.write_text("hello")
+    client = MtprotoClient(network="test", dc_id=2, init=ClientInit(api_id=1, api_hash="x"))
+    client._transport = object()  # type: ignore[attr-defined]
+    client._sender = object()  # type: ignore[attr-defined]
+    client._state = object()  # type: ignore[attr-defined]
+    seen: list[Any] = []
+
+    async def fail_resolve(_ref: Any, *, timeout: float = 0) -> Peer:
+        raise AssertionError("the self sentinel must not be resolved as a username")
+
+    async def invoke_api(req: Any, *, timeout: float = 0) -> Any:
+        seen.append(req)
+        return True
+
+    client.resolve_peer = fail_resolve  # type: ignore[assignment]
+    client.invoke_api = invoke_api  # type: ignore[assignment]
+
+    asyncio.run(client.send_file("self", p, as_photo=False))
+
+    send_req = [x for x in seen if getattr(x, "TL_NAME", None) == "messages.sendMedia"][-1]
+    assert isinstance(send_req.peer, InputPeerSelf)

@@ -54,6 +54,12 @@ class EntityCache:
 
     def ingest_users(self, users: list[Any]) -> None:
         for u in users:
+            # Telegram's `min` constructors carry context-bound access hashes that
+            # cannot be reused for ordinary InputUser/InputPeerUser requests.  Do
+            # not let one overwrite a full entity already in the cache (or create
+            # a username mapping that cannot be turned into an input peer).
+            if bool(getattr(u, "min", False)):
+                continue
             uid = getattr(u, "id", None)
             if not isinstance(uid, int):
                 continue
@@ -79,6 +85,10 @@ class EntityCache:
             # channels need access_hash; basic chats don't.
             tl_name = getattr(c, "TL_NAME", None)
             if tl_name in {"channel", "channelForbidden"}:
+                # A min channel access_hash is only valid in its original message
+                # context and is rejected by updates.getChannelDifference.
+                if tl_name == "channel" and bool(getattr(c, "min", False)):
+                    continue
                 cid = getattr(c, "id", None)
                 if not isinstance(cid, int):
                     continue
@@ -132,9 +142,17 @@ class EntityCache:
         """
         Build InputChannel (used for updates.getChannelDifference and some channels.* methods).
         """
+        channel = self.input_channel_or_none(channel_id)
+        if channel is None:
+            raise EntityCacheError(f"Unknown channel access_hash for channel_id={channel_id}")
+        return channel
+
+    def input_channel_or_none(self, channel_id: int) -> InputChannel | None:
+        """Return an InputChannel only when a reusable full access hash is cached."""
+
         ah = self.channel_access_hash.get(int(channel_id))
         if ah is None:
-            raise EntityCacheError(f"Unknown channel access_hash for channel_id={channel_id}")
+            return None
         return InputChannel(channel_id=int(channel_id), access_hash=int(ah))
 
     def input_peer_chat(self, chat_id: int) -> InputPeerChat:
