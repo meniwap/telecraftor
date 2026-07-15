@@ -138,13 +138,16 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-
 
 ## Examples
 
-Runnable examples live in `examples/`:
+Runnable examples live in `examples/` (see `examples/README.md` for setup):
 
-- `examples/01_get_me.py`
-- `examples/02_send_message.py`
-- `examples/03_download_media.py`
-- `examples/04_userbot_echo.py`
-- `examples/group_bot/`
+- `examples/01_echo_bot.py` - the classic echo bot
+- `examples/02_whoami.py` - session sanity check
+- `examples/03_send_message.py` - send a message to any peer
+- `examples/04_command_bot.py` - `/ping`-style commands with auto-reconnect
+- `examples/05_download_media.py` - download the newest attachment from a peer
+- `examples/06_conversation_form.py` - multi-step dialogs via `router.ask()`
+- `examples/07_scheduled_reminders.py` - `/remind` backed by the built-in scheduler
+- `examples/group_bot/` - full plugin-based group moderation bot
 
 Internal operator scripts and demos live in `apps/`.
 
