@@ -27,7 +27,12 @@ from telecraft.mtproto.auth.server_keys import DEFAULT_SERVER_KEYRING
 from telecraft.mtproto.auth.srp import SrpError, make_input_check_password_srp
 from telecraft.mtproto.core.msg_id import MsgIdGenerator
 from telecraft.mtproto.core.state import MtprotoState
-from telecraft.mtproto.rpc.sender import MtprotoEncryptedSender, ReceivedMessage, RpcErrorException
+from telecraft.mtproto.rpc.sender import (
+    MtprotoEncryptedSender,
+    ReceivedMessage,
+    ReceiverTerminated,
+    RpcErrorException,
+)
 from telecraft.mtproto.session import MtprotoSession, load_session_file, save_session_file
 from telecraft.mtproto.transport.abridged import AbridgedFraming
 from telecraft.mtproto.transport.base import Endpoint, Framing
@@ -202,10 +207,11 @@ class MtprotoClient:
         self._state: MtprotoState | None = None
         self._msg_id_gen: MsgIdGenerator | None = None
         self._did_init_connection: bool = False
-        self._incoming: asyncio.Queue[ReceivedMessage] | None = None
+        self._incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated] | None = None
         self._updates_engine: UpdatesEngine | None = None
         self._updates_task: asyncio.Task[None] | None = None
         self._updates_out: asyncio.Queue[Any] | None = None
+        self._updates_terminal: asyncio.Future[BaseException] | None = None
         self._updates_state_last_save: float = 0.0
         self._entities_last_save: float = 0.0
         # Best-effort "me" identity (used by higher-level layers
@@ -219,10 +225,15 @@ class MtprotoClient:
         # Entity priming guardrails (avoid spamming dialogs on repeated short updates).
         self._prime_lock = asyncio.Lock()
         self._prime_last_attempt: float = 0.0
+        self._lifecycle_lock = asyncio.Lock()
+        self._updates_lock = asyncio.Lock()
 
     @property
     def is_connected(self) -> bool:
-        return self._transport is not None and self._sender is not None and self._state is not None
+        sender = self._sender
+        if self._transport is None or sender is None or self._state is None:
+            return False
+        return bool(getattr(sender, "is_healthy", True))
 
     def _endpoint(self) -> tuple[str, int]:
         if self._host is not None:
@@ -234,96 +245,148 @@ class MtprotoClient:
         return host, port
 
     async def connect(self, *, timeout: float = 30.0) -> None:
-        if self.is_connected:
-            return
-
-        # If we have a session file, treat it as authoritative for endpoint/framing.
-        # This avoids common "session mismatch" errors when a previous login migrated DCs.
-        sess: MtprotoSession | None = None
-        if self._session_path is not None and self._session_path.exists():
-            sess = load_session_file(self._session_path)
-            self._dc_id = int(sess.dc_id)
-            self._host = str(sess.host)
-            self._port = int(sess.port)
-            self._framing_name = str(sess.framing)
-
-        host, port = self._endpoint()
-        framing = _make_framing(self._framing_name)
-        transport = TcpTransport(endpoint=Endpoint(host=host, port=port), framing=framing)
-        await transport.connect()
-
-        sender: MtprotoEncryptedSender | None = None
-        try:
-            auth_key: bytes
-            server_salt: bytes
-
-            if sess is not None:
-                auth_key = sess.auth_key
-                server_salt = sess.server_salt
-            else:
-                rsa_keys = list(DEFAULT_SERVER_KEYRING.keys_by_fingerprint.values())
-                res = await asyncio.wait_for(
-                    exchange_auth_key(transport, rsa_keys=rsa_keys),
-                    timeout=timeout,
+        async with self._lifecycle_lock:
+            if self.is_connected:
+                return
+            if any(
+                value is not None
+                for value in (
+                    self._transport,
+                    self._sender,
+                    self._state,
+                    self._updates_task,
                 )
-                auth_key = res.auth_key
-                server_salt = res.server_salt
+            ):
+                await self._teardown_locked(persist=False, raise_errors=False)
 
-            msg_id_gen = MsgIdGenerator()
-            state = MtprotoState(
-                auth_key=auth_key,
-                server_salt=server_salt,
-                msg_id_gen=msg_id_gen,
-                # NOTE: we intentionally do not persist/reuse session_id across process restarts
-                # unless seqno is also persisted.
-                session_id=b"",
-            )
+            # If we have a session file, treat it as authoritative for endpoint/framing.
+            # This avoids common "session mismatch" errors when a previous login migrated DCs.
+            sess: MtprotoSession | None = None
+            if self._session_path is not None and self._session_path.exists():
+                sess = load_session_file(self._session_path)
+                self._dc_id = int(sess.dc_id)
+                self._host = str(sess.host)
+                self._port = int(sess.port)
+                self._framing_name = str(sess.framing)
 
-            incoming: asyncio.Queue[ReceivedMessage] = asyncio.Queue(maxsize=2048)
-            sender = MtprotoEncryptedSender(
-                transport, state=state, msg_id_gen=msg_id_gen, incoming_queue=incoming
-            )
-
+            host, port = self._endpoint()
+            framing = _make_framing(self._framing_name)
+            transport = TcpTransport(endpoint=Endpoint(host=host, port=port), framing=framing)
+            # Publish the transport early so every failure path can use the same teardown.
+            # is_connected remains false until sender and state are healthy as well.
             self._transport = transport
-            self._sender = sender
-            self._state = state
-            self._msg_id_gen = msg_id_gen
-            self._incoming = incoming
+            try:
+                await transport.connect()
 
-            # Restore entity cache (enables DM/channel replies after restarts).
-            self._load_entities_cache()
+                auth_key: bytes
+                server_salt: bytes
+                if sess is not None:
+                    auth_key = sess.auth_key
+                    server_salt = sess.server_salt
+                else:
+                    rsa_keys = list(DEFAULT_SERVER_KEYRING.keys_by_fingerprint.values())
+                    res = await asyncio.wait_for(
+                        exchange_auth_key(transport, rsa_keys=rsa_keys),
+                        timeout=timeout,
+                    )
+                    auth_key = res.auth_key
+                    server_salt = res.server_salt
 
-            # Bootstrap as a "real" API client.
-            if self._init is not None:
-                self.config = await self.invoke_with_layer(HelpGetConfig(), timeout=timeout)
-                self._did_init_connection = True
+                msg_id_gen = MsgIdGenerator()
+                state = MtprotoState(
+                    auth_key=auth_key,
+                    server_salt=server_salt,
+                    msg_id_gen=msg_id_gen,
+                    # NOTE: we intentionally do not persist/reuse session_id across process
+                    # restarts unless seqno is also persisted.
+                    session_id=b"",
+                )
 
-            await self._persist_session()
-        except Exception:
-            if sender is not None:
-                await sender.close()
-            await transport.close()
-            raise
+                incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated] = asyncio.Queue(
+                    maxsize=2048
+                )
+                sender = MtprotoEncryptedSender(
+                    transport,
+                    state=state,
+                    msg_id_gen=msg_id_gen,
+                    incoming_queue=incoming,
+                )
+
+                self._sender = sender
+                self._state = state
+                self._msg_id_gen = msg_id_gen
+                self._incoming = incoming
+
+                # Restore entity cache (enables DM/channel replies after restarts).
+                self._load_entities_cache()
+
+                # Bootstrap as a "real" API client.
+                if self._init is not None:
+                    self.config = await self.invoke_with_layer(HelpGetConfig(), timeout=timeout)
+                    self._did_init_connection = True
+
+                await self._persist_session()
+            except BaseException:
+                await self._teardown_locked(persist=False, raise_errors=False)
+                raise
 
     async def close(self) -> None:
-        if not self.is_connected:
-            return
-        await self._persist_session()
-        self._persist_entities_cache(force=True)
+        async with self._lifecycle_lock:
+            await self._teardown_locked(persist=True, raise_errors=True)
 
-        assert self._sender is not None
-        assert self._transport is not None
-        # Close any auxiliary DC clients (best-effort).
-        if self._media_clients:
-            for _dc, c in list(self._media_clients.items()):
-                try:
-                    await c.close()
-                except Exception:
-                    pass
-            self._media_clients.clear()
-        await self.stop_updates()
-        await self._sender.close()
-        await self._transport.close()
+    async def _teardown_locked(self, *, persist: bool, raise_errors: bool) -> None:
+        """Close every runtime resource; caller must hold _lifecycle_lock."""
+
+        errors: list[BaseException] = []
+        if persist:
+            try:
+                await self._persist_session()
+            except BaseException as exc:  # cleanup must continue even on cancellation
+                errors.append(exc)
+            try:
+                self._persist_entities_cache(force=True)
+            except BaseException as exc:
+                errors.append(exc)
+
+        update_task = self._updates_task
+        try:
+            await self.stop_updates()
+        except BaseException as exc:
+            errors.append(exc)
+        if (
+            update_task is not None
+            and update_task is not asyncio.current_task()
+            and not update_task.done()
+        ):
+            update_task.cancel()
+            try:
+                await update_task
+            except asyncio.CancelledError:
+                pass
+            except BaseException as exc:
+                errors.append(exc)
+
+        media_clients = list(self._media_clients.values())
+        self._media_clients.clear()
+        for client in media_clients:
+            try:
+                await client.close()
+            except BaseException as exc:
+                errors.append(exc)
+
+        sender = self._sender
+        if sender is not None:
+            try:
+                await sender.close()
+            except BaseException as exc:
+                errors.append(exc)
+
+        transport = self._transport
+        if transport is not None:
+            try:
+                await transport.close()
+            except BaseException as exc:
+                errors.append(exc)
 
         self._sender = None
         self._transport = None
@@ -333,6 +396,12 @@ class MtprotoClient:
         self._updates_engine = None
         self._updates_task = None
         self._updates_out = None
+        self._updates_terminal = None
+        self._did_init_connection = False
+        self.config = None
+
+        if errors and raise_errors:
+            raise errors[0]
 
     async def __aenter__(self) -> MtprotoClient:
         await self.connect()
@@ -380,64 +449,160 @@ class MtprotoClient:
 
         This must be called after login if you want to receive user updates reliably.
         """
+        # Lock order is always lifecycle -> updates. This prevents two consumers
+        # from being published concurrently and prevents close from tearing down
+        # the sender while initialization is awaiting updates.getDifference.
+        async with self._lifecycle_lock:
+            async with self._updates_lock:
+                await self._start_updates_locked(timeout=timeout)
+
+    async def _start_updates_locked(self, *, timeout: float) -> None:
         if self._updates_task is not None:
-            return
+            if not self._updates_task.done():
+                return
+            await self._stop_updates_locked()
         if self._incoming is None:
             raise MtprotoClientError("Not connected")
         if self._init is None:
             raise MtprotoClientError("ClientInit(api_id=...) is required to start updates")
 
-        self._updates_out = asyncio.Queue(maxsize=4096)
-        self._updates_engine = UpdatesEngine(
+        updates_out: asyncio.Queue[Any] = asyncio.Queue(maxsize=4096)
+        updates_terminal: asyncio.Future[BaseException] = (
+            asyncio.get_running_loop().create_future()
+        )
+        updates_engine = UpdatesEngine(
             invoke_api=lambda req: self.invoke_api(req, timeout=timeout),
             resolve_input_channel=lambda channel_id: self.entities.input_channel(int(channel_id)),
         )
         initial_state = self._load_updates_state()
-        await self._updates_engine.initialize(initial_state=initial_state)
-        self._updates_task = asyncio.create_task(self._updates_loop())
+        await updates_engine.initialize(initial_state=initial_state)
+        initial_catch_up = updates_engine.take_initial_catch_up()
+        self._updates_out = updates_out
+        self._updates_terminal = updates_terminal
+        self._updates_engine = updates_engine
+        self._updates_task = asyncio.create_task(
+            self._updates_loop(initial_catch_up=initial_catch_up)
+        )
 
     async def stop_updates(self) -> None:
-        if self._updates_task is None:
-            return
-        self._updates_task.cancel()
-        try:
-            await self._updates_task
-        except asyncio.CancelledError:
-            pass
-        self._updates_task = None
-        self._persist_updates_state(force=True)
+        async with self._updates_lock:
+            await self._stop_updates_locked()
+
+    async def _stop_updates_locked(self) -> None:
+        task = self._updates_task
+        if task is not None:
+            if task is not asyncio.current_task() and not task.done():
+                task.cancel()
+            if task is not asyncio.current_task():
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+            self._updates_task = None
+            # The loop rolls back an interrupted batch before cancellation escapes,
+            # so this forced save can never acknowledge an update that was not queued.
+            self._persist_updates_state(force=True)
+        self._finish_updates(MtprotoClientError("Updates stopped"))
 
     async def recv_update(self) -> Any:
-        if self._updates_out is None:
+        updates_out = self._updates_out
+        terminal = self._updates_terminal
+        if updates_out is None or terminal is None:
             raise MtprotoClientError("Updates not started (call start_updates())")
-        return await self._updates_out.get()
 
-    async def _updates_loop(self) -> None:
+        # Preserve already accepted updates if the receiver terminated immediately
+        # afterwards; once the queue is drained, every waiter sees the terminal error.
+        try:
+            return updates_out.get_nowait()
+        except asyncio.QueueEmpty:
+            pass
+        if terminal.done():
+            raise terminal.result()
+
+        get_task = asyncio.create_task(updates_out.get())
+        try:
+            done, _pending = await asyncio.wait(
+                {get_task, terminal},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if get_task in done:
+                return get_task.result()
+            get_task.cancel()
+            try:
+                await get_task
+            except asyncio.CancelledError:
+                pass
+            raise terminal.result()
+        except asyncio.CancelledError:
+            get_task.cancel()
+            try:
+                await get_task
+            except asyncio.CancelledError:
+                pass
+            raise
+        finally:
+            if not get_task.done():
+                get_task.cancel()
+
+    def _finish_updates(self, error: BaseException) -> None:
+        terminal = self._updates_terminal
+        if terminal is not None and not terminal.done():
+            terminal.set_result(error)
+
+    async def _updates_loop(
+        self,
+        *,
+        initial_catch_up: tuple[UpdatesState, AppliedUpdates] | None = None,
+    ) -> None:
         assert self._incoming is not None
         assert self._updates_out is not None
         assert self._updates_engine is not None
+        incoming = self._incoming
+        updates_out = self._updates_out
+        updates_engine = self._updates_engine
 
-        while True:
-            msg = await self._incoming.get()
-            applied: AppliedUpdates = await self._updates_engine.apply(msg.obj)
+        async def dispatch(
+            *,
+            checkpoint: UpdatesState,
+            applied: AppliedUpdates,
+        ) -> None:
+            try:
+                self.entities.ingest_users(applied.users)
+                self.entities.ingest_chats(applied.chats)
+                self._persist_entities_cache()
 
-            self.entities.ingest_users(applied.users)
-            self.entities.ingest_chats(applied.chats)
-            self._persist_entities_cache()
-
-            # Emit updates and messages separately for now (higher-level mapping later).
-            for u in applied.new_messages:
-                try:
-                    self._updates_out.put_nowait(u)
-                except asyncio.QueueFull:
-                    break
-            for u in applied.updates:
-                try:
-                    self._updates_out.put_nowait(u)
-                except asyncio.QueueFull:
-                    break
-
+                # Backpressure is deliberate: advancing persisted state while silently
+                # dropping a full output queue makes that update unrecoverable forever.
+                for updates in (applied.new_messages, applied.updates):
+                    for update in updates:
+                        await updates_out.put(update)
+            except BaseException:
+                updates_engine.restore(checkpoint)
+                raise
             self._persist_updates_state()
+
+        try:
+            if initial_catch_up is not None:
+                checkpoint, applied = initial_catch_up
+                await dispatch(checkpoint=checkpoint, applied=applied)
+
+            while True:
+                msg = await incoming.get()
+                if isinstance(msg, ReceiverTerminated):
+                    self._finish_updates(msg.error)
+                    return
+
+                checkpoint = updates_engine.checkpoint()
+                try:
+                    applied = await updates_engine.apply(msg.obj)
+                    await dispatch(checkpoint=checkpoint, applied=applied)
+                except BaseException:
+                    updates_engine.restore(checkpoint)
+                    raise
+        except asyncio.CancelledError:
+            raise
+        except BaseException as exc:
+            self._finish_updates(exc)
 
     def _updates_state_path(self) -> Path | None:
         if self._session_path is None:
@@ -5062,7 +5227,7 @@ class MtprotoClient:
         timeout: float = 20.0,
     ) -> Path | bytes | None:
         """
-        Media MVP: download photo/document from a TL message or MessageEvent.
+        Download photo/document media from a TL message or MessageEvent.
 
         Args:
             message_or_event: TL message object or MessageEvent with media
@@ -5078,20 +5243,37 @@ class MtprotoClient:
             ExtractedMediaWithCache,
             MediaError,
             download_via_get_file,
+            download_via_get_file_to_path,
             ensure_dest_path,
             extract_media,
+            write_download_bytes,
         )
 
         m = extract_media(message_or_event)
         if m is None:
             return None
 
+        try:
+            out_path = ensure_dest_path(dest, file_name=m.file_name) if dest is not None else None
+        except MediaError as e:
+            raise MtprotoClientError(str(e)) from e
+
         # Check for cached bytes (small photos are sometimes embedded)
         if isinstance(m, ExtractedMediaWithCache) and m.cached_bytes:
             data = m.cached_bytes
+            if out_path is not None:
+                return write_download_bytes(out_path, data)
         else:
             try:
                 c = await self._client_for_dc(int(m.dc_id), timeout=timeout)
+                if out_path is not None:
+                    return await download_via_get_file_to_path(
+                        invoke_api=c.invoke_api,
+                        location=m.location,
+                        timeout=timeout,
+                        path=out_path,
+                        expected_size=m.size,
+                    )
                 data = await download_via_get_file(
                     invoke_api=c.invoke_api,
                     location=m.location,
@@ -5101,13 +5283,9 @@ class MtprotoClient:
             except MediaError as e:
                 raise MtprotoClientError(str(e)) from e
 
-        if dest is None:
+        if out_path is None:
             return data
-
-        out_path = ensure_dest_path(dest, file_name=m.file_name)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_bytes(data)
-        return out_path
+        return write_download_bytes(out_path, data)
 
     async def iter_dialogs(
         self,

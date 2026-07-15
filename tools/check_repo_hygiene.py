@@ -20,6 +20,7 @@ FORBIDDEN_TRACKED_DIRS = (
     "dist/",
     "downloads/",
     "reports/",
+    "tests/unit/fixtures/tl/",
     "apps/manual_labs/",
     "apps/streamingbot/",
 )
@@ -52,6 +53,7 @@ FORBIDDEN_ARTIFACT_DIRS = (
     "dist/",
     "downloads/",
     "reports/",
+    "tests/unit/fixtures/tl/",
     "apps/manual_labs/",
     "apps/streamingbot/",
 )

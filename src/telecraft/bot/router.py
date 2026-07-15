@@ -149,13 +149,26 @@ class Router:
                 return
             mw = middlewares[idx]
             idx += 1
+            next_called = False
+
+            async def _next_once() -> None:
+                nonlocal next_called
+                if next_called:
+                    raise RuntimeError("Middleware next() may only be called once")
+                next_called = True
+                await _next()
+
             try:
-                await mw(event, _next)
+                await mw(event, _next_once)
             except StopPropagation:
                 raise
             except Exception as ex:  # noqa: BLE001
                 logger.exception("Middleware crashed", exc_info=ex)
-                await _next()
+                # If the middleware failed before delegating, isolate it and continue.
+                # If it failed after delegating, downstream work has already run and
+                # must never be invoked a second time.
+                if not next_called:
+                    await _next()
 
         await _next()
 

@@ -1,0 +1,69 @@
+name: Bug report
+description: Report a reproducible Telecraft problem that is not a security vulnerability.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. For a vulnerability or possible account/session exposure, stop here and use [private vulnerability reporting](https://github.com/meniwap/telecraftor/security/advisories/new).
+        Never paste session files, auth keys, API hashes, bot tokens, login codes, phone numbers, private messages, or unredacted live-test output.
+  - type: input
+    id: version
+    attributes:
+      label: Telecraft version
+      description: Output of `python -c "from importlib.metadata import version; print(version('telecraft'))"`.
+      placeholder: 0.2.0rc1
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python and operating system
+      placeholder: CPython 3.13.5 on Ubuntu 24.04
+    validations:
+      required: true
+  - type: dropdown
+    id: session_kind
+    attributes:
+      label: Session kind
+      options:
+        - No live session involved
+        - User session
+        - Bot session over MTProto
+        - Both user and bot sessions
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observed and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Use synthetic data and redact all Telegram identifiers and authorization material.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized traceback or logs
+      description: Remove private data and secrets. Leave blank if safe sanitization is not possible.
+      render: shell
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Safety checks
+      options:
+        - label: I confirmed this is not a security vulnerability or credential/session exposure.
+          required: true
+        - label: I removed authorization material, personal data, private messages, and downloaded media.
+          required: true
+        - label: I searched for an existing issue and can reproduce this on a supported release.
+          required: true

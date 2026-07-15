@@ -30,6 +30,7 @@ def test_repo_hygiene__blocks_runtime_secret_and_cache_paths() -> None:
         "apps/env.sh",
         "downloads/photo.jpg",
         "reports/live/prod/run/artifacts.json",
+        "tests/unit/fixtures/tl/live_capture.bin",
         "src/telecraft/__pycache__/client.pyc",
         ".pytest_cache/v/cache/nodeids",
     ]

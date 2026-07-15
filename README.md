@@ -9,9 +9,9 @@ It supports:
 - typed high-level client namespaces for messages, dialogs, media, bots, admin helpers, and more
 - an event stack for MTProto update routing with `Router` and `Dispatcher`
 
-Public beta status: `0.2.0b4`.
+Public release-candidate status: `0.2.0rc1`.
 
-Telecraft does **not** implement the HTTP Telegram Bot API in this beta. Bot accounts are supported
+Telecraft does **not** implement the HTTP Telegram Bot API in this release candidate. Bot accounts are supported
 through MTProto, so you still need Telegram API credentials plus a bot token from BotFather.
 
 ## Supported Capabilities
@@ -19,11 +19,12 @@ through MTProto, so you still need Telegram API credentials plus a bot token fro
 - MTProto auth-key exchange uses the known-working raw RSA padding flow. RSA-PAD helpers are
   retained for a future dc-aware handshake update.
 
-## Public Beta Known Limitations
+## Public Release Candidate Known Limitations
 
-- This is an MTProto-first beta, not a stable drop-in replacement for Telethon or Pyrogram.
+- This is an MTProto-first release candidate, not a drop-in replacement for Telethon or Pyrogram.
 - HTTP Bot API is intentionally not included; bot sessions use MTProto.
-- Secret chats, calls, and full TDLib parity are not in scope for this beta.
+- Secret chats, calls, and full TDLib parity are not in scope for this release candidate.
+- Media downloads redirected through Telegram's CDN are not yet supported.
 
 ## Install
 
@@ -39,7 +40,7 @@ python -m pip install telecraft
 From GitHub for development or pre-release fallback:
 
 ```bash
-python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.0b4"
+python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.0rc1"
 ```
 
 For local development from a clone:
@@ -170,7 +171,7 @@ Live tests are opt-in, production-gated, and documented in `docs/11_live_runbook
 
 ## Safety
 
-- This is beta software. Test with accounts and chats where mistakes are acceptable.
+- This is prerelease software. Test with accounts and chats where mistakes are acceptable.
 - Telegram sessions contain high-value auth material. Do not share session files or diagnostic logs.
 - Public releases are provided under MIT-0, without warranty or liability.
 - Destructive/admin-heavy flows should be tested manually with controlled accounts before real use.

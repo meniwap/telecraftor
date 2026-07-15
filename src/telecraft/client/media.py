@@ -3,11 +3,12 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 import os
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from secrets import randbits
 from typing import Any, Literal
+from uuid import uuid4
 
 from telecraft.tl.generated.functions import (
     UploadGetFile,
@@ -25,6 +26,17 @@ from telecraft.tl.generated.types import (
 
 PART_SIZE = 512 * 1024
 BIG_FILE_THRESHOLD = 10 * 1024 * 1024  # Telegram threshold for InputFileBig flow.
+MAX_IN_MEMORY_DOWNLOAD_SIZE = 64 * 1024 * 1024
+
+_WINDOWS_RESERVED_NAMES = {
+    "AUX",
+    "CON",
+    "NUL",
+    "PRN",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+_WINDOWS_INVALID_FILENAME_CHARS = frozenset('<>:"/\\|?*')
 
 
 class MediaError(Exception):
@@ -390,8 +402,52 @@ async def download_via_get_file(
     timeout: float,
     limit: int = PART_SIZE,
     expected_size: int | None = None,
+    max_size: int | None = MAX_IN_MEMORY_DOWNLOAD_SIZE,
 ) -> bytes:
+    """
+    Download a Telegram file into memory.
+
+    The default limit intentionally prevents a remote file from exhausting the process heap. Use
+    ``download_via_get_file_to_path`` (or ``Client.media.download(..., dest=...)``) for larger
+    downloads.
+    """
     out = bytearray()
+    async for chunk in iter_download_via_get_file(
+        invoke_api=invoke_api,
+        location=location,
+        timeout=timeout,
+        limit=limit,
+        expected_size=expected_size,
+        max_size=max_size,
+    ):
+        out += chunk
+    return bytes(out)
+
+
+async def iter_download_via_get_file(
+    *,
+    invoke_api: Callable[..., Any],
+    location: Any,
+    timeout: float,
+    limit: int = PART_SIZE,
+    expected_size: int | None = None,
+    max_size: int | None = None,
+) -> AsyncIterator[bytes]:
+    """Yield validated ``upload.getFile`` chunks without buffering the full file."""
+    if limit <= 0:
+        raise MediaError("download_media: limit must be positive")
+    if expected_size is not None and expected_size < 0:
+        raise MediaError("download_media: expected_size cannot be negative")
+    if max_size is not None and max_size < 0:
+        raise MediaError("download_media: max_size cannot be negative")
+    if max_size is not None and expected_size is not None and expected_size > max_size:
+        raise MediaError(
+            f"download_media: file size {expected_size} exceeds in-memory limit {max_size}; "
+            "pass dest=... to stream it to disk"
+        )
+    if expected_size == 0:
+        return
+
     offset = 0
     while True:
         res = await invoke_api(
@@ -407,7 +463,7 @@ async def download_via_get_file(
         )
 
         if isinstance(res, UploadFileCdnRedirect):
-            raise MediaError("download_media: CDN redirect not supported in MVP")
+            raise MediaError("download_media: CDN redirect is not supported")
         if not isinstance(res, UploadFile):
             raise MediaError(
                 f"download_media: unexpected upload.getFile result: {type(res).__name__}"
@@ -419,27 +475,135 @@ async def download_via_get_file(
 
         chunk = bytes(b)
         if not chunk:
+            if expected_size is not None and offset != expected_size:
+                raise MediaError(
+                    f"download_media: truncated file (expected {expected_size} bytes, got {offset})"
+                )
             break
-        out += chunk
-        offset += len(chunk)
+        next_offset = offset + len(chunk)
+        if expected_size is not None and next_offset > expected_size:
+            raise MediaError(
+                f"download_media: file exceeded declared size {expected_size} bytes"
+            )
+        if max_size is not None and next_offset > max_size:
+            raise MediaError(
+                f"download_media: received more than in-memory limit {max_size}; "
+                "pass dest=... to stream it to disk"
+            )
+        yield chunk
+        offset = next_offset
 
-        if expected_size is not None and offset >= int(expected_size):
+        if expected_size is not None and offset == int(expected_size):
             break
         if len(chunk) < int(limit):
+            if expected_size is not None:
+                raise MediaError(
+                    f"download_media: truncated file (expected {expected_size} bytes, got {offset})"
+                )
             break
 
-        # Extra safety: avoid unbounded growth on malformed responses.
-        if expected_size is None and offset > 512 * 1024 * 1024:
-            raise MediaError("download_media: exceeded 512MiB without a known size")
 
-    return bytes(out)
+async def download_via_get_file_to_path(
+    *,
+    invoke_api: Callable[..., Any],
+    location: Any,
+    timeout: float,
+    path: str | Path,
+    limit: int = PART_SIZE,
+    expected_size: int | None = None,
+    max_size: int | None = None,
+) -> Path:
+    """Stream a Telegram file to a private temporary file, then atomically replace ``path``."""
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = output_path.with_name(f".{output_path.name}.{os.getpid()}.{uuid4().hex}.tmp")
+
+    try:
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            async for chunk in iter_download_via_get_file(
+                invoke_api=invoke_api,
+                location=location,
+                timeout=timeout,
+                limit=limit,
+                expected_size=expected_size,
+                max_size=max_size,
+            ):
+                f.write(chunk)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, output_path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+    return output_path
+
+
+def write_download_bytes(path: str | Path, data: bytes | bytearray) -> Path:
+    """Atomically write downloaded bytes without following a target-file symlink."""
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = output_path.with_name(f".{output_path.name}.{os.getpid()}.{uuid4().hex}.tmp")
+
+    try:
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            f.write(bytes(data))
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, output_path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+    return output_path
+
+
+def safe_download_filename(file_name: str) -> str:
+    """Validate an untrusted Telegram filename as one portable basename."""
+    name = str(file_name)
+    if not name or name in {".", ".."}:
+        raise MediaError("download_media: remote filename is empty or reserved")
+    if any(ord(char) < 32 for char in name):
+        raise MediaError("download_media: remote filename contains control characters")
+    if any(char in _WINDOWS_INVALID_FILENAME_CHARS for char in name):
+        raise MediaError("download_media: remote filename is not portable")
+    if name.rstrip(" .") != name:
+        raise MediaError("download_media: remote filename has an unsafe trailing character")
+
+    posix = PurePosixPath(name)
+    windows = PureWindowsPath(name)
+    if (
+        posix.is_absolute()
+        or windows.is_absolute()
+        or bool(windows.drive)
+        or len(posix.parts) != 1
+        or len(windows.parts) != 1
+    ):
+        raise MediaError("download_media: remote filename must be a single basename")
+
+    windows_stem = name.split(".", 1)[0].upper()
+    if windows_stem in _WINDOWS_RESERVED_NAMES:
+        raise MediaError("download_media: remote filename is reserved on Windows")
+    return name
 
 
 def ensure_dest_path(dest: str | Path, *, file_name: str) -> Path:
     d = Path(dest)
     # If dest is a directory (or ends with path separator), create file inside it.
-    if d.exists() and d.is_dir():
-        return d / file_name
-    if str(dest).endswith(os.sep):
-        return d / file_name
+    if (d.exists() and d.is_dir()) or str(dest).endswith(os.sep):
+        safe_name = safe_download_filename(file_name)
+        candidate = d / safe_name
+        base_resolved = d.resolve(strict=False)
+        candidate_resolved = candidate.resolve(strict=False)
+        try:
+            candidate_resolved.relative_to(base_resolved)
+        except ValueError as e:
+            raise MediaError("download_media: resolved filename escapes destination") from e
+        return candidate
     return d

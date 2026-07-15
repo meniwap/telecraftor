@@ -24,6 +24,60 @@ The format follows a simplified Keep a Changelog style:
 
 - Pending.
 
+## [0.2.0rc1] - 2026-07-15
+
+Production-hardening release candidate for public MTProto user and bot sessions.
+
+### Added
+
+- Reworked the public examples into a documented progression covering echo, identity, messaging,
+  commands, media, conversations, scheduling, and the full plugin-based group bot.
+- Added typed-package metadata (`py.typed`), CPython 3.14 coverage, clean-wheel installation checks,
+  strict distribution metadata validation, and artifact hygiene gates.
+- Added pinned-SHA CI workflows for CodeQL, dependency review, Dependabot, TestPyPI rehearsal, and
+  OIDC publishing with attestations.
+- Added a security policy, private-reporting route, contribution guide, Code of Conduct, issue
+  forms, CODEOWNERS, support policy, and production release/incident runbook.
+- Added sanitized live-evidence manifests bound to the exact commit exercised before release.
+
+### Changed
+
+- Limited Tier A support claims to the stable methods that the prod-safe live suites actually
+  exercise; all other stable methods retain Tier B compatibility support.
+- Promotes the exact wheel and sdist exercised on TestPyPI to production PyPI instead of rebuilding
+  separate release artifacts.
+- Replaced captured Telegram binary fixtures with deterministic synthetic regression payloads.
+
+### Fixed
+
+- Correctly detected outgoing MTProto messages so explicitly enabled single-account bot examples
+  can be exercised safely in Saved Messages without changing the incoming-only default.
+- Validated Telegram's official DH safe prime, fallback safe primes, generator congruence,
+  handshake nonces, SHA1 integrity, padding, and final nonce hashes during auth-key creation.
+- Propagated terminal receiver failures to pending RPCs and update consumers, made connection
+  teardown/reconnect complete after partial failures, eliminated raw-update queue drops, and
+  closed fast-response and blocked-send shutdown races.
+- Made update recovery atomic across `seq`, `pts`, and `qts` gaps, including immediate persisted
+  state catch-up, replay ordering, bounded-queue rollback, and restart recovery for channel state.
+- Made middleware continuation one-shot so a teardown failure cannot execute a downstream handler
+  twice, and guaranteed userbot cleanup when startup fails.
+- Serialized update-consumer startup and shutdown so concurrent callers cannot create duplicate
+  consumers or publish a half-initialized updates engine.
+- Created session, entity-cache, and update-state temporary files with private permissions before
+  their first byte is written, with atomic replacement and failure cleanup.
+- Hardened media downloads against path traversal, symlink escape, partial overwrite, and
+  unbounded in-memory downloads, and rejected truncated or oversized declared media payloads.
+- Aligned live-report cleanup counts with the sanitized release-evidence schema.
+
+### Security
+
+- Removed live Telegram payload captures from the source distribution and blocked their fixture
+  directory from future tracked files and package artifacts.
+- Added constant-time comparisons for known handshake nonces, hashes, inbound message keys, and
+  session identifiers.
+- Enforced MTProto 2.0 inbound ciphertext alignment, body and padding boundaries, server message-ID
+  parity/time windows, and bounded replay detection across plain, container, and gzip payloads.
+
 ## [0.2.0b4] - 2026-05-04
 
 Hotfix beta for MTProto user login compatibility.

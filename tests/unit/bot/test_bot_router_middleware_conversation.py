@@ -48,6 +48,55 @@ def test_router__message_middleware_chain__returns_expected_shape() -> None:
     assert asyncio.run(_case()) == ["before", "handler", "after"]
 
 
+def test_router__middleware_failure_after_next_does_not_run_handler_twice() -> None:
+    async def _case() -> list[str]:
+        router = Router()
+        calls: list[str] = []
+
+        async def failing_after_next(evt: MessageEvent, nxt) -> None:
+            _ = evt
+            calls.append("middleware")
+            await nxt()
+            raise RuntimeError("failed after downstream completed")
+
+        router.use_message(failing_after_next)
+
+        @router.on_message()
+        async def _handler(e: MessageEvent) -> None:
+            _ = e
+            calls.append("handler")
+
+        evt = MessageEvent(client=object(), raw=object(), peer_type="user", peer_id=1, msg_id=1)
+        await router.dispatch_message(evt)
+        return calls
+
+    assert asyncio.run(_case()) == ["middleware", "handler"]
+
+
+def test_router__middleware_failure_before_next_still_continues_chain() -> None:
+    async def _case() -> list[str]:
+        router = Router()
+        calls: list[str] = []
+
+        async def failing_before_next(evt: MessageEvent, nxt) -> None:
+            _ = evt, nxt
+            calls.append("middleware")
+            raise RuntimeError("failed before downstream")
+
+        router.use_message(failing_before_next)
+
+        @router.on_message()
+        async def _handler(e: MessageEvent) -> None:
+            _ = e
+            calls.append("handler")
+
+        evt = MessageEvent(client=object(), raw=object(), peer_type="user", peer_id=1, msg_id=1)
+        await router.dispatch_message(evt)
+        return calls
+
+    assert asyncio.run(_case()) == ["middleware", "handler"]
+
+
 def test_router__wait_for_message__returns_expected_shape() -> None:
     async def _case() -> int | None:
         router = Router()
