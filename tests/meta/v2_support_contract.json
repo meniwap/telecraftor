@@ -12,187 +12,87 @@
       "live_gate": "none"
     }
   },
-  "namespace_overrides": {
-    "messages": {
+  "namespace_overrides": {},
+  "method_overrides": {
+    "account.gift_themes.list": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.scheduled": {
+    "account.themes.list": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.discussion": {
+    "account.wallpapers.list": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.receipts": {
+    "dialogs.filters.list": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.effects": {
+    "dialogs.filters.suggested": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.sent_media": {
+    "dialogs.list": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.gifs": {
+    "help.config": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.inline": {
+    "help.nearest_dc": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.inline.prepared": {
+    "messages.saved_tags.defaults": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.history_import": {
+    "profile.me": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.chat_theme": {
+    "saved.dialogs.list": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.suggested_posts": {
+    "saved.gifs.list": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.fact_checks": {
+    "saved.reaction_tags.list": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "messages.saved_tags": {
+    "search.global_messages": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "dialogs": {
+    "stickers.sets.all": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     },
-    "dialogs.pinned": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "dialogs.unread": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "dialogs.filters": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "profile": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "peers": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "chats": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "chats.members": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "chats.invites": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "media": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "search": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "stickers.sets": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "stickers.search": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "stickers.recent": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "stickers.favorites": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "stickers.emoji": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "saved.dialogs": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "saved.history": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "saved.reaction_tags": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "folders": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "contacts": {
-      "support_tier": "A",
-      "compat": "additive+deprecation",
-      "live_gate": "prod_safe"
-    },
-    "contacts.requirements": {
+    "stickers.sets.featured": {
       "support_tier": "A",
       "compat": "additive+deprecation",
       "live_gate": "prod_safe"
     }
-  },
-  "method_overrides": {}
+  }
 }

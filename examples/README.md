@@ -24,7 +24,7 @@ plugin-based group moderation bot with persistent storage.
 
    ```bash
    export TELEGRAM_API_ID=123456
-   export TELEGRAM_API_HASH=0123456789abcdef0123456789abcdef
+   export TELEGRAM_API_HASH=your_api_hash
    ```
 
 2. **A session** — the examples load `.sessions/prod/current` by default

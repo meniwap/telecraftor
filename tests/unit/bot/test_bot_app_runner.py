@@ -4,7 +4,8 @@ import asyncio
 
 import pytest
 
-from telecraft.bot.app import ReconnectPolicy, run_forever
+from telecraft.bot.app import ReconnectPolicy, run_forever, run_userbot
+from telecraft.bot.router import Router
 
 
 def test_run_forever_no_reconnect_propagates() -> None:
@@ -47,3 +48,34 @@ def test_run_forever_stop_event_exits() -> None:
 
     asyncio.run(run_forever(_run_once, stop_event=stop))
     assert ran is False
+
+
+def test_run_userbot_closes_client_when_startup_hook_fails() -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.connect_calls = 0
+            self.close_calls = 0
+
+        async def connect(self) -> None:
+            self.connect_calls += 1
+
+        async def close(self) -> None:
+            self.close_calls += 1
+
+    client = Client()
+
+    async def fail_startup(_client: object) -> None:
+        raise RuntimeError("startup failed")
+
+    with pytest.raises(RuntimeError, match="startup failed"):
+        asyncio.run(
+            run_userbot(
+                client=client,
+                router=Router(),
+                reconnect=ReconnectPolicy(enabled=False),
+                on_startup=fail_startup,
+            )
+        )
+
+    assert client.connect_calls == 1
+    assert client.close_calls == 1

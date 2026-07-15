@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -53,6 +54,8 @@ class LiveContext:
     cfg: LiveConfig
     run_id: str
     run_dir: Path
+    source_commit: str
+    source_tree_clean: bool
     cleanups: list[CleanupFn] = field(default_factory=list)
     artifacts: dict[str, object] = field(default_factory=dict)
 
@@ -77,6 +80,30 @@ def _resolve_live_profile(raw: str) -> str:
     if value in {"default", "prod_safe"}:
         return value
     raise ValueError(f"Unsupported --live-profile {raw!r}; expected 'default' or 'prod_safe'")
+
+
+def _source_snapshot() -> tuple[str, bool]:
+    root = Path(__file__).resolve().parents[2]
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise pytest.UsageError("Live evidence requires a readable Git source checkout") from exc
+    if len(commit) != 40:
+        raise pytest.UsageError("Live evidence requires a full Git commit SHA")
+    return commit, not bool(status.strip())
 
 
 class AuditReporter:
@@ -281,10 +308,21 @@ def client_v2(live_config: LiveConfig) -> Client:
 
 @pytest.fixture
 def live_context(live_config: LiveConfig) -> LiveContext:
+    source_commit, source_tree_clean = _source_snapshot()
+    if live_config.live_profile == "prod_safe" and not source_tree_clean:
+        raise pytest.UsageError(
+            "prod_safe live evidence requires a clean source tree before the run starts"
+        )
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
     run_dir = (live_config.report_root / run_id).resolve()
     run_dir.mkdir(parents=True, exist_ok=True)
-    return LiveContext(cfg=live_config, run_id=run_id, run_dir=run_dir)
+    return LiveContext(
+        cfg=live_config,
+        run_id=run_id,
+        run_dir=run_dir,
+        source_commit=source_commit,
+        source_tree_clean=source_tree_clean,
+    )
 
 
 @pytest.fixture

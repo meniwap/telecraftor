@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -65,6 +66,44 @@ def _create_repo(
         },
     )
     _write_json(root / "tests/meta/v2_deprecations.json", {"version": 1, "deprecations": []})
+    _write_json(
+        root / "tests/meta/v2_live_evidence_map.json",
+        {
+            "version": 1,
+            "suites": {
+                "core": {
+                    "required_steps": ["identity.profile", "help.config", "dialogs.readonly"],
+                    "stable_methods": ["profile.me"],
+                },
+                "baseline": {
+                    "required_steps": [
+                        "identity.profile",
+                        "dialogs.readonly",
+                        "messages.discovery",
+                    ],
+                    "stable_methods": ["profile.me", "dialogs.list"],
+                },
+            },
+        },
+    )
+    _write_file(root / ".gitignore", "reports/\nout/\nrelease/\nunused/\n")
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "Telecraft Tests"], cwd=root, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "tests@invalid.example"], cwd=root, check=True
+    )
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "fixture"], cwd=root, check=True)
+
+
+def _head_commit(root: Path) -> str:
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
 
 
 def _create_prod_safe_run(root: Path, run_id: str, *, fail_count: int = 0) -> None:
@@ -72,15 +111,25 @@ def _create_prod_safe_run(root: Path, run_id: str, *, fail_count: int = 0) -> No
     run_dir.mkdir(parents=True, exist_ok=True)
     _write_file(run_dir / "events.jsonl", "{}\n")
     _write_file(run_dir / "summary.md", "# Summary\n")
+    step_names = (
+        ["identity.profile", "help.config", "dialogs.readonly"]
+        if run_id == "core"
+        else ["identity.profile", "dialogs.readonly", "messages.discovery"]
+    )
     _write_json(
         run_dir / "artifacts.json",
         {
             "run_id": run_id,
+            "source_commit": _head_commit(root),
+            "source_tree_clean": True,
             "fail_count": fail_count,
+            "cleanup_errors": 0,
+            "pass_count": len(step_names),
+            "steps": [{"name": name, "status": "PASS"} for name in step_names],
             "connection_health_probes": {
                 "enabled": True,
                 "probe": "profile.me",
-                "pass": 1,
+                "pass": len(step_names),
                 "fail": 0,
             },
         },
@@ -103,6 +152,8 @@ def test_release_check__fails_on_version_changelog_mismatch(tmp_path: Path) -> N
             "core",
             "--prod-safe-run-baseline",
             "base",
+            "--tested-commit",
+            _head_commit(tmp_path),
             "--write-dir",
             str(tmp_path / "out"),
             "--dry-run",
@@ -127,6 +178,8 @@ def test_release_check__fails_when_prod_safe_artifacts_missing(tmp_path: Path) -
             "core",
             "--prod-safe-run-baseline",
             "base",
+            "--tested-commit",
+            _head_commit(tmp_path),
             "--write-dir",
             str(tmp_path / "out"),
             "--dry-run",
@@ -179,6 +232,92 @@ def test_release_check__fails_when_artifacts_report_failures(tmp_path: Path) -> 
             "core",
             "--prod-safe-run-baseline",
             "base",
+            "--tested-commit",
+            _head_commit(tmp_path),
+            "--write-dir",
+            str(tmp_path / "out"),
+            "--dry-run",
+        ],
+        root=tmp_path,
+    )
+    assert rc == 1
+
+
+def test_release_check__rejects_dirty_or_mismatched_live_source(tmp_path: Path) -> None:
+    mod = _load_release_check_module()
+    _create_repo(tmp_path)
+    _create_prod_safe_run(tmp_path, "core")
+    _create_prod_safe_run(tmp_path, "base")
+    _write_file(tmp_path / "dirty.txt", "not committed\n")
+
+    rc = mod.run(
+        [
+            "--version",
+            "0.2.0b1",
+            "--release-type",
+            "beta",
+            "--prod-safe-run-core",
+            "core",
+            "--prod-safe-run-baseline",
+            "base",
+            "--tested-commit",
+            _head_commit(tmp_path),
+            "--write-dir",
+            str(tmp_path / "out"),
+            "--dry-run",
+        ],
+        root=tmp_path,
+    )
+    assert rc == 1
+
+    (tmp_path / "dirty.txt").unlink()
+    artifacts = tmp_path / "reports/live/prod/core/artifacts.json"
+    payload = json.loads(artifacts.read_text(encoding="utf-8"))
+    payload["source_commit"] = "0" * 40
+    _write_json(artifacts, payload)
+    rc = mod.run(
+        [
+            "--version",
+            "0.2.0b1",
+            "--release-type",
+            "beta",
+            "--prod-safe-run-core",
+            "core",
+            "--prod-safe-run-baseline",
+            "base",
+            "--tested-commit",
+            _head_commit(tmp_path),
+            "--write-dir",
+            str(tmp_path / "out"),
+            "--dry-run",
+        ],
+        root=tmp_path,
+    )
+    assert rc == 1
+
+
+def test_release_check__rejects_disabled_raw_health_probe(tmp_path: Path) -> None:
+    mod = _load_release_check_module()
+    _create_repo(tmp_path)
+    _create_prod_safe_run(tmp_path, "core")
+    _create_prod_safe_run(tmp_path, "base")
+    artifacts = tmp_path / "reports/live/prod/core/artifacts.json"
+    payload = json.loads(artifacts.read_text(encoding="utf-8"))
+    payload["connection_health_probes"]["enabled"] = False
+    _write_json(artifacts, payload)
+
+    rc = mod.run(
+        [
+            "--version",
+            "0.2.0b1",
+            "--release-type",
+            "beta",
+            "--prod-safe-run-core",
+            "core",
+            "--prod-safe-run-baseline",
+            "base",
+            "--tested-commit",
+            _head_commit(tmp_path),
             "--write-dir",
             str(tmp_path / "out"),
             "--dry-run",
@@ -214,6 +353,8 @@ def test_release_check__emits_manifest_on_success(tmp_path: Path) -> None:
             "core",
             "--prod-safe-run-baseline",
             "base",
+            "--tested-commit",
+            _head_commit(tmp_path),
             "--write-dir",
             str(out_dir),
         ],
@@ -223,6 +364,8 @@ def test_release_check__emits_manifest_on_success(tmp_path: Path) -> None:
 
     manifest = json.loads((out_dir / "release_manifest.json").read_text(encoding="utf-8"))
     assert manifest["version"] == "0.2.0b1"
+    assert manifest["schema_version"] == 1
+    assert manifest["tested_commit"] == _head_commit(tmp_path)
     assert manifest["release_type"] == "beta"
     assert manifest["is_public_release_line"] is True
     assert manifest["checks"]["pyproject_version_match"] is True
@@ -233,3 +376,120 @@ def test_release_check__emits_manifest_on_success(tmp_path: Path) -> None:
 
     readiness = (out_dir / "readiness.md").read_text(encoding="utf-8")
     assert "Release Readiness: 0.2.0b1" in readiness
+
+
+def test_release_check__validates_sanitized_evidence_manifest(tmp_path: Path) -> None:
+    mod = _load_release_check_module()
+    _create_repo(tmp_path)
+    _create_prod_safe_run(tmp_path, "core")
+    _create_prod_safe_run(tmp_path, "base")
+    evidence_dir = tmp_path / "release/evidence/0.2.0b1"
+
+    generated = mod.run(
+        [
+            "--version",
+            "0.2.0b1",
+            "--release-type",
+            "beta",
+            "--prod-safe-run-core",
+            "core",
+            "--prod-safe-run-baseline",
+            "base",
+            "--tested-commit",
+            _head_commit(tmp_path),
+            "--write-dir",
+            str(evidence_dir),
+        ],
+        root=tmp_path,
+    )
+    assert generated == 0
+
+    validated = mod.run(
+        [
+            "--version",
+            "0.2.0b1",
+            "--release-type",
+            "beta",
+            "--evidence-file",
+            str(evidence_dir / "release_manifest.json"),
+            "--write-dir",
+            str(tmp_path / "unused"),
+            "--dry-run",
+        ],
+        root=tmp_path,
+    )
+    assert validated == 0
+
+    evidence_path = evidence_dir / "release_manifest.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    evidence["prod_safe_runs"]["baseline"]["connection_health_probes"]["probe"] = "other"
+    _write_json(evidence_path, evidence)
+    rejected = mod.run(
+        [
+            "--version",
+            "0.2.0b1",
+            "--release-type",
+            "beta",
+            "--evidence-file",
+            str(evidence_path),
+            "--write-dir",
+            str(tmp_path / "unused"),
+            "--dry-run",
+        ],
+        root=tmp_path,
+    )
+    assert rejected == 1
+
+
+def test_release_check__rejects_evidence_with_missing_live_step(tmp_path: Path) -> None:
+    mod = _load_release_check_module()
+    _create_repo(tmp_path)
+    evidence = tmp_path / "release/evidence.json"
+    _write_json(
+        evidence,
+        {
+            "schema_version": 1,
+            "version": "0.2.0b1",
+            "release_type": "beta",
+            "tested_commit": "c" * 40,
+            "checks": {
+                "pyproject_version_match": True,
+                "changelog_entry": True,
+                "support_contract_valid": True,
+                "deprecations_valid": True,
+                "public_release_line": True,
+                "prod_safe_gate_required": True,
+            },
+            "prod_safe_runs": {
+                "core": {
+                    "run_id": "core",
+                    "source_commit": "c" * 40,
+                    "source_tree_clean": True,
+                    "artifact_sha256": "d" * 64,
+                    "fail_count": 0,
+                    "cleanup_errors": 0,
+                    "pass_count": 2,
+                    "steps": ["identity.profile", "help.config"],
+                    "connection_health_probes": {"pass": 2, "fail": 0},
+                },
+                "baseline": {},
+            },
+            "blockers": [],
+        },
+    )
+
+    rc = mod.run(
+        [
+            "--version",
+            "0.2.0b1",
+            "--release-type",
+            "beta",
+            "--evidence-file",
+            str(evidence),
+            "--write-dir",
+            str(tmp_path / "unused"),
+            "--dry-run",
+        ],
+        root=tmp_path,
+    )
+    assert rc == 1

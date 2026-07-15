@@ -7,6 +7,7 @@ from typing import Any
 from tests.meta.test_v2_method_coverage import MethodRef, _load_matrix
 
 CONTRACT_PATH = Path("tests/meta/v2_support_contract.json")
+LIVE_EVIDENCE_PATH = Path("tests/meta/v2_live_evidence_map.json")
 ALLOWED_SUPPORT_TIER = {"A", "B", "experimental"}
 ALLOWED_COMPAT = {"additive+deprecation", "best_effort"}
 ALLOWED_LIVE_GATE = {"prod_safe", "none"}
@@ -122,3 +123,31 @@ def test_support_contract__overrides_reference_existing_methods() -> None:
             unknown_methods.append(key)
 
     assert not unknown_methods, f"Unknown method overrides: {unknown_methods}"
+
+
+def test_support_contract__tier_a_exactly_matches_live_evidence_map() -> None:
+    contract = _load_contract()
+    matrix = _load_matrix()
+    evidence = json.loads(LIVE_EVIDENCE_PATH.read_text(encoding="utf-8"))
+
+    assert evidence.get("version") == 1
+    suites = evidence.get("suites")
+    assert isinstance(suites, dict) and set(suites) == {"core", "baseline"}
+
+    evidenced: set[str] = set()
+    for suite in suites.values():
+        assert isinstance(suite, dict)
+        steps = suite.get("required_steps")
+        methods = suite.get("stable_methods")
+        assert isinstance(steps, list) and steps
+        assert all(isinstance(step, str) and step for step in steps)
+        assert isinstance(methods, list) and methods
+        assert all(isinstance(method, str) and method for method in methods)
+        evidenced.update(methods)
+
+    tier_a = {
+        f"{row['namespace']}.{row['method']}"
+        for row in matrix
+        if _resolve_support(row, contract).get("support_tier") == "A"
+    }
+    assert tier_a == evidenced

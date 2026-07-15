@@ -3,55 +3,284 @@ name: Publish Python Package
 on:
   push:
     tags:
-      - "v*"
+      - "v[0-9]*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-pypi-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build distribution
+    name: Validate and build distribution
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
+      actions: read
       contents: read
+    outputs:
+      version: ${{ steps.package-version.outputs.version }}
+      tag_commit: ${{ steps.package-version.outputs.tag_commit }}
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
-      - name: Install build tools
-        run: python -m pip install -U pip build
+      - name: Verify tag, package version, and main ancestry
+        id: package-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          if [[ "$GITHUB_REF_TYPE" != "tag" || "$GITHUB_REF_NAME" != "v${version}" ]]; then
+            echo "Release tag must be exactly v${version}; got ${GITHUB_REF_NAME}." >&2
+            exit 1
+          fi
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          tag_commit="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          if ! git merge-base --is-ancestor "$tag_commit" refs/remotes/origin/main; then
+            echo "Tagged commit must be contained in origin/main." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag_commit=$tag_commit" >> "$GITHUB_OUTPUT"
 
-      - name: Build package
+      - name: Install release tools
+        run: python -m pip install -e ".[dev]" "hatchling>=1.25"
+
+      - name: Verify live release evidence is bound to the candidate
+        env:
+          PACKAGE_VERSION: ${{ steps.package-version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$PACKAGE_VERSION"
+          case "$version" in
+            *a*) release_type=alpha ;;
+            *b*) release_type=beta ;;
+            *rc*) release_type=rc ;;
+            *) release_type=stable ;;
+          esac
+          evidence="release/evidence/${version}/release_manifest.json"
+          test -f "$evidence"
+          tested_commit="$(EVIDENCE="$evidence" python - <<'PY'
+          import json
+          import os
+
+          with open(os.environ["EVIDENCE"], encoding="utf-8") as stream:
+              print(json.load(stream)["tested_commit"])
+          PY
+          )"
+          git cat-file -e "${tested_commit}^{commit}"
+          tag_commit="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          git merge-base --is-ancestor "$tested_commit" "$tag_commit"
+          mapfile -t evidence_changes < <(git diff --name-only "$tested_commit" "$tag_commit")
+          if [[ "${#evidence_changes[@]}" -ne 1 || "${evidence_changes[0]}" != "$evidence" ]]; then
+            echo "Only the sanitized evidence manifest may differ from the live-tested commit." >&2
+            printf '%s\n' "${evidence_changes[@]}" >&2
+            exit 1
+          fi
+          python tools/release_check.py \
+            --version "$version" \
+            --release-type "$release_type" \
+            --evidence-file "$evidence" \
+            --write-dir "$RUNNER_TEMP/release-readiness" \
+            --dry-run
+
+      - name: Repo hygiene
+        run: python tools/check_repo_hygiene.py
+
+      - name: Ruff
+        run: python -m ruff check src tests tools apps examples
+
+      - name: Mypy
+        run: python -m mypy src
+
+      - name: Meta gates
+        run: python -m pytest tests/meta -q
+
+      - name: Pytest non-live
+        run: python -m pytest -m "not live"
+
+      - name: Live collect-only
+        run: python -m pytest tests/live --collect-only -q
+
+      - name: Build distributions in isolation
         run: python -m build
 
+      - name: Validate distribution metadata
+        run: python -m twine check --strict dist/*
+
+      - name: Check package artifact hygiene
+        run: python tools/check_repo_hygiene.py --artifacts
+
+      - name: Locate the successful TestPyPI run for this commit
+        id: testpypi-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_COMMIT: ${{ steps.package-version.outputs.tag_commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runs_json="$RUNNER_TEMP/testpypi-runs.json"
+          gh api --method GET \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/testpypi.yml/runs" \
+            -f branch=main \
+            -f event=workflow_dispatch \
+            -f status=success \
+            -f head_sha="$TAG_COMMIT" \
+            -f per_page=100 > "$runs_json"
+          RUNS_JSON="$runs_json" python - <<'PY'
+          import json
+          import os
+
+          with open(os.environ["RUNS_JSON"], encoding="utf-8") as stream:
+              payload = json.load(stream)
+          expected_repo = os.environ["GITHUB_REPOSITORY"]
+          expected_sha = os.environ["TAG_COMMIT"]
+          matches = [
+              run
+              for run in payload.get("workflow_runs", [])
+              if run.get("status") == "completed"
+              and run.get("conclusion") == "success"
+              and run.get("event") == "workflow_dispatch"
+              and run.get("head_branch") == "main"
+              and run.get("head_sha") == expected_sha
+              and run.get("path") == ".github/workflows/testpypi.yml"
+              and (run.get("head_repository") or {}).get("full_name") == expected_repo
+          ]
+          if len(matches) != 1:
+              raise SystemExit(
+                  f"Expected exactly one successful TestPyPI run for {expected_sha}; "
+                  f"found {len(matches)}"
+              )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
+              stream.write(f"run_id={int(matches[0]['id'])}\n")
+          PY
+
+      - name: Locate the immutable candidate artifact
+        id: testpypi-artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.testpypi-run.outputs.run_id }}
+          TAG_COMMIT: ${{ steps.package-version.outputs.tag_commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifacts_json="$RUNNER_TEMP/testpypi-artifacts.json"
+          gh api --method GET \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" \
+            -f name=testpypi-package-distributions \
+            -f per_page=100 > "$artifacts_json"
+          ARTIFACTS_JSON="$artifacts_json" python - <<'PY'
+          import json
+          import os
+
+          with open(os.environ["ARTIFACTS_JSON"], encoding="utf-8") as stream:
+              payload = json.load(stream)
+          run_id = int(os.environ["RUN_ID"])
+          expected_sha = os.environ["TAG_COMMIT"]
+          matches = []
+          for artifact in payload.get("artifacts", []):
+              workflow_run = artifact.get("workflow_run") or {}
+              if (
+                  artifact.get("name") == "testpypi-package-distributions"
+                  and artifact.get("expired") is False
+                  and workflow_run.get("id") == run_id
+                  and workflow_run.get("head_sha") == expected_sha
+              ):
+                  matches.append(artifact)
+          if len(matches) != 1:
+              raise SystemExit(
+                  "Expected exactly one unexpired immutable candidate artifact; "
+                  f"found {len(matches)}"
+              )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
+              stream.write(f"artifact_id={int(matches[0]['id'])}\n")
+          PY
+
+      - name: Download the exact approved TestPyPI candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.testpypi-artifact.outputs.artifact_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.testpypi-run.outputs.run_id }}
+          path: promoted/
+          merge-multiple: true
+          digest-mismatch: error
+
+      - name: Validate the exact promotion files
+        env:
+          PACKAGE_VERSION: ${{ steps.package-version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find promoted -maxdepth 1 -name '*.whl' | wc -l)" -eq 1
+          test "$(find promoted -maxdepth 1 -name '*.tar.gz' | wc -l)" -eq 1
+          test -f "promoted/telecraft-${PACKAGE_VERSION}-py3-none-any.whl"
+          test -f "promoted/telecraft-${PACKAGE_VERSION}.tar.gz"
+          python -m twine check --strict promoted/*
+          python tools/check_repo_hygiene.py --artifacts promoted/*
+
+      - name: Install and verify promoted wheel in a clean environment
+        env:
+          EXPECTED_VERSION: ${{ steps.package-version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find promoted -maxdepth 1 -name '*.whl' -print -quit)"
+          test -n "$wheel"
+          python -m venv "$RUNNER_TEMP/telecraft-release-venv"
+          "$RUNNER_TEMP/telecraft-release-venv/bin/python" -m pip install "$wheel"
+          "$RUNNER_TEMP/telecraft-release-venv/bin/python" - <<'PY'
+          import importlib.metadata
+          import os
+
+          import telecraft
+
+          installed = importlib.metadata.version("telecraft")
+          assert installed == os.environ["EXPECTED_VERSION"]
+          assert telecraft.__version__ == installed
+          PY
+
       - name: Upload package distributions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-package-distributions
-          path: dist/
+          path: promoted/
+          if-no-files-found: error
+          retention-days: 30
 
   publish-to-pypi:
     name: Publish to PyPI
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: pypi
       url: https://pypi.org/p/telecraft
     permissions:
-      contents: read
       id-token: write
 
     steps:
       - name: Download package distributions
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: python-package-distributions
           path: dist/
 
       - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        with:
+          attestations: true

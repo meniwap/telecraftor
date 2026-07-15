@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "suites": {
+    "core": {
+      "required_steps": [
+        "identity.profile",
+        "help.config",
+        "dialogs.readonly"
+      ],
+      "stable_methods": [
+        "profile.me",
+        "help.config",
+        "help.nearest_dc",
+        "dialogs.list"
+      ]
+    },
+    "baseline": {
+      "required_steps": [
+        "identity.profile",
+        "dialogs.readonly",
+        "messages.discovery",
+        "stickers.reactions",
+        "saved.surface",
+        "account.appearance",
+        "help.config"
+      ],
+      "stable_methods": [
+        "profile.me",
+        "dialogs.list",
+        "dialogs.filters.list",
+        "dialogs.filters.suggested",
+        "search.global_messages",
+        "messages.saved_tags.defaults",
+        "stickers.sets.all",
+        "stickers.sets.featured",
+        "saved.dialogs.list",
+        "saved.gifs.list",
+        "saved.reaction_tags.list",
+        "account.gift_themes.list",
+        "account.themes.list",
+        "account.wallpapers.list",
+        "help.config",
+        "help.nearest_dc"
+      ]
+    }
+  }
+}

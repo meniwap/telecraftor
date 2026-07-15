@@ -1,0 +1,25 @@
+name: Request a private contact channel
+description: Ask for private follow-up without publishing security or conduct details.
+title: "[Private contact]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only when GitHub private vulnerability reporting is unavailable or when a sensitive conduct report needs a private channel.
+        Do not include vulnerability details, names, session material, credentials, private messages, or other personal information here. A maintainer will arrange private follow-up.
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Private topic category
+      options:
+        - Security reporting channel unavailable
+        - Sensitive Code of Conduct report
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Public issue safety
+      options:
+        - label: I have not included vulnerability details, credentials, session data, names, private messages, or other sensitive information.
+          required: true

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from pathlib import Path
 from types import SimpleNamespace
+
+import pytest
 
 
 class _FakeProfileAPI:
@@ -16,8 +20,19 @@ class _FakeProfileAPI:
 
 
 class _FakeClient:
-    def __init__(self, *, profile_error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        profile_error: Exception | None = None,
+        close_error: Exception | None = None,
+    ) -> None:
         self.profile = _FakeProfileAPI(error=profile_error)
+        self._close_error = close_error
+
+    async def close(self) -> None:
+        if self._close_error is not None:
+            raise self._close_error
+        return None
 
 
 class _FakeReporter:
@@ -30,6 +45,9 @@ class _FakeReporter:
 
     async def emit(self, **kwargs):
         self.events.append(kwargs)
+
+    async def close(self) -> None:
+        return None
 
 
 def test_run_step__prod_safe__records_health_probe_pass() -> None:
@@ -100,3 +118,85 @@ def test_error_classification__maps_timeout_rpc_transport_decode() -> None:
     assert shared.classify_live_error(RuntimeError("Unknown constructor id: 123")) == "decode"
     assert shared.classify_live_error(RuntimeError("RPC_ERROR 400: METHOD_INVALID")) == "capability"
     assert shared.classify_live_error(RuntimeError("RPC_ERROR 400: CHAT_WRITE_FORBIDDEN")) == "rpc"
+
+
+def test_finalize_run__writes_numeric_cleanup_error_count(tmp_path: Path) -> None:
+    from tests.live import _suite_shared as shared
+
+    class _Context:
+        run_id = "run-1"
+        run_dir = tmp_path
+        source_commit = "a" * 40
+        source_tree_clean = True
+        cfg = SimpleNamespace(timeout=1.0)
+        artifacts = {
+            "connection_health_probes": {
+                "enabled": True,
+                "probe": "profile.me",
+                "pass": 1,
+                "fail": 0,
+            }
+        }
+
+        async def run_cleanups(self) -> list[str]:
+            return []
+
+    ctx = _Context()
+    reporter = _FakeReporter()
+    reporter.ctx = ctx
+    result = asyncio.run(
+        shared.finalize_run(
+            client=_FakeClient(),  # type: ignore[arg-type]
+            ctx=ctx,
+            reporter=reporter,
+            results=[shared.StepResult(name="identity.profile", status="PASS", details="ok")],
+            resource_ids={},
+        )
+    )
+
+    artifact = json.loads((tmp_path / "artifacts.json").read_text(encoding="utf-8"))
+    assert artifact["cleanup_errors"] == 0
+    assert isinstance(artifact["cleanup_errors"], int)
+    assert result["cleanup_errors"] == 0
+
+
+def test_finalize_run__client_close_failure_blocks_release_evidence(tmp_path: Path) -> None:
+    from tests.live import _suite_shared as shared
+
+    class _Context:
+        run_id = "run-close-failure"
+        run_dir = tmp_path
+        source_commit = "a" * 40
+        source_tree_clean = True
+        cfg = SimpleNamespace(timeout=1.0)
+        artifacts = {
+            "connection_health_probes": {
+                "enabled": True,
+                "probe": "profile.me",
+                "pass": 1,
+                "fail": 0,
+            }
+        }
+
+        async def run_cleanups(self) -> list[str]:
+            return []
+
+    ctx = _Context()
+    reporter = _FakeReporter()
+    reporter.ctx = ctx
+    with pytest.raises(AssertionError, match="1 cleanup errors"):
+        asyncio.run(
+            shared.finalize_run(
+                client=_FakeClient(close_error=OSError("persist failed")),  # type: ignore[arg-type]
+                ctx=ctx,
+                reporter=reporter,
+                results=[
+                    shared.StepResult(name="identity.profile", status="PASS", details="ok")
+                ],
+                resource_ids={},
+            )
+        )
+
+    artifact = json.loads((tmp_path / "artifacts.json").read_text(encoding="utf-8"))
+    assert artifact["cleanup_errors"] == 1
+    assert "client.close: OSError" in (tmp_path / "summary.md").read_text(encoding="utf-8")
