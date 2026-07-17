@@ -124,128 +124,30 @@ jobs:
       - name: Check package artifact hygiene
         run: python tools/check_repo_hygiene.py --artifacts
 
-      - name: Locate the successful TestPyPI run for this commit
-        id: testpypi-run
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG_COMMIT: ${{ steps.package-version.outputs.tag_commit }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          runs_json="$RUNNER_TEMP/testpypi-runs.json"
-          gh api --method GET \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/testpypi.yml/runs" \
-            -f branch=main \
-            -f event=workflow_dispatch \
-            -f status=success \
-            -f head_sha="$TAG_COMMIT" \
-            -f per_page=100 > "$runs_json"
-          RUNS_JSON="$runs_json" python - <<'PY'
-          import json
-          import os
-
-          with open(os.environ["RUNS_JSON"], encoding="utf-8") as stream:
-              payload = json.load(stream)
-          expected_repo = os.environ["GITHUB_REPOSITORY"]
-          expected_sha = os.environ["TAG_COMMIT"]
-          matches = [
-              run
-              for run in payload.get("workflow_runs", [])
-              if run.get("status") == "completed"
-              and run.get("conclusion") == "success"
-              and run.get("event") == "workflow_dispatch"
-              and run.get("head_branch") == "main"
-              and run.get("head_sha") == expected_sha
-              and run.get("path") == ".github/workflows/testpypi.yml"
-              and (run.get("head_repository") or {}).get("full_name") == expected_repo
-          ]
-          if len(matches) != 1:
-              raise SystemExit(
-                  f"Expected exactly one successful TestPyPI run for {expected_sha}; "
-                  f"found {len(matches)}"
-              )
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
-              stream.write(f"run_id={int(matches[0]['id'])}\n")
-          PY
-
-      - name: Locate the immutable candidate artifact
-        id: testpypi-artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ steps.testpypi-run.outputs.run_id }}
-          TAG_COMMIT: ${{ steps.package-version.outputs.tag_commit }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          artifacts_json="$RUNNER_TEMP/testpypi-artifacts.json"
-          gh api --method GET \
-            "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" \
-            -f name=testpypi-package-distributions \
-            -f per_page=100 > "$artifacts_json"
-          ARTIFACTS_JSON="$artifacts_json" python - <<'PY'
-          import json
-          import os
-
-          with open(os.environ["ARTIFACTS_JSON"], encoding="utf-8") as stream:
-              payload = json.load(stream)
-          run_id = int(os.environ["RUN_ID"])
-          expected_sha = os.environ["TAG_COMMIT"]
-          matches = []
-          for artifact in payload.get("artifacts", []):
-              workflow_run = artifact.get("workflow_run") or {}
-              if (
-                  artifact.get("name") == "testpypi-package-distributions"
-                  and artifact.get("expired") is False
-                  and workflow_run.get("id") == run_id
-                  and workflow_run.get("head_sha") == expected_sha
-              ):
-                  matches.append(artifact)
-          if len(matches) != 1:
-              raise SystemExit(
-                  "Expected exactly one unexpired immutable candidate artifact; "
-                  f"found {len(matches)}"
-              )
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
-              stream.write(f"artifact_id={int(matches[0]['id'])}\n")
-          PY
-
-      - name: Download the exact approved TestPyPI candidate
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          artifact-ids: ${{ steps.testpypi-artifact.outputs.artifact_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run-id: ${{ steps.testpypi-run.outputs.run_id }}
-          path: promoted/
-          merge-multiple: true
-          digest-mismatch: error
-
-      - name: Validate the exact promotion files
+      - name: Validate the exact distribution files
         env:
           PACKAGE_VERSION: ${{ steps.package-version.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t promoted_files < <(find promoted -maxdepth 1 -type f -print)
-          if [[ "${#promoted_files[@]}" -ne 2 ]]; then
-            echo "Expected exactly one promoted wheel and one promoted sdist; found ${#promoted_files[@]} files." >&2
-            printf '%s\n' "${promoted_files[@]}" >&2
+          mapfile -t distribution_files < <(find dist -maxdepth 1 -type f -print)
+          if [[ "${#distribution_files[@]}" -ne 2 ]]; then
+            echo "Expected exactly one wheel and one sdist; found ${#distribution_files[@]} files." >&2
+            printf '%s\n' "${distribution_files[@]}" >&2
             exit 1
           fi
-          test "$(find promoted -maxdepth 1 -name '*.whl' | wc -l)" -eq 1
-          test "$(find promoted -maxdepth 1 -name '*.tar.gz' | wc -l)" -eq 1
-          test -f "promoted/telecraft-${PACKAGE_VERSION}-py3-none-any.whl"
-          test -f "promoted/telecraft-${PACKAGE_VERSION}.tar.gz"
-          python -m twine check --strict promoted/*
-          python tools/check_repo_hygiene.py --artifacts promoted/*
+          test "$(find dist -maxdepth 1 -name '*.whl' | wc -l)" -eq 1
+          test "$(find dist -maxdepth 1 -name '*.tar.gz' | wc -l)" -eq 1
+          test -f "dist/telecraft-${PACKAGE_VERSION}-py3-none-any.whl"
+          test -f "dist/telecraft-${PACKAGE_VERSION}.tar.gz"
 
-      - name: Install and verify promoted wheel in a clean environment
+      - name: Install and verify the tagged wheel in a clean environment
         env:
           EXPECTED_VERSION: ${{ steps.package-version.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find promoted -maxdepth 1 -name '*.whl' -print -quit)"
+          wheel="$(find dist -maxdepth 1 -name '*.whl' -print -quit)"
           test -n "$wheel"
           python -m venv "$RUNNER_TEMP/telecraft-release-venv"
           "$RUNNER_TEMP/telecraft-release-venv/bin/python" -m pip install "$wheel"
@@ -264,7 +166,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-package-distributions
-          path: promoted/
+          path: dist/
           if-no-files-found: error
           retention-days: 30
 

@@ -5,7 +5,7 @@ This document defines Telecraft's public API, runtime, and release support contr
 ## Release lines
 
 - `0.1.x`: internal line with no public support commitment
-- `0.2.x` prereleases: public beta and release-candidate line, starting with `0.2.0b1`
+- `0.2.x` prereleases: public alpha, beta, and release-candidate line, starting with `0.2.0b1`
 - stable releases: versions without an `a`, `b`, or `rc` suffix
 
 `0.1.x` can move fast and is allowed to change without public release obligations.
@@ -123,8 +123,10 @@ and requires a new run.
 
 Internal `0.1.x` milestones do not require this gate.
 
-Stable releases additionally require the packaging, TestPyPI, security, provenance, and rollback
-checks in `docs/18_release_process.md`.
+Every public prerelease and stable release requires the packaging, exact-tag artifact, security,
+PyPI provenance, and rollback checks in `docs/18_release_process.md`. TestPyPI is an optional
+rehearsal, not a production publishing dependency. Stable releases additionally require their
+declared compatibility and support sign-off.
 
 ## What is and is not guaranteed
 

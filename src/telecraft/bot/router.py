@@ -131,6 +131,7 @@ class Router:
         self._inline_query_middlewares: list[InlineQueryMiddleware] = []
         self._shipping_query_middlewares: list[ShippingQueryMiddleware] = []
         self._precheckout_query_middlewares: list[PrecheckoutQueryMiddleware] = []
+        self._conversation_guards: list[Filter] = []
         self._conversations = ConversationManager()
 
     async def _run_middleware_chain(
@@ -199,6 +200,10 @@ class Router:
     def use_precheckout_query(self, middleware: PrecheckoutQueryMiddleware) -> None:
         self._precheckout_query_middlewares.append(middleware)
 
+    def use_conversation_guard(self, guard: Filter) -> None:
+        """Require a synchronous guard before a message can satisfy a waiter."""
+        self._conversation_guards.append(guard)
+
     async def wait_for_message(
         self,
         *,
@@ -220,14 +225,21 @@ class Router:
         filt: Filter | None = None,
         timeout: float | None = None,
         consume: bool = True,
+        same_sender: bool = False,
         reply_kwargs: dict[str, Any] | None = None,
     ) -> MessageEvent:
+        """Prompt in the same peer and wait for the next matching message.
+
+        Set ``same_sender=True`` for group-chat forms that only the initiating
+        user may answer. The default remains peer-wide for compatibility.
+        """
         return await self._conversations.ask(
             event,
             text,
             filt=filt,
             timeout=timeout,
             consume=consume,
+            same_sender=same_sender,
             reply_kwargs=reply_kwargs,
         )
 
@@ -254,8 +266,13 @@ class Router:
         return _decorator
 
     async def dispatch_message(self, e: MessageEvent) -> None:
-        if self._conversations.feed_message(e):
+        if self.feed_conversation_message(e):
             return
+
+        await self.dispatch_message_handlers(e)
+
+    async def dispatch_message_handlers(self, e: MessageEvent) -> None:
+        """Run middleware and handlers after conversation routing was decided."""
 
         async def _run_handlers() -> None:
             for h in self._message_handlers:
@@ -278,6 +295,45 @@ class Router:
             )
         except StopPropagation:
             return
+
+    def feed_conversation_message(self, e: MessageEvent) -> bool:
+        """Resolve a pending conversation without running regular handlers."""
+        if not self._conversation_allowed(e):
+            return False
+        return self._conversations.feed_message(e)
+
+    def buffer_conversation_message(self, e: MessageEvent) -> bool:
+        """Hold a message queued behind a handler that may open a conversation."""
+        if not self._conversation_allowed(e):
+            return False
+        self._conversations.buffer_message(e)
+        return True
+
+    def _conversation_allowed(self, e: MessageEvent) -> bool:
+        for guard in self._conversation_guards:
+            try:
+                if not bool(guard(e)):
+                    return False
+            except Exception:  # noqa: BLE001
+                return False
+        return True
+
+    def finish_buffered_conversation_message(self, e: MessageEvent) -> bool:
+        """Return whether a buffered message was consumed by a conversation."""
+        return self._conversations.finish_buffered_message(e)
+
+    def discard_buffered_conversation_message(self, e: MessageEvent) -> None:
+        """Stop offering an unclaimed queued message to future waiters."""
+        self._conversations.discard_buffered_message(e)
+
+    def open_conversations(self) -> None:
+        self._conversations.open()
+
+    def close_conversations(self) -> None:
+        self._conversations.close()
+
+    def clear_buffered_conversations(self) -> None:
+        self._conversations.clear_buffered()
 
     def on_action(
         self, filt: ActionFilter | None = None, *, stop: bool = False

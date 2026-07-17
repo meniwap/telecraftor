@@ -68,6 +68,13 @@ async def setup(router: Router) -> None:
         except ValueError:
             await event.reply("שימוש: /poll שאלה | אופציה1 | אופציה2 [| אופציה3 ...]")
             return
+        if await dry_run_guard(
+            ctx=ctx,
+            event=event,
+            action="poll",
+            details=f"question={question!r} options={len(options)}",
+        ):
+            return
         await ctx.app.polls.send(
             ref,
             question=question,
@@ -89,6 +96,13 @@ async def setup(router: Router) -> None:
             question, options, correct_index = _parse_quiz_args(event.command_args or "")
         except ValueError:
             await event.reply("שימוש: /quiz שאלה | אופציה1 | אופציה2 | אינדקס-נכון(1-based)")
+            return
+        if await dry_run_guard(
+            ctx=ctx,
+            event=event,
+            action="quiz",
+            details=(f"question={question!r} options={len(options)} correct={correct_index + 1}"),
+        ):
             return
         await ctx.app.polls.send_quiz(
             ref,
@@ -120,24 +134,51 @@ async def setup(router: Router) -> None:
         if interval <= 0:
             await event.reply("seconds חייב להיות גדול מ-0.")
             return
-        name = f"manual-{int(time.time())}-{event.sender_id or 0}"
+        name = f"manual-{time.time_ns()}-{event.sender_id or 0}"
         details = f"name={name} every={interval}s peer={ref}"
         if await dry_run_guard(ctx=ctx, event=event, action="schedule", details=details):
             return
-        await ctx.register_or_update_schedule(
-            name=name,
-            text=text,
-            interval_seconds=interval,
-            peer_ref=ref,
-            enabled=True,
-        )
+        try:
+            await ctx.register_or_update_schedule(
+                name=name,
+                text=text,
+                interval_seconds=interval,
+                peer_ref=ref,
+                enabled=True,
+            )
+        except ValueError as ex:
+            await event.reply(f"לא ניתן לתזמן ל-peer הזה: {ex}")
+            return
         await event.reply(f"נוספה משימה `{name}` כל {interval} שניות.")
+
+    @router.on_message(and_(incoming(), command("unschedule")), stop=True)
+    async def _on_unschedule(event: MessageEvent) -> None:
+        if not await require_admin(ctx=ctx, event=event, action_name="unschedule"):
+            return
+        name = (event.command_args or "").strip()
+        if not name:
+            await event.reply("שימוש: /unschedule <job-name>")
+            return
+        ref = peer_ref(event.peer_type, event.peer_id)
+        if ref is None:
+            await event.reply("peer לא מזוהה.")
+            return
+        # Removing a job reduces Telegram-side effects, so it remains available
+        # while the peer is in read-only mode.
+        if not await ctx.remove_schedule(name, peer_ref=ref):
+            await event.reply(f"לא נמצאה משימה בשם `{name}`.")
+            return
+        await event.reply(f"המשימה `{name}` הוסרה.")
 
     @router.on_message(and_(incoming(), command("jobs")), stop=True)
     async def _on_jobs(event: MessageEvent) -> None:
         if not await require_admin(ctx=ctx, event=event, action_name="jobs"):
             return
-        jobs = ctx.storage.list_scheduled_jobs(enabled_only=False)
+        ref = peer_ref(event.peer_type, event.peer_id)
+        if ref is None:
+            await event.reply("peer לא מזוהה.")
+            return
+        jobs = await ctx.list_schedules_for_peer(ref)
         if not jobs:
             await event.reply("אין משימות מתוזמנות.")
             return

@@ -110,6 +110,38 @@ def _forbidden_artifact_reason(path: str) -> str | None:
     return None
 
 
+def _unexpected_artifact_member_reason(artifact: Path, path: str) -> str | None:
+    """Fail closed when a distribution contains anything outside its public package roots."""
+    parts = PurePosixPath(path).parts
+    if not parts:
+        return None
+
+    if artifact.suffix == ".whl":
+        root = parts[0]
+        if root == "telecraft" or (
+            root.startswith("telecraft-") and root.endswith(".dist-info")
+        ):
+            return None
+        return "unexpected path outside telecraft package or distribution metadata"
+
+    if artifact.name.endswith(".tar.gz"):
+        allowed_exact = {
+            ".gitignore",
+            "CHANGELOG.md",
+            "LICENSE",
+            "PKG-INFO",
+            "README.md",
+            "pyproject.toml",
+            "src",
+            "src/telecraft",
+        }
+        if path in allowed_exact or path.startswith("src/telecraft/"):
+            return None
+        return "unexpected path outside the source package allow-list"
+
+    return "unsupported artifact type"
+
+
 def _check_tracked_paths(paths: list[str]) -> list[str]:
     errors: list[str] = []
     for path in paths:
@@ -137,10 +169,10 @@ def _check_references(paths: list[str]) -> list[str]:
     return errors
 
 
-def _normalize_artifact_member(path: str) -> str:
+def _normalize_artifact_member(path: str, *, strip_project_root: bool) -> str:
     normalized = path.replace("\\", "/").lstrip("/")
     parts = [part for part in normalized.split("/") if part]
-    if len(parts) > 1 and parts[0].startswith("telecraft-"):
+    if strip_project_root and len(parts) > 1 and parts[0].startswith("telecraft-"):
         return "/".join(parts[1:])
     return "/".join(parts)
 
@@ -148,10 +180,16 @@ def _normalize_artifact_member(path: str) -> str:
 def _artifact_members(path: Path) -> list[str]:
     if path.suffix == ".whl":
         with zipfile.ZipFile(path) as zf:
-            return [_normalize_artifact_member(name) for name in zf.namelist()]
+            return [
+                _normalize_artifact_member(name, strip_project_root=False)
+                for name in zf.namelist()
+            ]
     if path.name.endswith(".tar.gz"):
         with tarfile.open(path, "r:gz") as tf:
-            return [_normalize_artifact_member(member.name) for member in tf.getmembers()]
+            return [
+                _normalize_artifact_member(member.name, strip_project_root=True)
+                for member in tf.getmembers()
+            ]
     raise ValueError(f"Unsupported artifact type: {path}")
 
 
@@ -163,6 +201,10 @@ def _check_artifacts(paths: list[Path]) -> list[str]:
             continue
         for member in _artifact_members(artifact):
             reason = _forbidden_artifact_reason(member)
+            if reason:
+                errors.append(f"{artifact.name}:{member}: {reason}")
+                continue
+            reason = _unexpected_artifact_member_reason(artifact, member)
             if reason:
                 errors.append(f"{artifact.name}:{member}: {reason}")
     return errors

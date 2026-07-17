@@ -2512,14 +2512,15 @@ class MtprotoClient:
         if u.peer_type != "user":
             raise MtprotoClientError(f"get_chat_member: user must be a user, got {u.peer_type}")
 
+        participant = Peer.user(int(u.peer_id))
         try:
-            input_user = self.entities.input_user(int(u.peer_id))
+            input_participant = self.entities.input_peer(participant)
         except EntityCacheError:
-            await self._prime_entities_for_reply(want=Peer.user(int(u.peer_id)), timeout=timeout)
-            input_user = self.entities.input_user(int(u.peer_id))
+            await self._prime_entities_for_reply(want=participant, timeout=timeout)
+            input_participant = self.entities.input_peer(participant)
 
         res = await self.invoke_api(
-            ChannelsGetParticipant(channel=input_channel, participant=input_user),
+            ChannelsGetParticipant(channel=input_channel, participant=input_participant),
             timeout=timeout,
         )
 
@@ -5576,7 +5577,11 @@ class MtprotoClient:
         Best-effort wrapper around messages.getHistory that also ingests
         users/chats into EntityCache.
         """
-        from telecraft.tl.generated.types import MessagesMessages, MessagesMessagesSlice
+        from telecraft.tl.generated.types import (
+            MessagesChannelMessages,
+            MessagesMessages,
+            MessagesMessagesSlice,
+        )
 
         p = await self.resolve_peer(peer, timeout=timeout)
         try:
@@ -5600,7 +5605,7 @@ class MtprotoClient:
         )
         # messages.Messages also carries users/chats.
         self._ingest_from_updates_result(res)
-        if isinstance(res, (MessagesMessages, MessagesMessagesSlice)):
+        if isinstance(res, (MessagesMessages, MessagesMessagesSlice, MessagesChannelMessages)):
             msgs = getattr(res, "messages", None)
             return list(msgs) if isinstance(msgs, list) else []
         return []

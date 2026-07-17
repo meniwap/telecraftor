@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, cast
 
 BacklogPolicy = Literal["ignore", "process_no_reply", "process_all"]
 ThrottleMode = Literal["sleep", "drop"]
+_CANONICAL_PEER_RE = re.compile(r"^(user|chat|channel):-?\d+$")
+_USERNAME_PEER_RE = re.compile(r"^@[A-Za-z0-9_]{5,32}$")
+
+
+class GroupBotConfigurationError(ValueError):
+    """A deterministic group-bot configuration error that must not reconnect forever."""
 
 
 @dataclass(slots=True, frozen=True)
@@ -50,6 +57,44 @@ class GroupBotConfig:
     debug_dispatcher: bool = False
 
     announcements: list[ScheduledAnnouncement] = field(default_factory=list)
+    # Appended for positional-constructor compatibility with earlier releases.
+    allow_all_peers: bool = False
+    max_concurrent_handlers: int = 64
+    max_pending_handlers: int = 4096
+
+
+def validate_group_bot_scope(config: GroupBotConfig) -> None:
+    refs = list(config.allowed_peers)
+    if config.allow_all_peers and refs:
+        raise GroupBotConfigurationError(
+            "allow_all_peers=true cannot be combined with allowed_peers; choose an explicit scope"
+        )
+    if not config.allow_all_peers and not refs:
+        raise GroupBotConfigurationError(
+            "allowed_peers must contain at least one peer; set "
+            "allow_all_peers=true only for an intentionally global bot"
+        )
+    invalid = [
+        ref
+        for ref in refs
+        if _CANONICAL_PEER_RE.fullmatch(ref) is None and _USERNAME_PEER_RE.fullmatch(ref) is None
+    ]
+    if invalid:
+        raise GroupBotConfigurationError(
+            "allowed_peers entries must use @username or user:/chat:/channel:ID; "
+            f"invalid entries: {invalid!r}"
+        )
+
+
+def validate_group_bot_config(config: GroupBotConfig) -> None:
+    """Validate deterministic settings before opening storage or Telegram sessions."""
+    validate_group_bot_scope(config)
+    if int(config.max_concurrent_handlers) <= 0:
+        raise GroupBotConfigurationError("max_concurrent_handlers must be greater than zero")
+    if int(config.max_pending_handlers) < int(config.max_concurrent_handlers):
+        raise GroupBotConfigurationError(
+            "max_pending_handlers must be greater than or equal to max_concurrent_handlers"
+        )
 
 
 def _as_bool(value: Any, *, default: bool) -> bool:
@@ -58,9 +103,18 @@ def _as_bool(value: Any, *, default: bool) -> bool:
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, float)):
-        return bool(value)
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+        return default
     if isinstance(value, str):
-        return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off"}:
+            return False
+        return default
     return default
 
 
@@ -200,6 +254,7 @@ def load_group_bot_config(path: str | Path) -> GroupBotConfig:
 
     return GroupBotConfig(
         allowed_peers=_as_str_list(data.get("allowed_peers")),
+        allow_all_peers=_as_bool(data.get("allow_all_peers"), default=False),
         admin_user_ids=_as_int_list(data.get("admin_user_ids")),
         audit_peer=audit_peer if audit_peer else None,
         storage_path=storage_path if storage_path else ".sessions/group_bot.sqlite3",
@@ -235,4 +290,14 @@ def load_group_bot_config(path: str | Path) -> GroupBotConfig:
         throttle_mode=throttle_mode,
         debug_dispatcher=_as_bool(data.get("debug_dispatcher"), default=False),
         announcements=_parse_announcements(data.get("announcements")),
+        max_concurrent_handlers=_as_int(
+            data.get("max_concurrent_handlers"),
+            default=64,
+            min_value=1,
+        ),
+        max_pending_handlers=_as_int(
+            data.get("max_pending_handlers"),
+            default=4096,
+            min_value=1,
+        ),
     )

@@ -14,7 +14,7 @@ body:
     attributes:
       label: Telecraft version
       description: Output of `python -c "from importlib.metadata import version; print(version('telecraft'))"`.
-      placeholder: 0.2.0rc1
+      placeholder: 0.2.0
     validations:
       required: true
   - type: input
