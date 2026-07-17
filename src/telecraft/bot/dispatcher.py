@@ -4,6 +4,7 @@ import asyncio
 import logging
 import time
 from collections import deque
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -32,6 +33,9 @@ _ReactionDedupeKey = tuple[
     int,  # msg_id
     tuple[tuple[str, int], ...],  # sorted counts snapshot
 ]
+
+_DispatchFactory = Callable[[], Awaitable[None]]
+_MessageSerialKey = tuple[str, int, int]
 
 
 @dataclass(slots=True)
@@ -63,6 +67,145 @@ class _TokenBucket:
         return (-self.tokens) / self.rate_per_sec
 
 
+class _DispatchTaskPool:
+    """Bound and supervise concurrent router dispatches."""
+
+    def __init__(self, *, limit: int, max_pending: int = 4096) -> None:
+        if int(limit) <= 0:
+            raise ValueError("max_concurrent_handlers must be greater than zero")
+        if int(max_pending) < int(limit):
+            raise ValueError(
+                "max_pending_handlers must be greater than or equal to max_concurrent_handlers"
+            )
+        self._semaphore = asyncio.Semaphore(int(limit))
+        self._max_pending = int(max_pending)
+        self._tasks: set[asyncio.Task[None]] = set()
+        self._tails: dict[_MessageSerialKey, asyncio.Task[None]] = {}
+        self._active_lane_tasks: dict[_MessageSerialKey, asyncio.Task[None]] = {}
+        self._overflow_dropped = 0
+        self._last_overflow_log_at = 0.0
+
+    def schedule(
+        self,
+        factory: _DispatchFactory,
+        *,
+        label: str,
+        serial_key: _MessageSerialKey | None = None,
+    ) -> bool:
+        # Queue without awaiting capacity here. A running handler may be
+        # blocked in Router.ask(), so blocking the update loop would prevent it
+        # from ingesting the answer that releases the handler. The semaphore
+        # limits active handlers while queued events remain supervised tasks.
+        # Conversation answers are routed before this method, so they remain
+        # available even when the bounded pending queue is full.
+        if len(self._tasks) >= self._max_pending:
+            self._overflow_dropped += 1
+            now = time.monotonic()
+            if self._last_overflow_log_at == 0.0 or (now - self._last_overflow_log_at) >= 5.0:
+                logger.warning(
+                    "Drop: max pending handlers reached event=%s limit=%s dropped=%s",
+                    label,
+                    self._max_pending,
+                    self._overflow_dropped,
+                )
+                self._overflow_dropped = 0
+                self._last_overflow_log_at = now
+            return False
+        predecessor = self._tails.get(serial_key) if serial_key is not None else None
+        task = asyncio.create_task(
+            self._run_sequenced(
+                predecessor,
+                factory,
+                label=label,
+                serial_key=serial_key,
+            ),
+            name=f"telecraft-dispatch:{label}",
+        )
+        self._tasks.add(task)
+        if serial_key is not None:
+            self._tails[serial_key] = task
+
+        def _on_done(done: asyncio.Task[None]) -> None:
+            self._tasks.discard(done)
+            if serial_key is not None and self._tails.get(serial_key) is done:
+                self._tails.pop(serial_key, None)
+
+        task.add_done_callback(_on_done)
+        return True
+
+    def lane_tail(self, serial_key: _MessageSerialKey) -> asyncio.Task[None] | None:
+        return self._tails.get(serial_key)
+
+    def active_lane_task(self, serial_key: _MessageSerialKey) -> asyncio.Task[None] | None:
+        return self._active_lane_tasks.get(serial_key)
+
+    async def _run_sequenced(
+        self,
+        predecessor: asyncio.Task[None] | None,
+        factory: _DispatchFactory,
+        *,
+        label: str,
+        serial_key: _MessageSerialKey | None,
+    ) -> None:
+        if predecessor is not None:
+            # A handler may cancel itself. Treat that as completion of its lane
+            # slot so already-queued messages from the same sender still run.
+            # Cancelling this task (for example during pool.close()) still
+            # propagates through gather and stops the queue promptly.
+            await asyncio.gather(predecessor, return_exceptions=True)
+        async with self._semaphore:
+            current = asyncio.current_task()
+            if serial_key is not None and current is not None:
+                self._active_lane_tasks[serial_key] = current
+            try:
+                await self._run_isolated(factory, label=label)
+            finally:
+                if (
+                    serial_key is not None
+                    and current is not None
+                    and self._active_lane_tasks.get(serial_key) is current
+                ):
+                    self._active_lane_tasks.pop(serial_key, None)
+
+    async def _run_isolated(self, factory: _DispatchFactory, *, label: str) -> None:
+        try:
+            await factory()
+        except asyncio.CancelledError:
+            raise
+        except Exception as ex:  # noqa: BLE001
+            logger.error(
+                "Event dispatch crashed event=%s",
+                label,
+                exc_info=(type(ex), ex, ex.__traceback__),
+            )
+
+    async def close(self, *, timeout: float | None = 30.0) -> None:
+        tasks = tuple(self._tasks)
+        if tasks:
+            if timeout is None:
+                _done, pending = await asyncio.wait(tasks)
+            else:
+                _done, pending = await asyncio.wait(
+                    tasks,
+                    timeout=max(0.0, float(timeout)),
+                )
+            if pending:
+                logger.error(
+                    "Handler drain timed out; cancelling pending handlers count=%s",
+                    len(pending),
+                )
+                for task in pending:
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+        self._tasks.clear()
+        self._tails.clear()
+        self._active_lane_tasks.clear()
+
+    def cancel(self) -> None:
+        for task in tuple(self._tasks):
+            task.cancel()
+
+
 @dataclass(slots=True)
 class Dispatcher:
     """
@@ -70,6 +213,11 @@ class Dispatcher:
     - reads raw updates from MtprotoClient.recv_update()
     - converts them to MessageEvent when possible
     - calls Router handlers with isolation (exceptions are logged, loop continues)
+    - preserves message order for each sender within a peer while allowing
+      independent lanes to run concurrently up to max_concurrent_handlers
+    - queues excess message handlers up to max_pending_handlers; pending
+      conversation answers bypass the handler queue so an ask() cannot deadlock
+      update ingestion
     """
 
     client: Any
@@ -90,8 +238,29 @@ class Dispatcher:
     trace_update_substrings: tuple[str, ...] = ()
     trace_all_updates: bool = False
     debug: bool = False
+    # Appended for positional-constructor compatibility with earlier releases.
+    max_concurrent_handlers: int = 1
+    max_pending_handlers: int = 4096
+    handler_shutdown_timeout_seconds: float = 30.0
 
     async def run(self) -> None:
+        self.router.open_conversations()
+        dispatch_pool = _DispatchTaskPool(
+            limit=self.max_concurrent_handlers,
+            max_pending=self.max_pending_handlers,
+        )
+        try:
+            await self._run(dispatch_pool=dispatch_pool)
+        finally:
+            # No new updates can arrive after _run exits. Abort handlers that
+            # are waiting for a conversation answer, then drain all accepted
+            # message work before reconnect so persisted update state cannot
+            # advance past handlers that never ran.
+            self.router.close_conversations()
+            await dispatch_pool.close(timeout=self.handler_shutdown_timeout_seconds)
+            self.router.clear_buffered_conversations()
+
+    async def _run(self, *, dispatch_pool: _DispatchTaskPool) -> None:
         started_at = int(time.time())
         # Dedupe messages by (peer_type, peer_id, msg_id, kind) to avoid duplicates while
         # still allowing edits to be processed.
@@ -132,20 +301,30 @@ class Dispatcher:
                 peer_rate_per_sec = r2
 
         # Best-effort: identify "me" (helps classify self-authored messages in Saved Messages).
+        me: Any | None = None
         get_me = getattr(self.client, "get_me", None)
         if callable(get_me):
             try:
-                await get_me()
+                me = await get_me()
             except Exception as ex:  # noqa: BLE001
                 logger.info("get_me failed; continuing without self identity", exc_info=ex)
 
         # Best-effort: populate access_hash cache (enables DM/channel replies).
         prime = getattr(self.client, "prime_entities", None)
-        if callable(prime):
+        # Telegram rejects dialogs.getDialogs for bot authorizations with
+        # BOT_METHOD_INVALID, which is what prime_entities uses. Bot entity
+        # caches are hydrated from incoming updates instead.
+        if callable(prime) and not bool(getattr(me, "bot", False)):
             try:
                 await prime()
             except Exception as ex:  # noqa: BLE001
                 logger.info("prime_entities failed; continuing without priming", exc_info=ex)
+
+        # Message handlers run in background tasks and share this turnstile so
+        # sleep-mode throttling remains staggered. Event types dispatched
+        # inline deliberately do not wait behind that handler backlog, keeping
+        # update ingestion responsive under load.
+        message_throttle_lock = asyncio.Lock()
 
         await self.client.start_updates()
         while True:
@@ -189,6 +368,8 @@ class Dispatcher:
                         global_bucket,
                         peer_rate_per_sec,
                         peer_buckets,
+                        dispatch_pool,
+                        message_throttle_lock,
                     )
                 elif isinstance(evt, ChatActionEvent):
                     await self._handle_action(
@@ -375,12 +556,23 @@ class Dispatcher:
         global_bucket: _TokenBucket | None,
         peer_rate_per_sec: float | None,
         peer_buckets: dict[tuple[str, int], _TokenBucket],
+        throttle_lock: asyncio.Lock | None = None,
     ) -> bool:
         """
         Returns True if event should be dispatched, False if dropped (throttle_mode='drop').
         """
         if global_bucket is None and peer_rate_per_sec is None:
             return True
+
+        if throttle_lock is not None:
+            async with throttle_lock:
+                return await self._maybe_throttle(
+                    peer_type=peer_type,
+                    peer_id=peer_id,
+                    global_bucket=global_bucket,
+                    peer_rate_per_sec=peer_rate_per_sec,
+                    peer_buckets=peer_buckets,
+                )
 
         now = time.monotonic()
         delay = 0.0
@@ -447,6 +639,7 @@ class Dispatcher:
         global_bucket: _TokenBucket | None,
         peer_rate_per_sec: float | None,
         peer_buckets: dict[tuple[str, int], _TokenBucket],
+        throttle_lock: asyncio.Lock | None = None,
     ) -> None:
         if not self._apply_backlog_policy(evt, started_at=started_at, now_ts=now_ts):
             if self.debug:
@@ -477,6 +670,7 @@ class Dispatcher:
             global_bucket=global_bucket,
             peer_rate_per_sec=peer_rate_per_sec,
             peer_buckets=peer_buckets,
+            throttle_lock=throttle_lock,
         ):
             await self.router.dispatch_reaction(evt)
 
@@ -491,6 +685,7 @@ class Dispatcher:
         global_bucket: _TokenBucket | None,
         peer_rate_per_sec: float | None,
         peer_buckets: dict[tuple[str, int], _TokenBucket],
+        throttle_lock: asyncio.Lock | None = None,
     ) -> None:
         if not self._apply_backlog_policy(evt, started_at=started_at, now_ts=now_ts):
             if self.debug:
@@ -515,6 +710,7 @@ class Dispatcher:
             global_bucket=global_bucket,
             peer_rate_per_sec=peer_rate_per_sec,
             peer_buckets=peer_buckets,
+            throttle_lock=throttle_lock,
         ):
             await self.router.dispatch_callback_query(evt)
 
@@ -529,6 +725,7 @@ class Dispatcher:
         global_bucket: _TokenBucket | None,
         peer_rate_per_sec: float | None,
         peer_buckets: dict[tuple[str, int], _TokenBucket],
+        throttle_lock: asyncio.Lock | None = None,
     ) -> None:
         if not self._apply_backlog_policy(evt, started_at=started_at, now_ts=now_ts):
             if self.debug:
@@ -548,6 +745,7 @@ class Dispatcher:
             global_bucket=global_bucket,
             peer_rate_per_sec=peer_rate_per_sec,
             peer_buckets=peer_buckets,
+            throttle_lock=throttle_lock,
         ):
             await self.router.dispatch_inline_query(evt)
 
@@ -562,6 +760,7 @@ class Dispatcher:
         global_bucket: _TokenBucket | None,
         peer_rate_per_sec: float | None,
         peer_buckets: dict[tuple[str, int], _TokenBucket],
+        throttle_lock: asyncio.Lock | None = None,
     ) -> None:
         if not self._apply_backlog_policy(evt, started_at=started_at, now_ts=now_ts):
             if self.debug:
@@ -581,6 +780,7 @@ class Dispatcher:
             global_bucket=global_bucket,
             peer_rate_per_sec=peer_rate_per_sec,
             peer_buckets=peer_buckets,
+            throttle_lock=throttle_lock,
         ):
             await self.router.dispatch_shipping_query(evt)
 
@@ -595,6 +795,7 @@ class Dispatcher:
         global_bucket: _TokenBucket | None,
         peer_rate_per_sec: float | None,
         peer_buckets: dict[tuple[str, int], _TokenBucket],
+        throttle_lock: asyncio.Lock | None = None,
     ) -> None:
         if not self._apply_backlog_policy(evt, started_at=started_at, now_ts=now_ts):
             if self.debug:
@@ -614,6 +815,7 @@ class Dispatcher:
             global_bucket=global_bucket,
             peer_rate_per_sec=peer_rate_per_sec,
             peer_buckets=peer_buckets,
+            throttle_lock=throttle_lock,
         ):
             await self.router.dispatch_precheckout_query(evt)
 
@@ -626,6 +828,8 @@ class Dispatcher:
         global_bucket: _TokenBucket | None,
         peer_rate_per_sec: float | None,
         peer_buckets: dict[tuple[str, int], _TokenBucket],
+        dispatch_pool: _DispatchTaskPool | None = None,
+        throttle_lock: asyncio.Lock | None = None,
     ) -> None:
         # Never react to our own outgoing messages (prevents echo-loops).
         if self.ignore_outgoing and evt.outgoing:
@@ -652,14 +856,60 @@ class Dispatcher:
             seen_order.append(key)
             seen.add(key)
 
-        if await self._maybe_throttle(
-            peer_type=evt.peer_type,
-            peer_id=evt.peer_id,
-            global_bucket=global_bucket,
-            peer_rate_per_sec=peer_rate_per_sec,
-            peer_buckets=peer_buckets,
-        ):
-            await self.router.dispatch_message(evt)
+        # Conversation answers must bypass the bounded handler pool. Otherwise
+        # a pool filled with handlers waiting in Router.ask() could deadlock on
+        # the very messages that release those handlers.
+        if self.router.feed_conversation_message(evt):
+            return
+
+        serial_key = (peer_type, peer_id, int(evt.sender_id or 0))
+        active_predecessor = (
+            dispatch_pool.active_lane_task(serial_key) if dispatch_pool is not None else None
+        )
+        # The previous handler may not have registered ask() yet. Buffer this
+        # already-ingested message so that a waiter opened by that handler can
+        # claim it without breaking per-sender ordering.
+        buffered = bool(
+            active_predecessor is not None and self.router.buffer_conversation_message(evt)
+        )
+
+        async def _dispatch() -> None:
+            if buffered and self.router.finish_buffered_conversation_message(evt):
+                return
+            allowed = await self._maybe_throttle(
+                peer_type=evt.peer_type,
+                peer_id=evt.peer_id,
+                global_bucket=global_bucket,
+                peer_rate_per_sec=peer_rate_per_sec,
+                peer_buckets=peer_buckets,
+                throttle_lock=throttle_lock,
+            )
+            if allowed:
+                await self.router.dispatch_message_handlers(evt)
+
+        if dispatch_pool is None:
+            await _dispatch()
+            return
+
+        scheduled = dispatch_pool.schedule(
+            _dispatch,
+            label=f"message:{peer_type}:{peer_id}:{int(evt.msg_id or 0)}",
+            serial_key=serial_key,
+        )
+        if buffered and active_predecessor is not None:
+            if scheduled:
+                # Once the active handler exits it can no longer open a waiter.
+                # A claimed message stays marked until its queued dispatch
+                # observes the claim and skips regular handlers.
+                active_predecessor.add_done_callback(
+                    lambda _done: self.router.discard_buffered_conversation_message(evt)
+                )
+            else:
+                # If overload drops the regular handler there is no queued
+                # dispatch to clear a claimed marker, so finish it here.
+                active_predecessor.add_done_callback(
+                    lambda _done: self.router.finish_buffered_conversation_message(evt)
+                )
 
     async def _handle_action(
         self,
@@ -672,6 +922,7 @@ class Dispatcher:
         global_bucket: _TokenBucket | None,
         peer_rate_per_sec: float | None,
         peer_buckets: dict[tuple[str, int], _TokenBucket],
+        throttle_lock: asyncio.Lock | None = None,
     ) -> None:
         # Never react to our own outgoing actions (prevents loops).
         if self.ignore_outgoing and evt.outgoing:
@@ -733,5 +984,6 @@ class Dispatcher:
             global_bucket=global_bucket,
             peer_rate_per_sec=peer_rate_per_sec,
             peer_buckets=peer_buckets,
+            throttle_lock=throttle_lock,
         ):
             await self.router.dispatch_action(evt)

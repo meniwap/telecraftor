@@ -194,10 +194,15 @@ async def finalize_run(
         }
     summary = {
         "run_id": ctx.run_id,
+        "source_commit": ctx.source_commit,
+        "source_tree_clean": ctx.source_tree_clean,
         "ts": datetime.now(timezone.utc).isoformat(),
         "pass_count": pass_count,
         "fail_count": fail_count,
-        "cleanup_errors": cleanup_errors,
+        # The release manifest deliberately carries only the count.  Detailed
+        # cleanup failures remain in the local summary below and are never
+        # copied into the sanitized, committable evidence file.
+        "cleanup_errors": len(cleanup_errors),
         "error_breakdown": error_breakdown,
         "resources": resource_ids,
         "connection_health_probes": ctx.artifacts.get("connection_health_probes"),
@@ -222,6 +227,8 @@ async def finalize_run(
         "# Telecraft Live Report",
         "",
         f"- run_id: `{ctx.run_id}`",
+        f"- source_commit: `{ctx.source_commit}`",
+        f"- source_tree_clean: `{ctx.source_tree_clean}`",
         f"- pass: `{pass_count}`",
         f"- fail: `{fail_count}`",
         f"- cleanup_errors: `{len(cleanup_errors)}`",
@@ -270,9 +277,28 @@ async def finalize_run(
             client.close(),
             timeout=min(float(ctx.cfg.timeout), 10.0),
         )
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001
+        close_error = f"client.close: {type(exc).__name__}: {exc}"
+        cleanup_errors.append(close_error)
+        summary["cleanup_errors"] = len(cleanup_errors)
+        (ctx.run_dir / "artifacts.json").write_text(
+            json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        if "## Cleanup Errors" not in lines:
+            lines.extend(["", "## Cleanup Errors"])
+        lines.append(f"- {close_error}")
+        (ctx.run_dir / "summary.md").write_text(
+            "\n".join(lines) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
 
     if fail_count > 0:
         raise AssertionError(f"Live suite had {fail_count} failed steps; see {ctx.run_dir}")
+    if cleanup_errors:
+        raise AssertionError(
+            f"Live suite had {len(cleanup_errors)} cleanup errors; see {ctx.run_dir}"
+        )
     return summary

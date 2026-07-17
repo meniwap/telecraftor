@@ -19,6 +19,7 @@ from telecraft.tl.generated.functions import (
 )
 from telecraft.tl.generated.types import (
     DialogFilter,
+    InputPeerSelf,
     InputSingleMedia,
 )
 
@@ -70,6 +71,30 @@ class TestSendAlbum:
                     captions=["only one caption"],
                 )
             )
+
+    def test_send_album_self_uses_input_peer_self(self, tmp_path) -> None:
+        c = _make_connected_client()
+        paths = [tmp_path / "one.jpg", tmp_path / "two.jpg"]
+        for path in paths:
+            path.write_bytes(b"image")
+        seen: list[Any] = []
+
+        async def fail_resolve(_ref: Any, *, timeout: float = 0) -> Any:
+            raise AssertionError("the self sentinel must not be resolved as a username")
+
+        async def invoke_api(req: Any, *, timeout: float = 0) -> Any:
+            seen.append(req)
+            return True
+
+        c.resolve_peer = fail_resolve  # type: ignore[assignment]
+        c.invoke_api = invoke_api  # type: ignore[assignment]
+
+        asyncio.run(c.send_album("self", paths))
+
+        request = [
+            item for item in seen if getattr(item, "TL_NAME", None) == "messages.sendMultiMedia"
+        ][-1]
+        assert isinstance(request.peer, InputPeerSelf)
 
 
 class TestSendMultiMediaTL:

@@ -12,7 +12,7 @@ def _help_text() -> str:
         "- /start, /help, /id, /settings\n"
         "- /warn, /warnings, /unwarn, /mute, /unmute, /restrict, /unrestrict\n"
         "- /ban, /unban, /readd, /kick\n"
-        "- /poll, /quiz, /autopin, /schedule, /jobs\n"
+        "- /poll, /quiz, /autopin, /schedule, /unschedule, /jobs\n"
         "- /top, /stats, /modlog\n"
         "הערה: /readd מחזיר דרך הצטרפות (לינק/הנחיה), המשתמש מצטרף לבד."
     )
@@ -24,8 +24,7 @@ async def setup(router: Router) -> None:
     @router.on_message(and_(incoming(), command("start")), stop=True)
     async def _on_start(event: MessageEvent) -> None:
         await event.reply(
-            "שלום! זה Group Bot על MTProto.\n"
-            "שלח /help לרשימת פקודות או /settings להגדרות dry-run.",
+            "שלום! זה Group Bot על MTProto.\nשלח /help לרשימת פקודות או /settings להגדרות dry-run.",
         )
 
     @router.on_message(and_(incoming(), command("help")), stop=True)
@@ -57,6 +56,7 @@ async def setup(router: Router) -> None:
                 event,
                 "אשף הגדרות: שלח `readonly on` או `readonly off`",
                 timeout=45.0,
+                same_sender=True,
             )
         except asyncio.TimeoutError:
             await event.reply("פג הזמן של אשף ההגדרות.")

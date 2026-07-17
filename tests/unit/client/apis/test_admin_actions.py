@@ -256,3 +256,4 @@ def test_get_chat_member_calls_channels_get_participant() -> None:
     assert len(seen) == 1
     req = seen[0]
     assert getattr(req, "TL_NAME", None) == "channels.getParticipant"
+    assert getattr(getattr(req, "participant", None), "TL_NAME", None) == "inputPeerUser"

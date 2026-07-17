@@ -4,6 +4,7 @@ import asyncio
 import logging
 import re
 import struct
+import time
 from dataclasses import dataclass, field
 from typing import Any, Protocol, cast
 
@@ -28,6 +29,9 @@ _WAIT_PATTERN = re.compile(r"(?:FLOOD_WAIT|SLOWMODE_WAIT|FLOOD_PREMIUM_WAIT)_(\d
 _RPC_RESULT_CONSTRUCTOR_ID = -212046591  # 0xF35C6D01
 _MSG_CONTAINER_CONSTRUCTOR_ID = 1945237724  # 0x73F1F8DC
 _GZIP_PACKED_CONSTRUCTOR_ID = 812830625  # 0x3072CFA1
+_RECEIVED_MSG_ID_CACHE_SIZE = 1024
+_SERVER_MSG_ID_MAX_FUTURE_SECONDS = 30
+_SERVER_MSG_ID_MAX_PAST_SECONDS = 300
 
 
 class PacketTransport(Protocol):
@@ -78,6 +82,13 @@ class ReceivedMessage:
     obj: Any
 
 
+@dataclass(frozen=True, slots=True)
+class ReceiverTerminated:
+    """Terminal receiver state forwarded to the client update consumer."""
+
+    error: RpcSenderError
+
+
 def _parse_inner_message(inner: bytes) -> tuple[int, int, bytes]:
     if len(inner) < 16:
         raise RpcSenderError("Inner message too short")
@@ -86,9 +97,13 @@ def _parse_inner_message(inner: bytes) -> tuple[int, int, bytes]:
     msg_len = struct.unpack_from("<i", inner, 12)[0]
     if msg_len < 0:
         raise RpcSenderError("Negative message length")
+    if msg_len % 4 != 0:
+        raise RpcSenderError("Message length must be divisible by 4")
     end = 16 + msg_len
     if end > len(inner):
         raise RpcSenderError("Message length exceeds decrypted payload")
+    if end != len(inner):
+        raise RpcSenderError("Unexpected trailing bytes after decrypted message body")
     return msg_id, seqno, inner[16:end]
 
 
@@ -175,6 +190,50 @@ def extract_req_msg_ids_from_payload(payload: bytes) -> set[int]:
     return req_msg_ids
 
 
+def _validate_nested_message_lengths(payload: bytes, *, depth: int = 0) -> None:
+    """Validate message lengths inside containers, including gzip-wrapped containers."""
+
+    if depth > 8:
+        raise RpcSenderError("Incoming message nesting is too deep")
+    if len(payload) < 4:
+        return
+    constructor_id = int(struct.unpack_from("<i", payload, 0)[0])
+    if constructor_id == _MSG_CONTAINER_CONSTRUCTOR_ID:
+        if len(payload) < 8:
+            raise RpcSenderError("Truncated msg_container header")
+        count = int(struct.unpack_from("<i", payload, 4)[0])
+        if count < 0:
+            raise RpcSenderError("Negative msg_container message count")
+        position = 8
+        for _ in range(count):
+            if position + 16 > len(payload):
+                raise RpcSenderError("Truncated msg_container message header")
+            msg_len = int(struct.unpack_from("<i", payload, position + 12)[0])
+            if msg_len < 0:
+                raise RpcSenderError("Negative msg_container message length")
+            if msg_len % 4 != 0:
+                raise RpcSenderError("msg_container message length must be divisible by 4")
+            start = position + 16
+            end = start + msg_len
+            if end > len(payload):
+                raise RpcSenderError("msg_container message exceeds payload")
+            _validate_nested_message_lengths(payload[start:end], depth=depth + 1)
+            position = end
+        if position != len(payload):
+            raise RpcSenderError("Unexpected trailing bytes in msg_container")
+        return
+
+    if constructor_id == _GZIP_PACKED_CONSTRUCTOR_ID:
+        try:
+            packed, end = _read_tl_bytes_from(payload, start=4)
+            unpacked = decompress_limited(packed)
+        except Exception as exc:  # noqa: BLE001
+            raise RpcSenderError("Invalid gzip_packed message") from exc
+        if end != len(payload):
+            raise RpcSenderError("Unexpected trailing bytes in gzip_packed message")
+        _validate_nested_message_lengths(unpacked, depth=depth + 1)
+
+
 @dataclass(slots=True)
 class _PendingCall:
     req_bytes: bytes
@@ -210,7 +269,7 @@ class MtprotoEncryptedSender:
         *,
         state: MtprotoState,
         msg_id_gen: MsgIdGenerator,
-        incoming_queue: asyncio.Queue[ReceivedMessage] | None = None,
+        incoming_queue: asyncio.Queue[ReceivedMessage | ReceiverTerminated] | None = None,
         flood_wait_config: FloodWaitConfig | None = None,
     ) -> None:
         self._transport = transport
@@ -218,25 +277,60 @@ class MtprotoEncryptedSender:
         self._msg_id_gen = msg_id_gen
         self._send_lock = asyncio.Lock()
         self._recv_task: asyncio.Task[None] | None = None
+        self._close_lock = asyncio.Lock()
         self._pending: dict[int, _PendingCall] = {}
         self._sent: dict[int, tuple[int, bytes]] = {}  # msg_id -> (seqno, body)
         self._closed = False
+        self._terminal_error: RpcSenderError | None = None
         self._incoming_queue = incoming_queue
         self._flood_wait_config = flood_wait_config or FloodWaitConfig()
+        # MTProto requires a bounded cache of recently accepted server msg_ids
+        # to reject duplicates and messages older than the retained receive window.
+        self._received_msg_ids: set[int] = set()
+
+    @property
+    def is_healthy(self) -> bool:
+        task = self._recv_task
+        return (
+            not self._closed
+            and self._terminal_error is None
+            and (task is None or not task.done())
+        )
+
+    @property
+    def terminal_error(self) -> RpcSenderError | None:
+        return self._terminal_error
 
     async def close(self) -> None:
-        self._closed = True
-        if self._recv_task is not None:
-            self._recv_task.cancel()
-            try:
-                await self._recv_task
-            except asyncio.CancelledError:
-                pass
-            self._recv_task = None
+        async with self._close_lock:
+            self._closed = True
+            self._fail_all_pending(RpcSenderError("Sender is closed"))
+            task = self._recv_task
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                self._recv_task = None
+            # Do not wait for the send lock here. A blocked transport.send() is
+            # released by MtprotoClient closing the transport immediately after
+            # this method returns; waiting for that same send would deadlock close.
+
+    def _raise_if_unavailable(self) -> None:
+        if self._closed:
+            raise RpcSenderError("Sender is closed")
+        if self._terminal_error is not None:
+            raise self._terminal_error
 
     def _ensure_recv_task(self) -> None:
+        self._raise_if_unavailable()
         if self._recv_task is None:
             self._recv_task = asyncio.create_task(self._recv_loop())
+        elif self._recv_task.done():
+            error = RpcSenderError("Receiver loop stopped unexpectedly")
+            self._terminal_error = error
+            raise error
 
     async def invoke_tl(
         self,
@@ -252,9 +346,6 @@ class MtprotoEncryptedSender:
         """
 
         from telecraft.tl.codec import dumps
-
-        if self._closed:
-            raise RpcSenderError("Sender is closed")
 
         self._ensure_recv_task()
 
@@ -351,16 +442,35 @@ class MtprotoEncryptedSender:
                 fut.cancel()
             self._cleanup_call(call)
             raise
+        except Exception:
+            if not fut.done():
+                fut.cancel()
+            self._cleanup_call(call)
+            raise
 
     async def _send_new_attempt(self, call: _PendingCall) -> int:
+        self._raise_if_unavailable()
         msg_id = self._msg_id_gen.next()
         seqno = self._state.next_seq_no(content_related=True)
-        await self._send_inner_message(msg_id=msg_id, seqno=seqno, body=call.req_bytes)
-
-        call.attempts += 1
-        call.msg_ids.add(msg_id)
-        self._pending[msg_id] = call
-        self._sent[msg_id] = (seqno, call.req_bytes)
+        inner = struct.pack("<qii", msg_id, seqno, len(call.req_bytes)) + call.req_bytes
+        packet = self._state.encrypt_inner_message(inner, to_server=True)
+        async with self._send_lock:
+            self._raise_if_unavailable()
+            # Register before the await: a loopback or very fast server response
+            # may be processed while transport.send() is still yielding.
+            call.attempts += 1
+            call.msg_ids.add(msg_id)
+            self._pending[msg_id] = call
+            self._sent[msg_id] = (seqno, call.req_bytes)
+            try:
+                await self._transport.send(packet)
+                self._raise_if_unavailable()
+            except BaseException:
+                if self._pending.get(msg_id) is call:
+                    self._pending.pop(msg_id, None)
+                self._sent.pop(msg_id, None)
+                call.msg_ids.discard(msg_id)
+                raise
         return msg_id
 
     async def _send_inner_message(self, *, msg_id: int, seqno: int, body: bytes) -> None:
@@ -394,6 +504,14 @@ class MtprotoEncryptedSender:
             if self._pending.get(mid) is call:
                 self._pending.pop(mid, None)
             self._sent.pop(mid, None)
+
+    def _fail_all_pending(self, error: RpcSenderError) -> None:
+        calls = {id(call): call for call in self._pending.values()}.values()
+        for call in calls:
+            if not call.future.done():
+                call.future.set_exception(error)
+        self._pending.clear()
+        self._sent.clear()
 
     def _fail_decode_for_req_ids(
         self,
@@ -432,6 +550,101 @@ class MtprotoEncryptedSender:
                     f"(outer_msg_id={outer_msg_id}): {error}"
                 )
             )
+
+    def _server_msg_id_rejection_reason(
+        self,
+        msg_id: int,
+        *,
+        now: int,
+        floor: int | None,
+    ) -> str | None:
+        """Return why a server msg_id must be ignored, or ``None`` when valid."""
+
+        if msg_id <= 0:
+            return "non-positive"
+        if msg_id & 1 == 0:
+            return "invalid server parity"
+
+        msg_time = msg_id >> 32
+        if msg_time > now + _SERVER_MSG_ID_MAX_FUTURE_SECONDS:
+            return "more than 30 seconds in the future"
+        if msg_time < now - _SERVER_MSG_ID_MAX_PAST_SECONDS:
+            return "more than 300 seconds in the past"
+        if msg_id in self._received_msg_ids:
+            return "duplicate"
+        if floor is not None and msg_id < floor:
+            return "older than the retained receive window"
+        return None
+
+    def _accept_server_msg_ids(
+        self,
+        msg_ids: list[int],
+        *,
+        now: int | None = None,
+    ) -> set[int]:
+        """Validate and remember a batch of incoming server message identifiers.
+
+        A container's outer id is normally newer than its inner ids.  The whole
+        batch is therefore checked against one pre-batch cache snapshot before any
+        accepted id is inserted.
+        """
+
+        now_seconds = int(time.time()) if now is None else int(now)
+        floor = min(self._received_msg_ids) if self._received_msg_ids else None
+        accepted: set[int] = set()
+        seen_in_batch: set[int] = set()
+
+        for raw_msg_id in msg_ids:
+            msg_id = int(raw_msg_id)
+            if msg_id in seen_in_batch:
+                logger.debug("Ignoring duplicate server msg_id=%s within one packet", msg_id)
+                continue
+            seen_in_batch.add(msg_id)
+
+            reason = self._server_msg_id_rejection_reason(
+                msg_id,
+                now=now_seconds,
+                floor=floor,
+            )
+            if reason is not None:
+                quietly_ignored = {
+                    "duplicate",
+                    "older than the retained receive window",
+                }
+                log = logger.debug if reason in quietly_ignored else logger.warning
+                log("Ignoring server msg_id=%s: %s", msg_id, reason)
+                continue
+            accepted.add(msg_id)
+
+        self._received_msg_ids.update(accepted)
+        excess = len(self._received_msg_ids) - _RECEIVED_MSG_ID_CACHE_SIZE
+        if excess > 0:
+            for msg_id in sorted(self._received_msg_ids)[:excess]:
+                self._received_msg_ids.discard(msg_id)
+        return accepted
+
+    @staticmethod
+    def _collect_received_msg_ids(
+        obj: Any,
+        *,
+        outer_msg_id: int,
+    ) -> tuple[list[int], set[int]]:
+        """Collect outer/inner ids and identify container envelopes, which are not leaves."""
+
+        msg_ids = [int(outer_msg_id)]
+        container_msg_ids: set[int] = set()
+
+        def walk(current: Any, *, current_msg_id: int) -> None:
+            if not isinstance(current, MsgContainer):
+                return
+            container_msg_ids.add(current_msg_id)
+            for message in current.messages:
+                nested_msg_id = int(message.msg_id)
+                msg_ids.append(nested_msg_id)
+                walk(message.obj, current_msg_id=nested_msg_id)
+
+        walk(obj, current_msg_id=int(outer_msg_id))
+        return msg_ids, container_msg_ids
 
     def _unwrap_received(self, obj: Any, *, msg_id: int, seqno: int) -> list[ReceivedMessage]:
         # Note: We intentionally do NOT unwrap RpcResult here; we need req_msg_id.
@@ -548,12 +761,9 @@ class MtprotoEncryptedSender:
         if self._is_ignorable(obj):
             return
         if self._incoming_queue is not None:
-            try:
-                self._incoming_queue.put_nowait(msg)
-            except asyncio.QueueFull:
-                name = getattr(obj, "TL_NAME", type(obj).__name__)
-                logger.warning("Incoming queue full; dropping message %s", name)
-                return
+            # Updates are stateful: dropping one can permanently desynchronize pts/qts.
+            # Awaiting here applies bounded backpressure to the network receiver instead.
+            await self._incoming_queue.put(msg)
         else:
             logger.debug("Unhandled message: %s", getattr(obj, "TL_NAME", type(obj).__name__))
 
@@ -564,12 +774,30 @@ class MtprotoEncryptedSender:
                 inner_resp = self._state.decrypt_packet(packet, from_server=True)
                 outer_msg_id, outer_seqno, body = _parse_inner_message(inner_resp)
 
-                # Robust msg id generator: observe server time progression.
-                self._msg_id_gen.observe(outer_msg_id)
+                now = int(time.time())
+                floor = min(self._received_msg_ids) if self._received_msg_ids else None
+                reason = self._server_msg_id_rejection_reason(
+                    outer_msg_id,
+                    now=now,
+                    floor=floor,
+                )
+                if reason is not None:
+                    logger.debug(
+                        "Ignoring incoming packet with server msg_id=%s: %s",
+                        outer_msg_id,
+                        reason,
+                    )
+                    continue
+
+                _validate_nested_message_lengths(body)
 
                 try:
                     obj = loads(body)
                 except TLCodecError as e:
+                    accepted_ids = self._accept_server_msg_ids([outer_msg_id], now=now)
+                    if outer_msg_id not in accepted_ids:
+                        continue
+                    self._msg_id_gen.observe(outer_msg_id)
                     req_msg_ids = extract_req_msg_ids_from_payload(body)
                     logger.exception(
                         "Failed to decode incoming TL payload; failing only related requests "
@@ -585,11 +813,24 @@ class MtprotoEncryptedSender:
                     await self._send_ack([outer_msg_id])
                     continue
 
+                candidate_ids, container_msg_ids = self._collect_received_msg_ids(
+                    obj,
+                    outer_msg_id=outer_msg_id,
+                )
+                accepted_ids = self._accept_server_msg_ids(candidate_ids, now=now)
+                if outer_msg_id not in accepted_ids:
+                    continue
+                for msg_id in accepted_ids:
+                    self._msg_id_gen.observe(msg_id)
+
                 received = self._unwrap_received(obj, msg_id=outer_msg_id, seqno=outer_seqno)
 
                 ack_ids: list[int] = []
+                processed_ids = set(container_msg_ids)
                 for m in received:
-                    self._msg_id_gen.observe(m.msg_id)
+                    if m.msg_id not in accepted_ids or m.msg_id in processed_ids:
+                        continue
+                    processed_ids.add(m.msg_id)
                     if not isinstance(m.obj, MsgsAck):
                         ack_ids.append(m.msg_id)
                     await self._handle_message(m)
@@ -597,13 +838,16 @@ class MtprotoEncryptedSender:
                 await self._send_ack(ack_ids)
         except asyncio.CancelledError:
             raise
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
             logger.exception("Receiver loop crashed; failing all pending calls")
-            for call in {id(c): c for c in self._pending.values()}.values():
-                if not call.future.done():
-                    call.future.set_exception(RpcSenderError("Receiver loop crashed"))
-            self._pending.clear()
-            self._sent.clear()
+            error = RpcSenderError(
+                f"Receiver loop crashed ({type(exc).__name__}: {exc})"
+            )
+            error.__cause__ = exc
+            self._terminal_error = error
+            self._fail_all_pending(error)
+            if self._incoming_queue is not None:
+                await self._incoming_queue.put(ReceiverTerminated(error=error))
 
     def _is_ignorable(self, obj: Any) -> bool:
         name = getattr(obj, "TL_NAME", None)

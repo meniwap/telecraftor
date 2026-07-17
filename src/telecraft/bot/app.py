@@ -103,10 +103,10 @@ async def run_userbot(
 
     async def _run_once() -> None:
         await client.connect()
-        if on_startup is not None:
-            await on_startup(client)
-        disp = _make_disp(client, router)
         try:
+            if on_startup is not None:
+                await on_startup(client)
+            disp = _make_disp(client, router)
             await disp.run()
         finally:
             if on_shutdown is not None:

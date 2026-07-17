@@ -40,12 +40,13 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/command_bot.py --runtime prod --a
 
 ## Group Bot
 
-Use `apps/bot_config.example.json` as the placeholder-only template for a local ignored config.
-The plugin modules live under `apps/bot_plugins/`.
+Use `apps/bot_config.example.json` as the placeholder-only template and copy it to the ignored
+`.sessions/groupbot.local.json` path for real IDs and settings. The plugin modules live under
+`apps/bot_plugins/`.
 
 ```bash
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py \
-  --runtime prod --allow-prod --config path/to/groupbot.local.json
+  --runtime prod --allow-prod --config .sessions/groupbot.local.json
 ```
 
 See `docs/16_group_bot_guide.md` for the full guide.

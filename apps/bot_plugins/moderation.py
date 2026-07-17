@@ -248,9 +248,7 @@ async def setup(router: Router) -> None:
         if response_mode == "mute":
             await event.reply(f"{target_ref} הושתק ל-{minutes} דקות.")
             return
-        await event.reply(
-            f"{target_ref} הוגבל בפרופיל `{normalized_profile}` ל-{minutes} דקות."
-        )
+        await event.reply(f"{target_ref} הוגבל בפרופיל `{normalized_profile}` ל-{minutes} דקות.")
 
     async def _unrestrict_user(
         *,
@@ -328,8 +326,7 @@ async def setup(router: Router) -> None:
                 )
                 if public_link:
                     await event.reply(
-                        "אחרי kick/ban המשתמש צריך להצטרף בעצמו.\n"
-                        f"לינק הצטרפות: {public_link}"
+                        f"אחרי kick/ban המשתמש צריך להצטרף בעצמו.\nלינק הצטרפות: {public_link}"
                     )
                 else:
                     await event.reply(
@@ -367,12 +364,19 @@ async def setup(router: Router) -> None:
         except Exception as ex:  # noqa: BLE001
             await event.reply(f"לא הצלחתי לפתור משתמש יעד: {ex}")
             return
+        if await dry_run_guard(
+            ctx=ctx,
+            event=event,
+            action="warn",
+            details=f"{target_ref} reason={reason or 'manual'}",
+        ):
+            return
         count = await _warn_user(
             event=event,
             target_user_id=target_user_id,
             reason=reason or "manual",
         )
-        await event.reply(f"warning נוסף ל-{target_ref}. סה\"כ warnings={count}")
+        await event.reply(f'warning נוסף ל-{target_ref}. סה"כ warnings={count}')
         await _maybe_auto_ban(
             event=event,
             target_user_id=target_user_id,
@@ -419,6 +423,13 @@ async def setup(router: Router) -> None:
         key = ctx.event_peer_key(event)
         if key is None:
             await event.reply("peer לא מזוהה.")
+            return
+        if await dry_run_guard(
+            ctx=ctx,
+            event=event,
+            action="unwarn",
+            details=target_ref,
+        ):
             return
         ctx.storage.reset_warning(peer_key=key, user_id=target_user_id, ts=now_ts())
         ctx.storage.add_mod_log(
@@ -683,6 +694,17 @@ async def setup(router: Router) -> None:
         flood_threshold = max(2, int(ctx.config.flood_message_count))
         if current_rate >= flood_threshold:
             if not ctx.flood_on_cooldown(peer_key=key, user_id=int(event.sender_id)):
+                if await dry_run_guard(
+                    ctx=ctx,
+                    event=event,
+                    action="anti-flood",
+                    details=f"user:{event.sender_id} messages={current_rate}",
+                ):
+                    # This is ephemeral rate-limit state, not a warning or
+                    # moderation mutation. It prevents dry-run replies/audits
+                    # from amplifying every message in an ongoing flood.
+                    ctx.mark_flood_action(peer_key=key, user_id=int(event.sender_id))
+                    return
                 ctx.mark_flood_action(peer_key=key, user_id=int(event.sender_id))
                 count = await _warn_user(
                     event=event,
@@ -723,15 +745,15 @@ async def setup(router: Router) -> None:
         if violation_reason is None:
             return
 
+        details = f"user:{event.sender_id} reason={violation_reason}"
+        if await dry_run_guard(ctx=ctx, event=event, action="content-violation", details=details):
+            return
+
         count = await _warn_user(
             event=event,
             target_user_id=int(event.sender_id),
             reason=violation_reason,
         )
-        details = f"user:{event.sender_id} reason={violation_reason}"
-        if await dry_run_guard(ctx=ctx, event=event, action="content-violation", details=details):
-            await event.reply(f"[dry-run] הודעה זוהתה כהפרת מדיניות ({violation_reason}).")
-            return
 
         ref = peer_ref(event.peer_type, event.peer_id)
         if ref is not None and event.msg_id is not None:

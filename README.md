@@ -9,9 +9,9 @@ It supports:
 - typed high-level client namespaces for messages, dialogs, media, bots, admin helpers, and more
 - an event stack for MTProto update routing with `Router` and `Dispatcher`
 
-Public beta status: `0.2.0b4`.
+Current stable release: `0.2.0`.
 
-Telecraft does **not** implement the HTTP Telegram Bot API in this beta. Bot accounts are supported
+Telecraft does **not** implement the HTTP Telegram Bot API. Bot accounts are supported
 through MTProto, so you still need Telegram API credentials plus a bot token from BotFather.
 
 ## Supported Capabilities
@@ -19,11 +19,12 @@ through MTProto, so you still need Telegram API credentials plus a bot token fro
 - MTProto auth-key exchange uses the known-working raw RSA padding flow. RSA-PAD helpers are
   retained for a future dc-aware handshake update.
 
-## Public Beta Known Limitations
+## Known Limitations
 
-- This is an MTProto-first beta, not a stable drop-in replacement for Telethon or Pyrogram.
+- This is an MTProto-first library, not a drop-in replacement for Telethon or Pyrogram.
 - HTTP Bot API is intentionally not included; bot sessions use MTProto.
-- Secret chats, calls, and full TDLib parity are not in scope for this beta.
+- Secret chats, calls, and full TDLib parity are not in scope for this release.
+- Media downloads redirected through Telegram's CDN are not yet supported.
 
 ## Install
 
@@ -39,7 +40,7 @@ python -m pip install telecraft
 From GitHub for development or pre-release fallback:
 
 ```bash
-python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.0b4"
+python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.0"
 ```
 
 For local development from a clone:
@@ -138,13 +139,16 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-
 
 ## Examples
 
-Runnable examples live in `examples/`:
+Runnable examples live in `examples/` (see `examples/README.md` for setup):
 
-- `examples/01_get_me.py`
-- `examples/02_send_message.py`
-- `examples/03_download_media.py`
-- `examples/04_userbot_echo.py`
-- `examples/group_bot/`
+- `examples/01_echo_bot.py` - the classic echo bot
+- `examples/02_whoami.py` - session sanity check
+- `examples/03_send_message.py` - send a message to any peer
+- `examples/04_command_bot.py` - `/ping`-style commands with auto-reconnect
+- `examples/05_download_media.py` - download the newest attachment from a peer
+- `examples/06_conversation_form.py` - multi-step dialogs via `router.ask()`
+- `examples/07_scheduled_reminders.py` - `/remind` backed by the built-in scheduler
+- `examples/group_bot/` - full plugin-based group moderation bot
 
 Internal operator scripts and demos live in `apps/`.
 
@@ -167,7 +171,8 @@ Live tests are opt-in, production-gated, and documented in `docs/11_live_runbook
 
 ## Safety
 
-- This is beta software. Test with accounts and chats where mistakes are acceptable.
+- Start production adoption with controlled accounts and chats, especially for destructive or
+  administrative flows.
 - Telegram sessions contain high-value auth material. Do not share session files or diagnostic logs.
 - Public releases are provided under MIT-0, without warranty or liability.
 - Destructive/admin-heavy flows should be tested manually with controlled accounts before real use.

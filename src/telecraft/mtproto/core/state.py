@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import secrets
 import struct
 from dataclasses import dataclass
@@ -112,6 +113,10 @@ class MtprotoState:
         if len(packet) < 8 + 16:
             raise MtprotoStateError("encrypted packet too short")
 
+        encrypted = packet[24:]
+        if not encrypted or len(encrypted) % 16 != 0:
+            raise MtprotoStateError("encrypted payload must be a non-empty multiple of 16 bytes")
+
         key_id = struct.unpack_from("<Q", packet, 0)[0]
         if key_id != self.auth_key_id:
             raise MtprotoStateError("auth_key_id mismatch in incoming packet")
@@ -122,12 +127,12 @@ class MtprotoState:
             msg_key=msg_key,
             client=not from_server,
         )
-        plain = AesIge(key=aes_key, iv=aes_iv).decrypt(packet[24:])
+        plain = AesIge(key=aes_key, iv=aes_iv).decrypt(encrypted)
 
         # Validate msg_key (MTProto security guidelines).
         auth_slice = self.auth_key[96 : 96 + 32] if from_server else self.auth_key[88 : 88 + 32]
         expected = sha256(auth_slice + plain)[8:24]
-        if expected != msg_key:
+        if not hmac.compare_digest(expected, msg_key):
             raise MtprotoStateError("msg_key mismatch after decryption")
 
         if len(plain) < 16:
@@ -135,10 +140,33 @@ class MtprotoState:
 
         salt = plain[:8]
         session_id = plain[8:16]
-        if session_id != self.session_id:
+        if not hmac.compare_digest(session_id, self.session_id):
             raise MtprotoStateError("session_id mismatch in incoming packet")
 
         # Salt can change (bad_server_salt), so we do not enforce it here.
         _ = salt
 
-        return plain[16:]
+        inner_with_padding = plain[16:]
+        if len(inner_with_padding) < 16:
+            raise MtprotoStateError("decrypted inner message too short")
+
+        msg_len = int(struct.unpack_from("<i", inner_with_padding, 12)[0])
+        if msg_len < 0:
+            raise MtprotoStateError("negative inner message body length")
+        if msg_len % 4 != 0:
+            raise MtprotoStateError("inner message body length must be divisible by 4")
+
+        message_end = 16 + msg_len
+        if message_end > len(inner_with_padding):
+            raise MtprotoStateError("inner message body exceeds decrypted payload")
+
+        padding_len = len(inner_with_padding) - message_end
+        if not 12 <= padding_len <= 1024:
+            raise MtprotoStateError(
+                f"invalid MTProto 2.0 padding length: {padding_len} (expected 12..1024)"
+            )
+
+        # Callers receive only msg_id + seqno + length + body. Returning padding
+        # would make it too easy for later parsers to accidentally accept a malformed
+        # message boundary.
+        return inner_with_padding[:message_end]

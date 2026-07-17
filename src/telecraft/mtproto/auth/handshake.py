@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import logging
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
@@ -15,7 +16,7 @@ from telecraft.mtproto.crypto.aes_ige import AesIge
 from telecraft.mtproto.crypto.hashes import sha1
 from telecraft.mtproto.crypto.random import random_bytes
 from telecraft.mtproto.crypto.rsa import RsaPublicKey
-from telecraft.tl.codec import dumps, loads
+from telecraft.tl.codec import TLCodecError, dumps, loads
 from telecraft.tl.generated.functions import ReqDhParams, ReqPqMulti, SetClientDhParams
 from telecraft.tl.generated.types import (
     ClientDhInnerData,
@@ -87,6 +88,9 @@ async def send_req_pq_multi(transport: PacketTransport, msg_id_gen: MsgIdGenerat
 
     if not isinstance(obj, ResPq):
         raise AuthHandshakeError(f"Unexpected response: {type(obj)}")
+    response_nonce = _require_bytes(obj.nonce, name="resPQ.nonce", length=16)
+    if not hmac.compare_digest(response_nonce, nonce):
+        raise AuthHandshakeError("resPQ.nonce mismatch")
     return obj
 
 
@@ -162,21 +166,37 @@ def decrypt_server_dh_inner(server_dh: ServerDhParamsOk, *, new_nonce: bytes) ->
     Decrypt server_DH_inner_data from server_DH_params_ok.encrypted_answer.
     """
 
-    enc = server_dh.encrypted_answer
-    if not isinstance(enc, (bytes, bytearray)):
-        raise AuthHandshakeError("encrypted_answer is not bytes")
-    server_nonce = server_dh.server_nonce
-    if not isinstance(server_nonce, (bytes, bytearray)) or len(server_nonce) != 16:
-        raise AuthHandshakeError("server_nonce is not int128 bytes")
-    key, iv = tmp_aes_key_iv(new_nonce=new_nonce, server_nonce=bytes(server_nonce))
+    enc = _require_bytes(server_dh.encrypted_answer, name="encrypted_answer")
+    if not enc or len(enc) % 16 != 0:
+        raise AuthHandshakeError("encrypted_answer length is not a positive multiple of 16")
+    checked_new_nonce = _require_bytes(new_nonce, name="new_nonce", length=32)
+    server_nonce = _require_bytes(server_dh.server_nonce, name="server_nonce", length=16)
+    key, iv = tmp_aes_key_iv(new_nonce=checked_new_nonce, server_nonce=server_nonce)
     aes = AesIge(key=key, iv=iv)
-    dec = aes.decrypt(bytes(enc))
+    dec = aes.decrypt(enc)
     if len(dec) < 20:
         raise AuthHandshakeError("Decrypted server DH inner data too short")
     # server_DH_inner_data is serialized as: sha1(inner_data) + inner_data + random_padding
-    inner = loads(dec[20:])
+    answer_with_padding = dec[20:]
+    try:
+        inner = loads(answer_with_padding)
+    except TLCodecError as e:
+        raise AuthHandshakeError("Invalid decrypted server DH inner data") from e
     if not isinstance(inner, ServerDhInnerData):
         raise AuthHandshakeError(f"Unexpected decrypted object: {type(inner)}")
+
+    # TL serialization is canonical, so serializing the parsed object identifies
+    # exactly where answer ends and its 0..15 random padding begins.
+    answer = dumps(inner)
+    if len(answer) > len(answer_with_padding) or not hmac.compare_digest(
+        answer_with_padding[: len(answer)], answer
+    ):
+        raise AuthHandshakeError("Non-canonical server DH inner data")
+    padding_len = len(answer_with_padding) - len(answer)
+    if padding_len > 15:
+        raise AuthHandshakeError("Invalid server DH inner data padding length")
+    if not hmac.compare_digest(dec[:20], sha1(answer)):
+        raise AuthHandshakeError("server DH inner data SHA1 mismatch")
     return inner
 
 
@@ -277,6 +297,115 @@ def _require_bytes(value: object, *, name: str, length: int | None = None) -> by
     return b
 
 
+def _validate_known_nonces(
+    response: object,
+    *,
+    response_name: str,
+    nonce: bytes,
+    server_nonce: bytes,
+) -> None:
+    response_nonce = _require_bytes(
+        getattr(response, "nonce", None),
+        name=f"{response_name}.nonce",
+        length=16,
+    )
+    response_server_nonce = _require_bytes(
+        getattr(response, "server_nonce", None),
+        name=f"{response_name}.server_nonce",
+        length=16,
+    )
+    if not hmac.compare_digest(response_nonce, nonce):
+        raise AuthHandshakeError(f"{response_name}.nonce mismatch")
+    if not hmac.compare_digest(response_server_nonce, server_nonce):
+        raise AuthHandshakeError(f"{response_name}.server_nonce mismatch")
+
+
+def _validate_server_dh_params_response(
+    response: object,
+    *,
+    nonce: bytes,
+    server_nonce: bytes,
+    new_nonce: bytes,
+) -> ServerDhParamsOk:
+    if not isinstance(response, (ServerDhParamsOk, ServerDhParamsFail)):
+        raise AuthHandshakeError(f"Unexpected response to req_DH_params: {type(response)}")
+
+    response_name = (
+        "server_DH_params_ok"
+        if isinstance(response, ServerDhParamsOk)
+        else "server_DH_params_fail"
+    )
+    _validate_known_nonces(
+        response,
+        response_name=response_name,
+        nonce=nonce,
+        server_nonce=server_nonce,
+    )
+    if isinstance(response, ServerDhParamsFail):
+        actual_hash = _require_bytes(
+            response.new_nonce_hash,
+            name="server_DH_params_fail.new_nonce_hash",
+            length=16,
+        )
+        expected_hash = sha1(new_nonce)[4:20]
+        if not hmac.compare_digest(actual_hash, expected_hash):
+            raise AuthHandshakeError("server_DH_params_fail new_nonce_hash mismatch")
+        raise AuthHandshakeError("Server returned server_DH_params_fail")
+    return response
+
+
+def _validate_dh_gen_response(
+    response: object,
+    *,
+    nonce: bytes,
+    server_nonce: bytes,
+    new_nonce: bytes,
+    auth_key: bytes,
+) -> None:
+    if not isinstance(response, (DhGenOk, DhGenRetry, DhGenFail)):
+        raise AuthHandshakeError(
+            f"Unexpected response to set_client_DH_params: {type(response)}"
+        )
+    _validate_known_nonces(
+        response,
+        response_name=type(response).__name__,
+        nonce=nonce,
+        server_nonce=server_nonce,
+    )
+
+    if isinstance(response, DhGenOk):
+        expected = new_nonce_hash(new_nonce=new_nonce, auth_key=auth_key, number=1)
+        actual = _require_bytes(
+            response.new_nonce_hash1,
+            name="dh_gen_ok.new_nonce_hash1",
+            length=16,
+        )
+        if not hmac.compare_digest(actual, expected):
+            raise AuthHandshakeError("dh_gen_ok new_nonce_hash1 mismatch")
+        return
+
+    if isinstance(response, DhGenRetry):
+        expected = new_nonce_hash(new_nonce=new_nonce, auth_key=auth_key, number=2)
+        actual = _require_bytes(
+            response.new_nonce_hash2,
+            name="dh_gen_retry.new_nonce_hash2",
+            length=16,
+        )
+        if not hmac.compare_digest(actual, expected):
+            raise AuthHandshakeError("dh_gen_retry new_nonce_hash2 mismatch")
+        raise AuthHandshakeError("Server requested dh_gen_retry (not supported in smoke flow yet)")
+
+    expected = new_nonce_hash(new_nonce=new_nonce, auth_key=auth_key, number=3)
+    actual = _require_bytes(
+        response.new_nonce_hash3,
+        name="dh_gen_fail.new_nonce_hash3",
+        length=16,
+    )
+    if not hmac.compare_digest(actual, expected):
+        raise AuthHandshakeError("dh_gen_fail new_nonce_hash3 mismatch")
+    raise AuthHandshakeError("Server returned dh_gen_fail")
+
+
 async def exchange_auth_key(
     transport: PacketTransport,
     *,
@@ -334,24 +463,20 @@ async def exchange_auth_key(
     dh_params = await _send_unencrypted_request(transport, msg_id_gen, req_dh)
     logger.debug(f"Received dh_params response type: {type(dh_params)}")
 
-    if isinstance(dh_params, ServerDhParamsFail):
-        raise AuthHandshakeError("Server returned server_DH_params_fail")
-    if not isinstance(dh_params, ServerDhParamsOk):
-        raise AuthHandshakeError(f"Unexpected response to req_DH_params: {type(dh_params)}")
+    dh_params = _validate_server_dh_params_response(
+        dh_params,
+        nonce=st.nonce,
+        server_nonce=st.server_nonce,
+        new_nonce=st.new_nonce,
+    )
 
     server_inner = decrypt_server_dh_inner(dh_params, new_nonce=st.new_nonce)
-    server_inner_nonce = _require_bytes(
-        server_inner.nonce,
-        name="server_DH_inner_data.nonce",
-        length=16,
+    _validate_known_nonces(
+        server_inner,
+        response_name="server_DH_inner_data",
+        nonce=st.nonce,
+        server_nonce=st.server_nonce,
     )
-    server_inner_server_nonce = _require_bytes(
-        server_inner.server_nonce,
-        name="server_DH_inner_data.server_nonce",
-        length=16,
-    )
-    if server_inner_nonce != st.nonce or server_inner_server_nonce != st.server_nonce:
-        raise AuthHandshakeError("server_DH_inner_data nonce mismatch")
 
     if not isinstance(server_inner.g, int):
         raise AuthHandshakeError("server_DH_inner_data.g is not int")
@@ -383,44 +508,13 @@ async def exchange_auth_key(
 
     set_dh = SetClientDhParams(nonce=st.nonce, server_nonce=st.server_nonce, encrypted_data=enc)
     ans = await _send_unencrypted_request(transport, msg_id_gen, set_dh)
-
-    if isinstance(ans, DhGenOk):
-        expected = new_nonce_hash(new_nonce=st.new_nonce, auth_key=dh_res.auth_key, number=1)
-        if (
-            _require_bytes(
-                ans.new_nonce_hash1,
-                name="dh_gen_ok.new_nonce_hash1",
-                length=16,
-            )
-            != expected
-        ):
-            raise AuthHandshakeError("dh_gen_ok new_nonce_hash1 mismatch")
-    elif isinstance(ans, DhGenRetry):
-        expected = new_nonce_hash(new_nonce=st.new_nonce, auth_key=dh_res.auth_key, number=2)
-        if (
-            _require_bytes(
-                ans.new_nonce_hash2,
-                name="dh_gen_retry.new_nonce_hash2",
-                length=16,
-            )
-            != expected
-        ):
-            raise AuthHandshakeError("dh_gen_retry new_nonce_hash2 mismatch")
-        raise AuthHandshakeError("Server requested dh_gen_retry (not supported in smoke flow yet)")
-    elif isinstance(ans, DhGenFail):
-        expected = new_nonce_hash(new_nonce=st.new_nonce, auth_key=dh_res.auth_key, number=3)
-        if (
-            _require_bytes(
-                ans.new_nonce_hash3,
-                name="dh_gen_fail.new_nonce_hash3",
-                length=16,
-            )
-            != expected
-        ):
-            raise AuthHandshakeError("dh_gen_fail new_nonce_hash3 mismatch")
-        raise AuthHandshakeError("Server returned dh_gen_fail")
-    else:
-        raise AuthHandshakeError(f"Unexpected response to set_client_DH_params: {type(ans)}")
+    _validate_dh_gen_response(
+        ans,
+        nonce=st.nonce,
+        server_nonce=st.server_nonce,
+        new_nonce=st.new_nonce,
+        auth_key=dh_res.auth_key,
+    )
 
     salt = server_salt(new_nonce=st.new_nonce, server_nonce=st.server_nonce)
 
