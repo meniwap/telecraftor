@@ -12,7 +12,7 @@ from telecraft.bot.scheduler import Scheduler
 from telecraft.client import Client
 from telecraft.client.peers import Peer
 
-from .config import GroupBotConfig
+from .config import GroupBotConfig, validate_group_bot_config
 from .storage import GroupBotStorage, ScheduledJobRecord
 
 logger = logging.getLogger(__name__)
@@ -50,18 +50,20 @@ class GroupBotContext:
 
     def is_peer_allowed(self, peer_type: str | None, peer_id: int | None) -> bool:
         if not self.allowed_peer_keys:
-            return True
+            return bool(self.config.allow_all_peers)
         key = self.peer_key(peer_type, peer_id)
         if key is None:
             return False
         return key in self.allowed_peer_keys
 
     async def resolve_allowed_peer_keys(self) -> set[str]:
+        validate_group_bot_config(self.config)
         refs = list(self.config.allowed_peers)
-        if not refs:
+        if self.config.allow_all_peers:
             self.allowed_peer_keys = set()
             return set()
         out: set[str] = set()
+        unresolved: list[str] = []
         for ref in refs:
             parsed = parse_peer_key(ref)
             if parsed is not None:
@@ -71,28 +73,46 @@ class GroupBotContext:
                 peer = await self.app.raw.resolve_peer(ref, timeout=self.timeout)
             except Exception as ex:  # noqa: BLE001
                 logger.warning("Failed to resolve allowed peer %r: %s", ref, ex)
+                unresolved.append(ref)
                 continue
             key = self.peer_key(peer.peer_type, peer.peer_id)
             if key is not None:
                 out.add(key)
+            else:
+                unresolved.append(ref)
+        if unresolved:
+            raise RuntimeError(
+                "failed to resolve configured allowed_peers: "
+                + ", ".join(repr(ref) for ref in unresolved)
+            )
         self.allowed_peer_keys = out
         return set(out)
 
     def get_peer_read_only(self, peer_key: str | None) -> bool:
+        default = bool(self.config.read_only_mode)
         if peer_key is None:
-            return bool(self.config.read_only_mode)
+            return default
         value = self.storage.get_group_setting(
             peer_key=peer_key,
             key="read_only_mode",
-            default=self.config.read_only_mode,
+            default=default,
         )
         if isinstance(value, bool):
             return value
         if isinstance(value, str):
-            return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "y", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "n", "off"}:
+                return False
+            return default
         if isinstance(value, (int, float)):
-            return bool(value)
-        return bool(self.config.read_only_mode)
+            if value == 1:
+                return True
+            if value == 0:
+                return False
+            return default
+        return default
 
     def set_peer_read_only(self, peer_key: str, enabled: bool) -> None:
         self.storage.set_group_setting(peer_key=peer_key, key="read_only_mode", value=bool(enabled))
@@ -155,6 +175,25 @@ class GroupBotContext:
                         )
                 else:
                     logger.info("is_admin lookup failed peer=%s user=%s: %s", key, uid, ex)
+        elif peer_type == "chat" and peer_id is not None:
+            try:
+                info = await self.app.profile.chat_info(
+                    f"chat:{int(peer_id)}",
+                    timeout=self.timeout,
+                )
+                full_chat = getattr(info, "full_chat", None)
+                participants_obj = getattr(full_chat, "participants", None)
+                participants = getattr(participants_obj, "participants", [])
+                for participant in participants if isinstance(participants, list) else []:
+                    participant_user_id = cast_maybe_int(getattr(participant, "user_id", None))
+                    if participant_user_id != uid:
+                        continue
+                    name = str(getattr(participant, "TL_NAME", "")).lower()
+                    is_admin = any(token in name for token in ("admin", "creator"))
+                    break
+            except Exception as ex:  # noqa: BLE001
+                should_cache = False
+                logger.info("is_admin basic-chat lookup failed peer=%s user=%s: %s", key, uid, ex)
 
         if should_cache:
             self._admin_cache[(key, uid)] = (is_admin, now)
@@ -213,25 +252,70 @@ class GroupBotContext:
     def reset_scheduled_runtime(self) -> None:
         self.scheduled_names.clear()
 
-    async def ensure_schedule(self, job: ScheduledJobRecord) -> None:
-        if not job.enabled:
-            return
+    async def _resolve_scheduled_peer(self, peer_ref: str | None) -> str:
+        candidate = peer_ref.strip() if isinstance(peer_ref, str) and peer_ref.strip() else None
+        if candidate is None:
+            if self.allowed_peer_keys:
+                candidate = sorted(self.allowed_peer_keys)[0]
+            elif self.config.allowed_peers:
+                candidate = self.config.allowed_peers[0]
+            else:
+                raise ValueError("scheduled jobs require an explicit peer in allow-all mode")
+
+        key = parse_peer_key(candidate)
+        if key is None:
+            peer = await self.app.raw.resolve_peer(candidate, timeout=self.timeout)
+            key = self.peer_key(peer.peer_type, peer.peer_id)
+        if key is None:
+            raise ValueError(f"scheduled job peer could not be resolved: {candidate!r}")
+        peer_type, _, peer_id_raw = key.partition(":")
+        if not self.is_peer_allowed(peer_type, int(peer_id_raw)):
+            raise ValueError(f"scheduled job peer is outside allowed_peers: {key}")
+        return key
+
+    async def ensure_schedule(self, job: ScheduledJobRecord) -> bool:
+        if not job.enabled or job.suppressed:
+            return False
         if job.name in self.scheduled_names:
-            return
+            return True
         interval = int(job.interval_seconds)
         if interval <= 0:
-            return
+            self.storage.set_scheduled_job_state(
+                name=job.name,
+                enabled=False,
+                suppressed=job.suppressed,
+            )
+            logger.error("Scheduled job disabled with invalid interval (job=%s)", job.name)
+            return False
+
+        try:
+            peer_key = await self._resolve_scheduled_peer(job.peer_ref)
+        except Exception as ex:  # noqa: BLE001
+            self.storage.set_scheduled_job_state(
+                name=job.name,
+                enabled=False,
+                suppressed=job.suppressed,
+            )
+            logger.error("Scheduled job disabled (job=%s): %s", job.name, ex)
+            return False
 
         async def _runner() -> None:
-            peer = job.peer_ref
-            if peer is None:
-                if self.allowed_peer_keys:
-                    peer = sorted(self.allowed_peer_keys)[0]
-                elif self.config.allowed_peers:
-                    peer = self.config.allowed_peers[0]
-            if peer is None:
+            peer_type, _, peer_id_raw = peer_key.partition(":")
+            if not self.is_peer_allowed(peer_type, int(peer_id_raw)):
+                logger.error(
+                    "Scheduled job blocked outside allowed scope (job=%s peer=%s)",
+                    job.name,
+                    peer_key,
+                )
                 return
-            await self.app.messages.send(peer, job.text, timeout=self.timeout)
+            if self.get_peer_read_only(peer_key):
+                logger.info(
+                    "Scheduled job skipped in read-only mode (job=%s peer=%s)",
+                    job.name,
+                    peer_key,
+                )
+                return
+            await self.app.messages.send(peer_key, job.text, timeout=self.timeout)
             self.storage.touch_scheduled_job(name=job.name)
 
         self.scheduler.every(
@@ -241,6 +325,7 @@ class GroupBotContext:
             run_immediately=False,
         )
         self.scheduled_names.add(job.name)
+        return True
 
     async def register_or_update_schedule(
         self,
@@ -251,18 +336,71 @@ class GroupBotContext:
         peer_ref: str | None,
         enabled: bool = True,
     ) -> None:
+        normalized_name = str(name).strip()
+        normalized_text = str(text).strip()
+        normalized_interval = int(interval_seconds)
+        if not normalized_name:
+            raise ValueError("scheduled job name must not be empty")
+        if not normalized_text:
+            raise ValueError("scheduled job text must not be empty")
+        if normalized_interval <= 0:
+            raise ValueError("scheduled job interval_seconds must be greater than zero")
+        canonical_peer = await self._resolve_scheduled_peer(peer_ref)
+        await self.scheduler.cancel(f"announcement:{normalized_name}")
+        self.scheduled_names.discard(normalized_name)
         self.storage.upsert_scheduled_job(
-            name=name,
-            text=text,
-            interval_seconds=interval_seconds,
-            peer_ref=peer_ref,
+            name=normalized_name,
+            text=normalized_text,
+            interval_seconds=normalized_interval,
+            peer_ref=canonical_peer,
             enabled=enabled,
+            source="manual",
+            suppressed=False,
         )
-        jobs = self.storage.list_scheduled_jobs(enabled_only=True)
-        for job in jobs:
-            if job.name == name:
-                await self.ensure_schedule(job)
-                break
+        job = self.storage.get_scheduled_job(name=normalized_name)
+        if job is not None:
+            await self.ensure_schedule(job)
+
+    async def list_schedules_for_peer(self, peer_ref: str) -> list[ScheduledJobRecord]:
+        peer_key = await self._resolve_scheduled_peer(peer_ref)
+        out: list[ScheduledJobRecord] = []
+        for job in self.storage.list_scheduled_jobs(enabled_only=False):
+            try:
+                job_peer_key = await self._resolve_scheduled_peer(job.peer_ref)
+            except Exception as ex:  # noqa: BLE001
+                logger.warning("Skipping unresolved scheduled job %r: %s", job.name, ex)
+                continue
+            if job_peer_key == peer_key:
+                out.append(job)
+        return out
+
+    async def remove_schedule(self, name: str, *, peer_ref: str | None = None) -> bool:
+        job_name = str(name).strip()
+        if not job_name:
+            return False
+        job = self.storage.get_scheduled_job(name=job_name)
+        if job is None:
+            return False
+        if peer_ref is not None:
+            expected_peer_key = await self._resolve_scheduled_peer(peer_ref)
+            try:
+                job_peer_key = await self._resolve_scheduled_peer(job.peer_ref)
+            except Exception as ex:  # noqa: BLE001
+                logger.warning("Refusing to remove unresolved scheduled job %r: %s", job_name, ex)
+                return False
+            if job_peer_key != expected_peer_key:
+                return False
+        if job is not None and job.source == "config":
+            removed_storage = self.storage.set_scheduled_job_state(
+                name=job_name,
+                enabled=False,
+                suppressed=True,
+            )
+        else:
+            removed_storage = self.storage.delete_scheduled_job(name=job_name)
+        self.scheduled_names.discard(job_name)
+        removed_runtime = await self.scheduler.cancel(f"announcement:{job_name}")
+        return bool(removed_storage or removed_runtime)
 
 
 def attach_group_bot_context(router: Router, ctx: GroupBotContext) -> None:

@@ -30,6 +30,7 @@ def test_repo_hygiene__blocks_runtime_secret_and_cache_paths() -> None:
         "apps/env.sh",
         "downloads/photo.jpg",
         "reports/live/prod/run/artifacts.json",
+        "tests/unit/fixtures/tl/live_capture.bin",
         "src/telecraft/__pycache__/client.pyc",
         ".pytest_cache/v/cache/nodeids",
     ]
@@ -37,3 +38,26 @@ def test_repo_hygiene__blocks_runtime_secret_and_cache_paths() -> None:
     for path in forbidden:
         assert mod._forbidden_tracked_reason(path), path
         assert mod._forbidden_artifact_reason(path), path
+
+
+def test_repo_hygiene__artifact_allow_list_is_fail_closed() -> None:
+    mod = _load_hygiene_module()
+
+    wheel = Path("dist/telecraft-0.2.0-py3-none-any.whl")
+    sdist = Path("dist/telecraft-0.2.0.tar.gz")
+
+    assert mod._unexpected_artifact_member_reason(wheel, "telecraft/client/client.py") is None
+    assert (
+        mod._unexpected_artifact_member_reason(
+            wheel,
+            "telecraft-0.2.0.dist-info/METADATA",
+        )
+        is None
+    )
+    assert mod._unexpected_artifact_member_reason(sdist, "src/telecraft/client/client.py") is None
+    assert mod._unexpected_artifact_member_reason(sdist, "README.md") is None
+    assert mod._unexpected_artifact_member_reason(sdist, ".gitignore") is None
+
+    assert mod._unexpected_artifact_member_reason(wheel, "tests/test_private.py")
+    assert mod._unexpected_artifact_member_reason(sdist, ".github/workflows/publish.yml")
+    assert mod._unexpected_artifact_member_reason(sdist, "apps/env.sh")

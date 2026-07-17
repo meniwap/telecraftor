@@ -1,16 +1,26 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import stat
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from telecraft.client.media import (
     ExtractedMediaWithCache,
+    MediaError,
     _get_photo_sizes_info,
     _pick_best_photo_size,
     download_via_get_file,
+    download_via_get_file_to_path,
+    ensure_dest_path,
     extract_media,
+    safe_download_filename,
+    write_download_bytes,
 )
+from telecraft.client.mtproto import MtprotoClient, MtprotoClientError
 from telecraft.tl.generated.types import (
     DocumentAttributeFilename,
     StorageFileUnknown,
@@ -39,6 +49,235 @@ def test_download_via_get_file_assembles_bytes() -> None:
     assert len(calls) == 2
     assert calls[0].offset == 0
     assert calls[1].offset == 4
+
+
+def test_download_via_get_file_rejects_known_oversize_before_network() -> None:
+    calls: list[Any] = []
+
+    async def invoke_api(req: Any, *, timeout: float) -> Any:
+        calls.append((req, timeout))
+        raise AssertionError("oversize download must fail before making an RPC")
+
+    with pytest.raises(MediaError, match="pass dest"):
+        asyncio.run(
+            download_via_get_file(
+                invoke_api=invoke_api,
+                location=SimpleNamespace(TL_NAME="inputDocumentFileLocation"),
+                timeout=1.0,
+                expected_size=5,
+                max_size=4,
+            )
+        )
+    assert calls == []
+
+
+def test_download_via_get_file_rejects_growth_past_memory_limit() -> None:
+    chunks = [b"abcd", b"efgh"]
+
+    async def invoke_api(req: Any, *, timeout: float) -> Any:
+        _ = (req, timeout)
+        return UploadFile(type=StorageFileUnknown(), mtime=0, bytes=chunks.pop(0))
+
+    with pytest.raises(MediaError, match="pass dest"):
+        asyncio.run(
+            download_via_get_file(
+                invoke_api=invoke_api,
+                location=SimpleNamespace(TL_NAME="inputDocumentFileLocation"),
+                timeout=1.0,
+                limit=4,
+                max_size=6,
+            )
+        )
+
+
+@pytest.mark.parametrize("last_chunk", [b"", b"ef"])
+def test_download_via_get_file_rejects_truncated_known_size(last_chunk: bytes) -> None:
+    chunks = [b"abcd", last_chunk]
+
+    async def invoke_api(req: Any, *, timeout: float) -> Any:
+        _ = (req, timeout)
+        return UploadFile(type=StorageFileUnknown(), mtime=0, bytes=chunks.pop(0))
+
+    with pytest.raises(MediaError, match="truncated file"):
+        asyncio.run(
+            download_via_get_file(
+                invoke_api=invoke_api,
+                location=SimpleNamespace(TL_NAME="inputDocumentFileLocation"),
+                timeout=1.0,
+                limit=4,
+                expected_size=8,
+            )
+        )
+
+
+def test_download_via_get_file_rejects_bytes_past_declared_size() -> None:
+    async def invoke_api(req: Any, *, timeout: float) -> Any:
+        _ = (req, timeout)
+        return UploadFile(type=StorageFileUnknown(), mtime=0, bytes=b"abcde")
+
+    with pytest.raises(MediaError, match="exceeded declared size"):
+        asyncio.run(
+            download_via_get_file(
+                invoke_api=invoke_api,
+                location=SimpleNamespace(TL_NAME="inputDocumentFileLocation"),
+                timeout=1.0,
+                limit=8,
+                expected_size=4,
+            )
+        )
+
+
+def test_download_via_get_file_zero_size_avoids_network() -> None:
+    async def invoke_api(req: Any, *, timeout: float) -> Any:
+        _ = (req, timeout)
+        raise AssertionError("zero-byte download must not make an RPC")
+
+    assert (
+        asyncio.run(
+            download_via_get_file(
+                invoke_api=invoke_api,
+                location=SimpleNamespace(TL_NAME="inputDocumentFileLocation"),
+                timeout=1.0,
+                expected_size=0,
+            )
+        )
+        == b""
+    )
+
+
+def test_download_via_get_file_to_path_streams_private_atomic_file(tmp_path) -> None:
+    chunks = [b"abcd", b"efg"]
+    calls: list[Any] = []
+
+    async def invoke_api(req: Any, *, timeout: float) -> Any:
+        calls.append(req)
+        _ = timeout
+        return UploadFile(type=StorageFileUnknown(), mtime=0, bytes=chunks.pop(0))
+
+    output = tmp_path / "download.bin"
+    got = asyncio.run(
+        download_via_get_file_to_path(
+            invoke_api=invoke_api,
+            location=SimpleNamespace(TL_NAME="inputDocumentFileLocation"),
+            timeout=1.0,
+            path=output,
+            limit=4,
+        )
+    )
+
+    assert got == output
+    assert output.read_bytes() == b"abcdefg"
+    assert [call.offset for call in calls] == [0, 4]
+    assert list(tmp_path.iterdir()) == [output]
+    if os.name != "nt":
+        assert stat.S_IMODE(output.stat().st_mode) == 0o600
+
+
+def test_download_via_get_file_to_path_keeps_existing_file_on_failure(tmp_path) -> None:
+    responses = [
+        UploadFile(type=StorageFileUnknown(), mtime=0, bytes=b"abcd"),
+        SimpleNamespace(TL_NAME="unexpected"),
+    ]
+
+    async def invoke_api(req: Any, *, timeout: float) -> Any:
+        _ = (req, timeout)
+        return responses.pop(0)
+
+    output = tmp_path / "download.bin"
+    output.write_bytes(b"original")
+
+    with pytest.raises(MediaError, match="unexpected upload.getFile result"):
+        asyncio.run(
+            download_via_get_file_to_path(
+                invoke_api=invoke_api,
+                location=SimpleNamespace(TL_NAME="inputDocumentFileLocation"),
+                timeout=1.0,
+                path=output,
+                limit=4,
+            )
+        )
+
+    assert output.read_bytes() == b"original"
+    assert list(tmp_path.iterdir()) == [output]
+
+
+@pytest.mark.parametrize(
+    "file_name",
+    [
+        "../escape.txt",
+        "../../escape.txt",
+        "/tmp/escape.txt",
+        r"..\escape.txt",
+        r"C:\temp\escape.txt",
+        r"\\server\share\escape.txt",
+        "unsafe:name.txt",
+        "CON.txt",
+    ],
+)
+def test_safe_download_filename_rejects_cross_platform_paths(file_name: str) -> None:
+    with pytest.raises(MediaError):
+        safe_download_filename(file_name)
+
+
+def test_ensure_dest_path_keeps_safe_remote_name_inside_directory(tmp_path) -> None:
+    output = ensure_dest_path(tmp_path, file_name="report.txt")
+    assert output == tmp_path / "report.txt"
+    output.resolve().relative_to(tmp_path.resolve())
+
+
+def test_ensure_dest_path_rejects_existing_symlink_that_escapes_directory(tmp_path) -> None:
+    download_dir = tmp_path / "downloads"
+    download_dir.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("original", encoding="utf-8")
+    link = download_dir / "report.txt"
+    try:
+        link.symlink_to(outside)
+    except OSError as e:
+        pytest.skip(f"symlinks unavailable: {e}")
+
+    with pytest.raises(MediaError, match="escapes destination"):
+        ensure_dest_path(download_dir, file_name="report.txt")
+    assert outside.read_text(encoding="utf-8") == "original"
+
+
+def test_write_download_bytes_replaces_symlink_instead_of_following_it(tmp_path) -> None:
+    outside = tmp_path / "outside.txt"
+    outside.write_text("original", encoding="utf-8")
+    output = tmp_path / "download.txt"
+    try:
+        output.symlink_to(outside)
+    except OSError as e:
+        pytest.skip(f"symlinks unavailable: {e}")
+
+    assert write_download_bytes(output, b"downloaded") == output
+    assert not output.is_symlink()
+    assert output.read_bytes() == b"downloaded"
+    assert outside.read_text(encoding="utf-8") == "original"
+
+
+def test_client_download_media_rejects_remote_traversal_before_network(tmp_path) -> None:
+    download_dir = tmp_path / "downloads"
+    download_dir.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("original", encoding="utf-8")
+    doc = SimpleNamespace(
+        TL_NAME="document",
+        id=11,
+        access_hash=22,
+        file_reference=b"ref",
+        dc_id=2,
+        size=7,
+        mime_type="text/plain",
+        attributes=[DocumentAttributeFilename(file_name="../outside.txt")],
+    )
+    msg = SimpleNamespace(
+        TL_NAME="message", media=SimpleNamespace(TL_NAME="messageMediaDocument", document=doc)
+    )
+
+    with pytest.raises(MtprotoClientError, match="remote filename"):
+        asyncio.run(MtprotoClient().download_media(msg, dest=download_dir))
+    assert outside.read_text(encoding="utf-8") == "original"
 
 
 def test_extract_media_document_builds_location_and_filename() -> None:

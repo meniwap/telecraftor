@@ -60,11 +60,11 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py updates --runtime prod --a
 
 ## Run the group bot (plugin-based)
 
-Use the production-ready plugin shell:
+Use the production-gated operator plugin shell:
 
 ```bash
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/group_bot.py \
-  --runtime prod --allow-prod --config path/to/groupbot.local.json
+  --runtime prod --allow-prod --config .sessions/groupbot.local.json
 ```
 
 For full architecture/config/QA details see:

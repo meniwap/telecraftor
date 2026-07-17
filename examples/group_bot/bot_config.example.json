@@ -1,5 +1,8 @@
 {
   "allowed_peers": ["@your_group_or_channel"],
+  "allow_all_peers": false,
   "admin_user_ids": [],
+  "max_concurrent_handlers": 64,
+  "max_pending_handlers": 4096,
   "read_only_mode": true
 }

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
+from telecraft.mtproto.auth import handshake
 from telecraft.mtproto.auth.handshake import AuthHandshakeError, send_req_pq_multi
 from telecraft.mtproto.core.msg_id import MsgIdGenerator
 from telecraft.mtproto.core.unencrypted import UnencryptedMessage
@@ -32,7 +33,8 @@ def _pack_unencrypted(obj: object, *, msg_id: int = 4) -> bytes:
     return UnencryptedMessage(msg_id=msg_id, body=body).pack()
 
 
-def test_send_req_pq_multi_ignores_quick_ack_frame() -> None:
+def test_send_req_pq_multi_ignores_quick_ack_frame(monkeypatch) -> None:
+    monkeypatch.setattr(handshake, "random_bytes", lambda n: b"\x01" * n)
     res = ResPq(
         nonce=b"\x01" * 16,
         server_nonce=b"\x02" * 16,
@@ -43,6 +45,20 @@ def test_send_req_pq_multi_ignores_quick_ack_frame() -> None:
     out = asyncio.run(send_req_pq_multi(transport, MsgIdGenerator()))
     assert out == res
     assert transport.sent, "Expected at least one outgoing packet"
+
+
+def test_send_req_pq_multi_rejects_res_pq_nonce_mismatch(monkeypatch) -> None:
+    monkeypatch.setattr(handshake, "random_bytes", lambda n: b"\x01" * n)
+    res = ResPq(
+        nonce=b"\xff" * 16,
+        server_nonce=b"\x02" * 16,
+        pq=b"\x01\x43",
+        server_public_key_fingerprints=[123],
+    )
+    transport = FakeTransport(payloads=[_pack_unencrypted(res, msg_id=8)])
+
+    with pytest.raises(AuthHandshakeError, match="resPQ.nonce mismatch"):
+        asyncio.run(send_req_pq_multi(transport, MsgIdGenerator()))
 
 
 def test_send_req_pq_multi_fails_after_too_many_small_frames() -> None:

@@ -79,10 +79,27 @@ await app.connect()
 await Dispatcher(client=app.raw, router=router, ignore_outgoing=False).run()
 ```
 
+## Dispatcher execution model
+
+- The public `Dispatcher` default permits one active message handler
+  (`max_concurrent_handlers=1`). Increase it explicitly when message handlers are safe to run
+  concurrently. Non-message event handlers remain independent and may interleave with messages.
+- With message concurrency enabled, order is preserved for each sender within a peer; different
+  senders or peers may run concurrently.
+- Running and waiting `MessageEvent` handlers share a supervised bound set by
+  `max_pending_handlers` (default 4096). Once full, new regular message events are skipped with a
+  rate-limited warning while pending conversation answers continue to pass through.
+- A pending `Router.ask()` answer bypasses the handler queue, so a handler waiting for input does
+  not block update ingestion.
+- `Router.ask()` is peer-wide by default for compatibility. In group forms, pass
+  `same_sender=True` so another member cannot answer the initiator's prompt.
+
 ## Common pitfalls
 
 - User accounts cannot behave exactly like Bot API bots in every Telegram client UX flow.
-- Sending to channels/DMs may need entity priming (`access_hash` cache). `Dispatcher` does best-effort priming on startup.
+- Sending to channels/DMs may need entity priming (`access_hash` cache). `Dispatcher` does
+  best-effort priming for user sessions; bot sessions hydrate their cache from incoming updates
+  because Telegram rejects dialog priming for bot authorizations.
 - If you accidentally load a non-prod session, runtime isolation blocks startup.
 
 ## Session files (user kind)

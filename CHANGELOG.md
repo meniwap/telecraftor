@@ -12,17 +12,93 @@ The format follows a simplified Keep a Changelog style:
 
 ## [Unreleased]
 
+- Pending.
+
+## [0.2.0] - 2026-07-17
+
+First stable production release for public MTProto user and bot sessions.
+
 ### Added
 
-- Pending.
+- Reworked the public examples into a documented progression covering echo, identity, messaging,
+  commands, media, conversations, scheduling, and the full plugin-based group bot.
+- Added typed-package metadata (`py.typed`), CPython 3.14 coverage, clean-wheel installation checks,
+  strict distribution metadata validation, and artifact hygiene gates.
+- Added pinned-SHA CI workflows for CodeQL, dependency review, Dependabot, package validation, and
+  trusted PyPI publishing with OIDC attestations.
+- Added a security policy, private-reporting route, contribution guide, Code of Conduct, issue
+  forms, CODEOWNERS, support policy, and production release/incident runbook.
+- Added sanitized live-evidence manifests bound to the exact commit exercised before release.
+- Added `/unschedule` with persistent suppression for config-backed group-bot announcements.
+- Added bounded, supervised message-handler execution with per-sender ordering, configurable
+  group-bot concurrency, and conversation answers that bypass a saturated handler backlog.
+- Added `same_sender=True` conversation matching for group forms while preserving the peer-wide
+  public default.
 
 ### Changed
 
-- Pending.
+- Limited Tier A support claims to the stable methods that the prod-safe live suites actually
+  exercise; all other stable methods retain Tier B compatibility support.
+- Builds the exact tagged wheel and source archive once, validates them, and publishes the retained
+  GitHub Actions artifact directly to production PyPI.
+- Replaced captured Telegram binary fixtures with deterministic synthetic regression payloads.
+- Group-bot peer scope now fails closed unless `allowed_peers` is non-empty or
+  `allow_all_peers=true` is explicitly configured. Existing empty-scope deployments must migrate
+  before startup.
+- The group-bot validates plugin paths and syntax before connecting, treats plugin setup failure as
+  fatal for the process, and applies allowed-peer guards to messages, callbacks, inline queries,
+  and payment queries.
 
-### Removed
+### Fixed
 
-- Pending.
+- Correctly detected outgoing MTProto messages so explicitly enabled single-account bot examples
+  can be exercised safely in Saved Messages without changing the incoming-only default.
+- Validated Telegram's official DH safe prime, fallback safe primes, generator congruence,
+  handshake nonces, SHA1 integrity, padding, and final nonce hashes during auth-key creation.
+- Propagated terminal receiver failures to pending RPCs and update consumers, made connection
+  teardown/reconnect complete after partial failures, eliminated raw-update queue drops, and
+  closed fast-response and blocked-send shutdown races.
+- Made update recovery atomic across `seq`, `pts`, and `qts` gaps, including immediate persisted
+  state catch-up, replay ordering, bounded-queue rollback, and restart recovery for channel state.
+- Kept context-bound `min` access hashes and entity caches from older logins out of peer
+  resolution, and isolated permanently unavailable channels without terminating global updates.
+- Made middleware continuation one-shot so a teardown failure cannot execute a downstream handler
+  twice, and guaranteed userbot cleanup when startup fails.
+- Serialized update-consumer startup and shutdown so concurrent callers cannot create duplicate
+  consumers or publish a half-initialized updates engine.
+- Created session, entity-cache, and update-state temporary files with private permissions before
+  their first byte is written, with atomic replacement and failure cleanup.
+- Hardened media downloads against path traversal, symlink escape, partial overwrite, and
+  unbounded in-memory downloads, and rejected truncated or oversized declared media payloads.
+- Routed Saved Messages media and album uploads through `InputPeerSelf`, matching the working text
+  message path instead of resolving `self` as a username.
+- Aligned live-report cleanup counts with the sanitized release-evidence schema.
+- Fixed `Router.ask()` races by registering waiters before sending prompts, routing answers before
+  regular handlers, and cleaning pending handlers across dispatcher reconnects.
+- Skipped dialog priming for bot authorizations that reject it with `BOT_METHOD_INVALID`.
+- Accepted channel-history containers from Telegram and used the correct input-peer participant
+  type for channel member lookup.
+- Made group-bot scheduled jobs enforce allowed-peer scope and read-only mode at execution time,
+  replace stale runtime closures on update, and use collision-resistant generated names.
+- Preserved `/unschedule` suppression across config removal and re-addition, and made scheduler
+  cancellation and shutdown safe when invoked from the running job itself.
+- Prevented read-only warning, poll, quiz, content-filter, anti-flood, and scheduled-send paths from
+  mutating Telegram or persistent moderation state.
+- Made malformed read-only overrides fall back safely, resolved basic-group administrators from
+  Telegram, and prevented temporary peer-resolution failures from disabling reconnect.
+- Kept non-message updates from waiting behind the concurrent message throttle backlog and
+  rate-limited overload warnings.
+
+### Security
+
+- Removed live Telegram payload captures from the source distribution and blocked their fixture
+  directory from future tracked files and package artifacts.
+- Added constant-time comparisons for known handshake nonces, hashes, inbound message keys, and
+  session identifiers.
+- Enforced MTProto 2.0 inbound ciphertext alignment, body and padding boundaries, server message-ID
+  parity/time windows, and bounded replay detection across plain, container, and gzip payloads.
+- Hid interactive 2FA entry with the platform password prompt while preserving the password bytes
+  exactly as entered.
 
 ## [0.2.0b4] - 2026-05-04
 

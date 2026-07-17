@@ -125,3 +125,35 @@ def test_run_runtime_cli__keepalive_pings_while_waiting() -> None:
 
     client = asyncio.run(_exercise())
     assert client.pings >= 1
+
+
+def test_run_runtime_cli__uses_hidden_prompt_for_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = _load_run_module()
+    prompts: list[str] = []
+
+    def _hidden(prompt: str) -> str:
+        prompts.append(prompt)
+        return " secret-value "
+
+    async def _visible(_prompt: str) -> str:
+        raise AssertionError("visible input must not be used for a secret")
+
+    class FakeClient:
+        async def ping(self, *, timeout: float = 20.0) -> object:
+            _ = timeout
+            return object()
+
+    monkeypatch.setattr(run.getpass, "getpass", _hidden)
+    monkeypatch.setattr(run, "_prompt_input", _visible)
+    value = asyncio.run(
+        run._prompt_with_keepalive(
+            FakeClient(),
+            "2FA password: ",
+            timeout=1.0,
+            secret=True,
+        )
+    )
+    assert value == " secret-value "
+    assert prompts == ["2FA password: "]

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
-from uuid import uuid4
 
+from telecraft._private_storage import atomic_write_private_text
 from telecraft.mtproto.updates.state import UpdatesState
 
 _UPDATES_STATE_VERSION = 1
@@ -96,18 +95,8 @@ def load_updates_state_file(path: str | Path) -> UpdatesState:
 
 
 def save_updates_state_file(path: str | Path, state: UpdatesState) -> None:
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-
     payload = PersistedUpdatesState.from_updates_state(state)
-    tmp = p.with_name(f"{p.name}.{os.getpid()}.{uuid4().hex}.tmp")
-    tmp.write_text(
+    atomic_write_private_text(
+        path,
         json.dumps(payload.to_json_dict(), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-        newline="\n",
     )
-    try:
-        os.chmod(tmp, 0o600)
-    except OSError:
-        pass
-    tmp.replace(p)

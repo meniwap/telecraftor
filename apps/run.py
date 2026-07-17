@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import getpass
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -60,6 +61,10 @@ async def _prompt_input(prompt: str) -> str:
     return (await asyncio.to_thread(input, prompt)).strip()
 
 
+async def _prompt_secret(prompt: str) -> str:
+    return await asyncio.to_thread(getpass.getpass, prompt)
+
+
 async def _keepalive_while_waiting(
     client: Any,
     stop: asyncio.Event,
@@ -83,7 +88,13 @@ async def _keepalive_while_waiting(
             )
 
 
-async def _prompt_with_keepalive(client: Any, prompt: str, *, timeout: float) -> str:
+async def _prompt_with_keepalive(
+    client: Any,
+    prompt: str,
+    *,
+    timeout: float,
+    secret: bool = False,
+) -> str:
     stop = asyncio.Event()
     interval = max(5.0, min(float(timeout) / 2.0, 15.0))
     ping_timeout = max(3.0, min(float(timeout), 10.0))
@@ -96,7 +107,8 @@ async def _prompt_with_keepalive(client: Any, prompt: str, *, timeout: float) ->
         )
     )
     try:
-        return await _prompt_input(prompt)
+        prompt_fn = _prompt_secret if secret else _prompt_input
+        return await prompt_fn(prompt)
     finally:
         stop.set()
         task.cancel()
@@ -240,6 +252,7 @@ async def _cmd_login(args: argparse.Namespace) -> int:
                             client,
                             "2FA password: ",
                             timeout=args.timeout,
+                            secret=True,
                         )
                     authz = await client.check_password(pw, timeout=args.timeout)
                     print("Logged in OK.")

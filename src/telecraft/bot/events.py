@@ -369,11 +369,19 @@ class MessageEvent:
             if from_name == "peerUser":
                 sender_user_id = int(cast(int, getattr(from_peer, "user_id")))
 
-            # Heuristic: if Telegram omits from_id in a private message object, it is almost
-            # always a self-authored/outgoing message (common for Saved
-            # Messages + some short updates).
+            # Telegram omits from_id in private messages when the sender IS the
+            # dialog peer — which is the normal shape of an *incoming* DM (and
+            # the only shape bot sessions see). When we know our own id, only
+            # Saved Messages (peer == me) is self-authored; otherwise the
+            # sender is the dialog peer. Without an id we keep the legacy
+            # assumption (self-authored) so Saved Messages userbots still work.
             if sender_user_id is None and peer_name == "peerUser" and outgoing is False:
-                outgoing = True
+                if me_id is not None and peer_id is not None:
+                    outgoing = int(peer_id) == int(me_id)
+                    if not outgoing:
+                        sender_user_id = user_peer_id
+                else:
+                    outgoing = True
 
             # Prefer "me" identity when available:
             # - If sender is me, it's outgoing (even if out flag is unset).
