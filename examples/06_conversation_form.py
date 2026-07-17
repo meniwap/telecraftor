@@ -1,6 +1,7 @@
 """
 Conversation form — a multi-step dialog using the Router's built-in
 conversation support (`router.ask` waits for the next reply in the same chat).
+The form also restricts answers to the user who started it.
 
 Send /form to the account running this bot, answer the two questions,
 and get a summary back.
@@ -38,13 +39,24 @@ async def main() -> None:
     print("Form bot is running. Send /form to start. Ctrl+C to stop.")
 
     router = Router()
-    running: set[asyncio.Task[None]] = set()
 
     async def run_form(event: MessageEvent) -> None:
         try:
             ask = router.ask
-            name = await ask(event, f"{PROMPT} What's your name?", filt=_is_answer, timeout=120)
-            city = await ask(event, f"{PROMPT} Which city?", filt=_is_answer, timeout=120)
+            name = await ask(
+                event,
+                f"{PROMPT} What's your name?",
+                filt=_is_answer,
+                timeout=120,
+                same_sender=True,
+            )
+            city = await ask(
+                event,
+                f"{PROMPT} Which city?",
+                filt=_is_answer,
+                timeout=120,
+                same_sender=True,
+            )
         except (TimeoutError, asyncio.TimeoutError):  # asyncio alias needed on Python 3.10
             await event.reply("Form timed out. Send /form to try again.")
             return
@@ -52,12 +64,9 @@ async def main() -> None:
 
     @router.on_message(command("form"))
     async def form(event: MessageEvent) -> None:
-        # Run the dialog as a background task: handlers execute inline in the
-        # dispatch loop, so awaiting ask() here would block the very loop that
-        # must deliver the user's answers.
-        task = asyncio.create_task(run_form(event))
-        running.add(task)
-        task.add_done_callback(running.discard)
+        # Dispatcher keeps receiving conversation answers while this handler
+        # waits, and preserves order for this sender within this peer.
+        await run_form(event)
 
     dispatcher = Dispatcher(
         client=app.raw,

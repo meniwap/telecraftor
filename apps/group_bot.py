@@ -16,10 +16,12 @@ from telecraft.bot import (
     run_userbot,
 )
 from telecraft.bot.groupbot import (
+    GroupBotConfigurationError,
     GroupBotContext,
     GroupBotStorage,
     attach_group_bot_context,
     load_group_bot_config,
+    validate_group_bot_config,
 )
 from telecraft.bot.scheduler import Scheduler
 from telecraft.client import Client, ClientInit
@@ -172,10 +174,18 @@ def _as_int_or_none(value: int | None) -> int | None:
 
 
 def _install_scope_middlewares(router: Router, *, ctx: GroupBotContext) -> None:
-    async def _guard(event: Any, nxt: Any) -> None:
+    def _is_allowed(event: Any) -> bool:
         peer_type = getattr(event, "peer_type", None)
         peer_id = getattr(event, "peer_id", None)
-        if ctx.is_peer_allowed(peer_type, peer_id):
+        if peer_type is None or peer_id is None:
+            user_id = getattr(event, "user_id", None)
+            if user_id is not None:
+                peer_type = "user"
+                peer_id = int(user_id)
+        return ctx.is_peer_allowed(peer_type, peer_id)
+
+    async def _guard(event: Any, nxt: Any) -> None:
+        if _is_allowed(event):
             await nxt()
             return
         raise StopPropagation()
@@ -186,6 +196,19 @@ def _install_scope_middlewares(router: Router, *, ctx: GroupBotContext) -> None:
     router.use_reaction(_guard)
     router.use_deleted_messages(_guard)
     router.use_callback_query(_guard)
+    router.use_inline_query(_guard)
+    router.use_shipping_query(_guard)
+    router.use_precheckout_query(_guard)
+    router.use_conversation_guard(_is_allowed)
+
+
+def _preflight_plugin_paths(plugin_paths: list[Path]) -> None:
+    """Reject missing or syntactically invalid plugins before connecting."""
+    for path in plugin_paths:
+        if not path.exists() or not path.is_file():
+            raise FileNotFoundError(f"Plugin file not found: {path}")
+        source = path.read_text(encoding="utf-8")
+        compile(source, str(path), "exec")
 
 
 async def _load_plugins_once(
@@ -200,13 +223,31 @@ async def _load_plugins_once(
 
 
 async def _hydrate_schedules(ctx: GroupBotContext) -> None:
+    configured_names = {ann.name for ann in ctx.config.announcements}
+    for stored in ctx.storage.list_scheduled_jobs(enabled_only=False):
+        if stored.source != "config" or stored.name in configured_names:
+            continue
+        ctx.storage.set_scheduled_job_state(
+            name=stored.name,
+            enabled=False,
+            suppressed=stored.suppressed,
+        )
+        ctx.scheduled_names.discard(stored.name)
+        await ctx.scheduler.cancel(f"announcement:{stored.name}")
+
     for ann in ctx.config.announcements:
+        existing = ctx.storage.get_scheduled_job(name=ann.name)
+        suppressed = bool(
+            existing is not None and existing.source == "config" and existing.suppressed
+        )
         ctx.storage.upsert_scheduled_job(
             name=ann.name,
             text=ann.text,
             interval_seconds=ann.every_seconds,
             peer_ref=ann.peer,
-            enabled=ann.enabled,
+            enabled=bool(ann.enabled and not suppressed),
+            source="config",
+            suppressed=suppressed,
         )
     for job in ctx.storage.list_scheduled_jobs(enabled_only=True):
         await ctx.ensure_schedule(job)
@@ -225,7 +266,15 @@ async def main(args: argparse.Namespace) -> None:
     if not config_path.is_absolute():
         config_path = (Path.cwd() / config_path).resolve()
     cfg = load_group_bot_config(config_path)
+    try:
+        validate_group_bot_config(cfg)
+    except GroupBotConfigurationError as ex:
+        raise SystemExit(f"Invalid group-bot configuration: {ex}") from ex
     plugin_paths = _resolve_plugin_paths(config_path, cfg.plugin_paths)
+    try:
+        _preflight_plugin_paths(plugin_paths)
+    except (OSError, SyntaxError) as ex:
+        raise SystemExit(f"Invalid group-bot plugin: {ex}") from ex
     storage = GroupBotStorage(cfg.storage_path)
     scheduler = Scheduler()
 
@@ -246,18 +295,33 @@ async def main(args: argparse.Namespace) -> None:
     )
     attach_group_bot_context(router, ctx)
     _install_scope_middlewares(router, ctx=ctx)
-    print(
-        f"Using runtime={runtime} network={network} bot_session={session} "
-        f"config={config_path}"
-    )
+    print(f"Using runtime={runtime} network={network} bot_session={session} config={config_path}")
 
     loaded_once = False
+    reconnect_policy = ReconnectPolicy(
+        enabled=True,
+        initial_delay_seconds=1.0,
+        max_delay_seconds=30.0,
+        multiplier=2.0,
+        jitter_ratio=0.2,
+    )
 
     async def _on_startup(_client: Any) -> None:
         nonlocal loaded_once
-        resolved = await ctx.resolve_allowed_peer_keys()
+        try:
+            resolved = await ctx.resolve_allowed_peer_keys()
+        except GroupBotConfigurationError:
+            reconnect_policy.enabled = False
+            raise
         if not loaded_once:
-            await _load_plugins_once(loader=loader, plugin_paths=plugin_paths)
+            try:
+                await _load_plugins_once(loader=loader, plugin_paths=plugin_paths)
+            except Exception:
+                # Plugin import/setup failures are deterministic for this
+                # process. Retrying can duplicate handlers registered before a
+                # failing setup hook, so exit and require an operator restart.
+                reconnect_policy.enabled = False
+                raise
             loaded_once = True
         await _hydrate_schedules(ctx)
         await ctx.send_audit(
@@ -283,6 +347,8 @@ async def main(args: argparse.Namespace) -> None:
             throttle_burst=max(1, int(cfg.throttle_burst)),
             throttle_mode=cfg.throttle_mode,
             debug=bool(cfg.debug_dispatcher),
+            max_concurrent_handlers=int(cfg.max_concurrent_handlers),
+            max_pending_handlers=int(cfg.max_pending_handlers),
         )
 
     try:
@@ -290,13 +356,7 @@ async def main(args: argparse.Namespace) -> None:
             client=app.raw,
             router=router,
             make_dispatcher=_make_dispatcher,
-            reconnect=ReconnectPolicy(
-                enabled=True,
-                initial_delay_seconds=1.0,
-                max_delay_seconds=30.0,
-                multiplier=2.0,
-                jitter_ratio=0.2,
-            ),
+            reconnect=reconnect_policy,
             on_startup=_on_startup,
             on_shutdown=_on_shutdown,
         )

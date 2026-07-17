@@ -27,6 +27,7 @@ session.json
 .env
 apps/env.sh
 apps/bot_config.json
+*.local.json
 
 # Runtime outputs and generated reports
 downloads/

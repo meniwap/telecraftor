@@ -78,6 +78,9 @@ class Scheduler:
                     await self._run_callable(fn)
                 except Exception as ex:  # noqa: BLE001
                     logger.exception("Scheduled job failed (job=%s)", job_name, exc_info=ex)
+                current = self._jobs.get(job_name)
+                if current is None or current.task is not asyncio.current_task():
+                    return
             while True:
                 await asyncio.sleep(interval)
                 try:
@@ -86,17 +89,35 @@ class Scheduler:
                     raise
                 except Exception as ex:  # noqa: BLE001
                     logger.exception("Scheduled job failed (job=%s)", job_name, exc_info=ex)
+                current = self._jobs.get(job_name)
+                if current is None or current.task is not asyncio.current_task():
+                    return
 
         task = asyncio.create_task(_runner(), name=f"telecraft-scheduler:{job_name}")
         job = ScheduledJob(name=job_name, task=task, interval_seconds=interval)
         self._jobs[job_name] = job
         return job
 
+    async def cancel(self, name: str) -> bool:
+        job = self._jobs.pop(str(name), None)
+        if job is None:
+            return False
+        if job.task is asyncio.current_task():
+            # The runner observes that it is no longer registered and exits
+            # after the current callback returns. Awaiting/cancelling itself
+            # here would create a recursive self-await cycle.
+            return True
+        job.cancel()
+        await asyncio.gather(job.task, return_exceptions=True)
+        return True
+
     async def stop(self) -> None:
         jobs = list(self._jobs.values())
         self._jobs.clear()
-        for job in jobs:
+        current = asyncio.current_task()
+        other_jobs = [job for job in jobs if job.task is not current]
+        for job in other_jobs:
             job.cancel()
-        if not jobs:
+        if not other_jobs:
             return
-        await asyncio.gather(*(job.task for job in jobs), return_exceptions=True)
+        await asyncio.gather(*(job.task for job in other_jobs), return_exceptions=True)

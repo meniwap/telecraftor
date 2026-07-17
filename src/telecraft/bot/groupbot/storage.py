@@ -17,6 +17,9 @@ class ScheduledJobRecord:
     interval_seconds: int
     enabled: bool
     last_run_ts: int
+    # Appended for positional-constructor compatibility with earlier releases.
+    source: str = "manual"
+    suppressed: bool = False
 
 
 class GroupBotStorage:
@@ -26,7 +29,7 @@ class GroupBotStorage:
             p = (Path.cwd() / p).resolve()
         p.parent.mkdir(parents=True, exist_ok=True)
         self.path = p
-        self._conn = sqlite3.connect(str(p), check_same_thread=False)
+        self._conn = sqlite3.connect(str(p), timeout=30.0, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
         self._init_schema()
@@ -84,11 +87,36 @@ class GroupBotStorage:
                     text TEXT NOT NULL,
                     interval_seconds INTEGER NOT NULL,
                     enabled INTEGER NOT NULL DEFAULT 1,
-                    last_run_ts INTEGER NOT NULL DEFAULT 0
+                    last_run_ts INTEGER NOT NULL DEFAULT 0,
+                    source TEXT NOT NULL DEFAULT 'manual',
+                    suppressed INTEGER NOT NULL DEFAULT 0
                 );
                 """
             )
-            self._conn.commit()
+            # SQLite lacks portable `ADD COLUMN IF NOT EXISTS`. Hold a write
+            # transaction across check+alter so rolling starts cannot race the
+            # additive migration from separate connections.
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                columns = {
+                    str(row["name"])
+                    for row in self._conn.execute("PRAGMA table_info(scheduled_jobs)").fetchall()
+                }
+                if "source" not in columns:
+                    self._conn.execute(
+                        "ALTER TABLE scheduled_jobs "
+                        "ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'"
+                    )
+                if "suppressed" not in columns:
+                    self._conn.execute(
+                        "ALTER TABLE scheduled_jobs "
+                        "ADD COLUMN suppressed INTEGER NOT NULL DEFAULT 0"
+                    )
+            except BaseException:
+                self._conn.rollback()
+                raise
+            else:
+                self._conn.commit()
 
     def set_group_setting(self, *, peer_key: str, key: str, value: Any) -> None:
         payload = json.dumps(value, ensure_ascii=False)
@@ -299,6 +327,8 @@ class GroupBotStorage:
         interval_seconds: int,
         peer_ref: str | None = None,
         enabled: bool = True,
+        source: str = "manual",
+        suppressed: bool = False,
     ) -> None:
         with self._lock:
             self._conn.execute(
@@ -309,17 +339,21 @@ class GroupBotStorage:
                     text,
                     interval_seconds,
                     enabled,
-                    last_run_ts
+                    last_run_ts,
+                    source,
+                    suppressed
                 )
                 VALUES (?, ?, ?, ?, ?, COALESCE(
                     (SELECT last_run_ts FROM scheduled_jobs WHERE name=?),
                     0
-                ))
+                ), ?, ?)
                 ON CONFLICT(name) DO UPDATE SET
                     peer_ref = excluded.peer_ref,
                     text = excluded.text,
                     interval_seconds = excluded.interval_seconds,
-                    enabled = excluded.enabled
+                    enabled = excluded.enabled,
+                    source = excluded.source,
+                    suppressed = excluded.suppressed
                 """,
                 (
                     name,
@@ -328,9 +362,47 @@ class GroupBotStorage:
                     int(interval_seconds),
                     1 if enabled else 0,
                     name,
+                    str(source),
+                    1 if suppressed else 0,
                 ),
             )
             self._conn.commit()
+
+    def get_scheduled_job(self, *, name: str) -> ScheduledJobRecord | None:
+        with self._lock:
+            row = self._conn.execute(
+                """
+                SELECT name, peer_ref, text, interval_seconds, enabled, last_run_ts,
+                       source, suppressed
+                FROM scheduled_jobs
+                WHERE name=?
+                """,
+                (str(name),),
+            ).fetchone()
+        if row is None:
+            return None
+        return self._scheduled_job_from_row(row)
+
+    def set_scheduled_job_state(
+        self,
+        *,
+        name: str,
+        enabled: bool,
+        suppressed: bool | None = None,
+    ) -> bool:
+        with self._lock:
+            if suppressed is None:
+                cur = self._conn.execute(
+                    "UPDATE scheduled_jobs SET enabled=? WHERE name=?",
+                    (1 if enabled else 0, str(name)),
+                )
+            else:
+                cur = self._conn.execute(
+                    "UPDATE scheduled_jobs SET enabled=?, suppressed=? WHERE name=?",
+                    (1 if enabled else 0, 1 if suppressed else 0, str(name)),
+                )
+            self._conn.commit()
+            return int(cur.rowcount) > 0
 
     def touch_scheduled_job(self, *, name: str, ts: int | None = None) -> None:
         now = int(time.time()) if ts is None else int(ts)
@@ -341,29 +413,40 @@ class GroupBotStorage:
             )
             self._conn.commit()
 
+    def delete_scheduled_job(self, *, name: str) -> bool:
+        with self._lock:
+            cur = self._conn.execute(
+                "DELETE FROM scheduled_jobs WHERE name=?",
+                (str(name),),
+            )
+            self._conn.commit()
+            return int(cur.rowcount) > 0
+
     def list_scheduled_jobs(self, *, enabled_only: bool = True) -> list[ScheduledJobRecord]:
         where = "WHERE enabled=1" if enabled_only else ""
         with self._lock:
             rows = self._conn.execute(
                 f"""
-                SELECT name, peer_ref, text, interval_seconds, enabled, last_run_ts
+                SELECT name, peer_ref, text, interval_seconds, enabled, last_run_ts,
+                       source, suppressed
                 FROM scheduled_jobs
                 {where}
                 ORDER BY name ASC
                 """
             ).fetchall()
-        out: list[ScheduledJobRecord] = []
-        for row in rows:
-            peer_raw = row["peer_ref"]
-            peer_ref = str(peer_raw) if isinstance(peer_raw, str) and peer_raw else None
-            out.append(
-                ScheduledJobRecord(
-                    name=str(row["name"]),
-                    peer_ref=peer_ref,
-                    text=str(row["text"]),
-                    interval_seconds=int(row["interval_seconds"]),
-                    enabled=bool(int(row["enabled"])),
-                    last_run_ts=int(row["last_run_ts"]),
-                )
-            )
-        return out
+        return [self._scheduled_job_from_row(row) for row in rows]
+
+    @staticmethod
+    def _scheduled_job_from_row(row: sqlite3.Row) -> ScheduledJobRecord:
+        peer_raw = row["peer_ref"]
+        peer_ref = str(peer_raw) if isinstance(peer_raw, str) and peer_raw else None
+        return ScheduledJobRecord(
+            name=str(row["name"]),
+            peer_ref=peer_ref,
+            text=str(row["text"]),
+            interval_seconds=int(row["interval_seconds"]),
+            enabled=bool(int(row["enabled"])),
+            last_run_ts=int(row["last_run_ts"]),
+            source=str(row["source"]),
+            suppressed=bool(int(row["suppressed"])),
+        )
