@@ -12,8 +12,8 @@ software. Please report suspected vulnerabilities privately.
 | Latest public beta or release candidate, when no stable release exists | Reports accepted; fixes are best-effort |
 | Older prereleases and internal `0.1.x` builds | Not supported |
 
-The project is currently in public release-candidate status. A prerelease may change before the first stable release;
-that does not reduce the priority of a security report.
+The current supported stable line is `0.2.x`. Prereleases may change before their corresponding
+stable release; that does not reduce the priority of a security report.
 
 ## Report a vulnerability
 

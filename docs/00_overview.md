@@ -5,7 +5,7 @@ It supports both:
 - user accounts (userbot flows)
 - bot accounts logged in via MTProto (`auth.importBotAuthorization`)
 
-Current public beta line: `0.2.x`.
+Current stable public line: `0.2.x`.
 
 ## Goals
 

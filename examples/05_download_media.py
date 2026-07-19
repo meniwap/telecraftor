@@ -21,7 +21,7 @@ def _parse_args() -> argparse.Namespace:
         "peer",
         nargs="?",
         default="self",
-        help='@username, "self", user:ID, chat:ID, or channel:ID',
+        help='@username, "self"/"me", user:ID, chat:ID, or channel:ID',
     )
     parser.add_argument("--dest", default="downloads/", help="Output directory")
     parser.add_argument("--limit", type=int, default=25, help="Messages to scan")
@@ -33,12 +33,7 @@ async def main() -> None:
     client = build_client()
     await client.connect()
     try:
-        peer: object = args.peer
-        if args.peer.strip().lower() == "self":
-            # Saved Messages = a chat with your own user id.
-            full = await client.users.full("self")
-            peer = ("user", int(full.users[0].id))
-        async for message in client.messages.iter_messages(peer, limit=args.limit):
+        async for message in client.messages.iter_messages(args.peer, limit=args.limit):
             saved_path = await client.media.download(message, dest=args.dest)
             if saved_path:
                 print(f"Saved: {saved_path}")
