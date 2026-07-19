@@ -1,5 +1,11 @@
 # Telecraft
 
+[![PyPI version](https://img.shields.io/pypi/v/telecraft.svg)](https://pypi.org/project/telecraft/)
+[![CI](https://github.com/meniwap/telecraftor/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/meniwap/telecraftor/actions/workflows/ci.yml)
+[![Python versions](https://img.shields.io/pypi/pyversions/telecraft.svg)](https://pypi.org/project/telecraft/)
+[![License: MIT-0](https://img.shields.io/pypi/l/telecraft.svg)](https://github.com/meniwap/telecraftor/blob/main/LICENSE)
+[![Typing: typed](https://img.shields.io/badge/typing-typed-blue.svg)](https://peps.python.org/pep-0561/)
+
 Telecraft is an async, MTProto-first Telegram client library for Python.
 
 It supports:
@@ -161,7 +167,7 @@ Normal local gate:
 ./.venv/bin/python -m ruff check src tests tools apps examples
 ./.venv/bin/python -m mypy src
 ./.venv/bin/python -m pytest tests/meta -q
-./.venv/bin/python -m pytest -m "not live" -q
+./.venv/bin/python -m pytest -m "not live" --cov=telecraft --cov-report=term-missing
 ./.venv/bin/python -m pytest tests/live --collect-only -q
 ./.venv/bin/python -m build
 ./.venv/bin/python tools/check_repo_hygiene.py --artifacts
