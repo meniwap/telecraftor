@@ -13,5 +13,5 @@ Most scripts expect `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, and an existing sess
 repo's default session discovery layout. They may connect to Telegram production, so treat them as
 manual checks rather than deterministic tests.
 
-`smoke_auth_key.py` redacts raw auth-key material by default. Only pass
-`--unsafe-include-auth-key` for local debugging, and never paste that output into public reports.
+`smoke_auth_key.py` never exports raw auth-key material. Its output is limited to public identifiers
+and exchange diagnostics that are sufficient to confirm a successful handshake.

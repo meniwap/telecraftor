@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from hashlib import sha256
+
 import pytest
 
 from telecraft.mtproto.auth import dh
@@ -9,6 +11,14 @@ _DH_PRIME = dh._TELEGRAM_DH_PRIME
 _P = int.from_bytes(_DH_PRIME, "big", signed=False)
 _LOW = 1 << (2048 - 64)
 _SAFE_GA = _LOW.to_bytes(256, "big", signed=False)
+
+
+def test_telegram_dh_prime_matches_official_constant() -> None:
+    # https://core.telegram.org/mtproto/auth_key#dh-key-exchange-complete
+    assert len(_DH_PRIME) == 256
+    assert sha256(_DH_PRIME).hexdigest() == (
+        "02f85e7687fc6f33ba678226a963b3c8a191b47c890cf30debe17c1d623b5af1"
+    )
 
 
 def _random_b(value: int) -> bytes:

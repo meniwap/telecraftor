@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -49,7 +50,16 @@ jobs:
         run: python -m pytest tests/meta -q
 
       - name: Pytest non-live
+        if: matrix.python-version != '3.14'
         run: python -m pytest -m "not live"
+
+      - name: Pytest non-live with coverage
+        if: matrix.python-version == '3.14'
+        run: >-
+          python -m pytest -m "not live"
+          --cov=telecraft
+          --cov-branch
+          --cov-report=term-missing
 
       - name: Live collect-only
         run: python -m pytest tests/live --collect-only -q

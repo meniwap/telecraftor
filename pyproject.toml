@@ -50,6 +50,7 @@ Documentation = "https://github.com/meniwap/telecraftor#readme"
 dev = [
   "build>=1.2",
   "pytest>=8",
+  "pytest-cov>=7",
   "ruff>=0.5",
   "mypy>=1.10",
   "twine>=6",
@@ -62,6 +63,14 @@ markers = [
   "live: live tests against Telegram",
   "live_prod_safe: prod-safe live smoke tests",
 ]
+
+[tool.coverage.run]
+branch = true
+source = ["telecraft"]
+omit = ["*/telecraft/tl/generated/*"]
+
+[tool.coverage.report]
+show_missing = true
 
 [tool.ruff]
 line-length = 100
