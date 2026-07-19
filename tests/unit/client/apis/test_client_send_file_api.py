@@ -4,6 +4,8 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from telecraft.client.mtproto import ClientInit, MtprotoClient
 from telecraft.client.peers import Peer
 from telecraft.tl.generated.types import InputPeerSelf
@@ -71,8 +73,10 @@ def test_send_file_routes_to_send_media_document(tmp_path: Path) -> None:
     assert getattr(media, "TL_NAME", None) == "inputMediaUploadedDocument"
 
 
-def test_send_file_self_uses_input_peer_self_without_username_resolution(
+@pytest.mark.parametrize("alias", ["self", "ME", " me "])
+def test_send_file_self_alias_uses_input_peer_self_without_username_resolution(
     tmp_path: Path,
+    alias: str,
 ) -> None:
     p = tmp_path / "self.txt"
     p.write_text("hello")
@@ -92,7 +96,7 @@ def test_send_file_self_uses_input_peer_self_without_username_resolution(
     client.resolve_peer = fail_resolve  # type: ignore[assignment]
     client.invoke_api = invoke_api  # type: ignore[assignment]
 
-    asyncio.run(client.send_file("self", p, as_photo=False))
+    asyncio.run(client.send_file(alias, p, as_photo=False))
 
     send_req = [x for x in seen if getattr(x, "TL_NAME", None) == "messages.sendMedia"][-1]
     assert isinstance(send_req.peer, InputPeerSelf)

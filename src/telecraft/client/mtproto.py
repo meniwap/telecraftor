@@ -17,6 +17,7 @@ from telecraft.client.entities import (
 from telecraft.client.peers import (
     Peer,
     PeerRef,
+    is_self_peer_ref,
     normalize_phone,
     normalize_username,
     parse_peer_ref,
@@ -803,6 +804,14 @@ class MtprotoClient:
             s = ref.strip()
             if not s:
                 raise MtprotoClientError("resolve_peer: empty string")
+            if is_self_peer_ref(s):
+                if self.self_user_id is None:
+                    await self.get_me(timeout=timeout)
+                if self.self_user_id is None:
+                    raise MtprotoClientError(
+                        "resolve_peer: cannot determine the current account"
+                    )
+                return Peer.user(self.self_user_id)
             # Support 'user:123'/'chat:123'/'channel:123' and t.me links.
             try:
                 parsed = parse_peer_ref(s)
@@ -1031,17 +1040,31 @@ class MtprotoClient:
     ) -> Any:
         """
         High-level send message:
-        - accepts Peer / ('user'|'chat'|'channel', id) / '@username' / '+phone' / cached int id
+        - accepts Peer / ('user'|'chat'|'channel', id) / 'self' / 'me'
+          / '@username' / '+phone' / cached int id
         - resolves to InputPeer and calls messages.sendMessage
 
         Args:
-            peer: Target peer (can be Peer, tuple, @username, +phone, or cached int id)
+            peer: Target peer (can be self/me, Peer, tuple, @username, +phone,
+                or cached int id)
             text: Message text
             reply_to_msg_id: Optional message ID to reply to
             silent: Send without notification
             reply_markup: Optional raw Telegram ReplyMarkup TL object
             timeout: RPC timeout in seconds
         """
+        if is_self_peer_ref(peer):
+            from telecraft.tl.generated.types import InputPeerSelf
+
+            return await self.send_message_peer(
+                InputPeerSelf(),
+                text,
+                reply_to_msg_id=reply_to_msg_id,
+                silent=silent,
+                reply_markup=reply_markup,
+                timeout=timeout,
+            )
+
         p = await self.resolve_peer(peer, timeout=timeout)
 
         async def _build_input_peer() -> Any:
@@ -1187,7 +1210,7 @@ class MtprotoClient:
                 todo_item_id=None,
             )
 
-        if isinstance(peer, str) and peer.strip().lower() == "self":
+        if is_self_peer_ref(peer):
             input_peer = InputPeerSelf()
         else:
             p2 = await self.resolve_peer(peer, timeout=timeout)
@@ -1271,7 +1294,7 @@ class MtprotoClient:
         if captions is not None and len(captions) != len(paths):
             raise MtprotoClientError("send_album: captions must match paths length")
 
-        if isinstance(peer, str) and peer.strip().lower() == "self":
+        if is_self_peer_ref(peer):
             input_peer = InputPeerSelf()
         else:
             p = await self.resolve_peer(peer, timeout=timeout)
@@ -5442,17 +5465,21 @@ class MtprotoClient:
             Message TL objects (newest first by default)
         """
         from telecraft.tl.generated.types import (
+            InputPeerSelf,
             MessagesChannelMessages,
             MessagesMessages,
             MessagesMessagesSlice,
         )
 
-        p = await self.resolve_peer(peer, timeout=timeout)
-        try:
-            input_peer = self.entities.input_peer(p)
-        except EntityCacheError:
-            await self._prime_entities_for_reply(want=p, timeout=timeout)
-            input_peer = self.entities.input_peer(p)
+        if is_self_peer_ref(peer):
+            input_peer = InputPeerSelf()
+        else:
+            p = await self.resolve_peer(peer, timeout=timeout)
+            try:
+                input_peer = self.entities.input_peer(p)
+            except EntityCacheError:
+                await self._prime_entities_for_reply(want=p, timeout=timeout)
+                input_peer = self.entities.input_peer(p)
 
         total_yielded = 0
         current_offset_id = offset_id
@@ -5578,17 +5605,21 @@ class MtprotoClient:
         users/chats into EntityCache.
         """
         from telecraft.tl.generated.types import (
+            InputPeerSelf,
             MessagesChannelMessages,
             MessagesMessages,
             MessagesMessagesSlice,
         )
 
-        p = await self.resolve_peer(peer, timeout=timeout)
-        try:
-            input_peer = self.entities.input_peer(p)
-        except EntityCacheError:
-            await self._prime_entities_for_reply(want=p, timeout=timeout)
-            input_peer = self.entities.input_peer(p)
+        if is_self_peer_ref(peer):
+            input_peer = InputPeerSelf()
+        else:
+            p = await self.resolve_peer(peer, timeout=timeout)
+            try:
+                input_peer = self.entities.input_peer(p)
+            except EntityCacheError:
+                await self._prime_entities_for_reply(want=p, timeout=timeout)
+                input_peer = self.entities.input_peer(p)
 
         res = await self.invoke_api(
             MessagesGetHistory(
