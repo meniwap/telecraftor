@@ -212,11 +212,20 @@ def test_download_via_get_file_to_path_keeps_existing_file_on_failure(tmp_path) 
         r"\\server\share\escape.txt",
         "unsafe:name.txt",
         "CON.txt",
+        "COM¹.log",
+        "LPT³",
+        "delete\x7fme.txt",
+        "control\x85name.txt",
+        "photo\u202egnp.exe",
     ],
 )
 def test_safe_download_filename_rejects_cross_platform_paths(file_name: str) -> None:
     with pytest.raises(MediaError):
         safe_download_filename(file_name)
+
+
+def test_safe_download_filename_allows_non_device_superscript_name() -> None:
+    assert safe_download_filename("report¹.txt") == "report¹.txt"
 
 
 def test_ensure_dest_path_keeps_safe_remote_name_inside_directory(tmp_path) -> None:

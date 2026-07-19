@@ -35,6 +35,16 @@ class Peer:
 PeerRef: TypeAlias = Peer | tuple[PeerType, int] | str | int
 
 
+def is_self_peer_ref(value: object) -> bool:
+    """Return whether *value* is a bare alias for the current account.
+
+    Explicit usernames such as ``@self`` and ``@me`` are intentionally not
+    aliases, so callers can still address those usernames deliberately.
+    """
+
+    return isinstance(value, str) and value.strip().lower() in {"self", "me"}
+
+
 def normalize_username(username: str) -> str:
     u = username.strip()
     if not u:
@@ -66,6 +76,7 @@ def parse_peer_ref(s: str) -> PeerRef:
     Parse common peer reference strings.
 
     Accepted:
+    - "self" / "me" for the current account
     - "@username" / "t.me/username" / "https://t.me/username"
     - "+1555..." or "phone:+1555..."
     - "user:123" / "chat:123" / "channel:123"
@@ -73,6 +84,8 @@ def parse_peer_ref(s: str) -> PeerRef:
     raw = s.strip()
     if not raw:
         raise ValueError("empty peer ref")
+    if is_self_peer_ref(raw):
+        return raw.lower()
     for prefix in ("user:", "chat:", "channel:"):
         if raw.startswith(prefix):
             pt = prefix[:-1]

@@ -12,7 +12,19 @@ The format follows a simplified Keep a Changelog style:
 
 ## [Unreleased]
 
-- Pending.
+### Fixed
+
+- Reserved bare `self` and `me` peer aliases for the current account across message, media,
+  history, and v2 peer-resolution APIs instead of resolving them as public usernames.
+- Made concurrent GroupBot SQLite schema initialization retry transient `BUSY`/`LOCKED` failures
+  without masking unrelated database errors.
+- Updated public documentation to identify `0.2.x` as the current stable release line.
+
+### Security
+
+- Rejected additional control, bidirectional-spoofing, and Windows device-name variants in
+  untrusted download filenames.
+- Added a best-effort parent-directory durability barrier after private atomic file replacements.
 
 ## [0.2.0] - 2026-07-17
 
