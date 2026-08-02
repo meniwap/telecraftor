@@ -2,21 +2,15 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
+from telecraft import cli
+
 
 def _load_run_module():
-    path = Path("apps/run.py")
-    spec = importlib.util.spec_from_file_location("telecraft_apps_run", path)
-    assert spec is not None and spec.loader is not None
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = mod
-    spec.loader.exec_module(mod)
-    return mod
+    return cli
 
 
 def test_run_runtime_cli__defaults_to_prod_network(
@@ -100,6 +94,31 @@ def test_run_runtime_cli__resolve_runtime_context__supports_bot_session_kind(
     assert ctx.session_path.endswith("prod_dc2.bot.session.json")
 
 
+def test_run_runtime_cli__login_recovers_from_dangling_current_pointer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run = _load_run_module()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TELECRAFT_ALLOW_PROD", "1")
+    pointer = tmp_path / ".sessions" / "prod" / "current"
+    pointer.parent.mkdir(parents=True)
+    pointer.write_text(str(tmp_path / "deleted.session.json"), encoding="utf-8")
+    args = argparse.Namespace(
+        cmd="login",
+        runtime="prod",
+        network=None,
+        allow_prod=True,
+        session=None,
+        dc=2,
+        session_kind="user",
+    )
+
+    ctx = run._resolve_runtime_context(args, allow_missing_session=True)
+
+    assert ctx.session_path.endswith(".sessions/prod/prod_dc2.session.json")
+
+
 def test_run_runtime_cli__keepalive_pings_while_waiting() -> None:
     run = _load_run_module()
 
@@ -157,3 +176,21 @@ def test_run_runtime_cli__uses_hidden_prompt_for_secret(
     )
     assert value == " secret-value "
     assert prompts == ["2FA password: "]
+
+
+def test_run_runtime_cli__uses_hidden_prompt_for_bot_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = _load_run_module()
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    prompts: list[str] = []
+
+    async def _hidden(prompt: str) -> str:
+        prompts.append(prompt)
+        return " 123456:secret-token "
+
+    monkeypatch.setattr(run, "_prompt_secret", _hidden)
+    args = argparse.Namespace(bot_token=None)
+
+    assert asyncio.run(run._resolve_bot_token(args)) == "123456:secret-token"
+    assert prompts == ["Bot token: "]

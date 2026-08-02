@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -10,6 +12,7 @@ from telecraft.client.runtime_isolation import (
     default_session_path,
     pick_existing_session,
     require_prod_override,
+    resolve_current_session_path,
     resolve_runtime,
     resolve_session_kind,
     resolve_session_paths,
@@ -118,3 +121,56 @@ def test_runtime_isolation__pick_existing_session__uses_kind_specific_pointer(
     picked_bot = pick_existing_session(paths, preferred_dc=2, kind="bot")
     assert picked_user == str(user_session.resolve())
     assert picked_bot == str(bot_session.resolve())
+
+
+def test_runtime_isolation__resolve_current_session_path__returns_pointer_target(
+    tmp_path: Path,
+) -> None:
+    paths = resolve_session_paths(sessions_root=tmp_path)
+    session = tmp_path / "prod" / "prod_dc4.session.json"
+    _write_session(session, host="149.154.167.91")
+    write_current_session_pointer(paths, session)
+
+    resolved = resolve_current_session_path(sessions_root=tmp_path)
+
+    assert resolved == session.resolve()
+
+
+def test_runtime_isolation__resolve_current_session_path__rejects_missing_session(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(RuntimeIsolationError, match="No current user session pointer"):
+        resolve_current_session_path(sessions_root=tmp_path)
+
+
+def test_runtime_isolation__current_helper_never_falls_back_to_another_session(
+    tmp_path: Path,
+) -> None:
+    paths = resolve_session_paths(sessions_root=tmp_path)
+    other = tmp_path / "prod" / "prod_dc4.session.json"
+    _write_session(other, host="149.154.167.91")
+
+    with pytest.raises(RuntimeIsolationError, match="No current user session pointer"):
+        resolve_current_session_path(sessions_root=tmp_path)
+
+    paths.current_pointer.parent.mkdir(parents=True, exist_ok=True)
+    paths.current_pointer.write_text(str(tmp_path / "deleted.session.json"), encoding="utf-8")
+    with pytest.raises(RuntimeIsolationError, match="empty or dangling"):
+        resolve_current_session_path(sessions_root=tmp_path)
+    with pytest.raises(RuntimeIsolationError, match="empty or dangling"):
+        pick_existing_session(paths, preferred_dc=4)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX mode assertion")
+def test_runtime_isolation__current_pointer_is_atomic_private_file(tmp_path: Path) -> None:
+    paths = resolve_session_paths(sessions_root=tmp_path)
+    session = tmp_path / "prod" / "prod_dc2.session.json"
+
+    old_umask = os.umask(0o022)
+    try:
+        write_current_session_pointer(paths, session)
+    finally:
+        os.umask(old_umask)
+
+    assert paths.current_pointer.read_text(encoding="utf-8") == f"{session.resolve()}\n"
+    assert stat.S_IMODE(paths.current_pointer.stat().st_mode) == 0o600

@@ -3,6 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+# Telegram RPC payloads are normally far smaller than this (file transfers are
+# split into parts).  Keeping one shared ceiling prevents a peer from making the
+# client buffer the much larger lengths representable by the wire framings.
+MAX_FRAME_SIZE_BYTES = 16 * 1024 * 1024
+
 
 class TransportError(Exception):
     pass

@@ -13,6 +13,7 @@ from .functions import *  # noqa: F403
 TLObjectType = Type[object]
 
 CONSTRUCTORS_BY_ID: dict[int, TLObjectType] = {
+    481674261: Vector,
     85337187: ResPq,
     -2083955988: PQInnerData,
     -1443537003: PQInnerDataDc,
@@ -56,7 +57,6 @@ CONSTRUCTORS_BY_ID: dict[int, TLObjectType] = {
     -1132882121: BoolFalse,
     -1720552011: BoolTrue,
     1072550713: TLTrue,
-    481674261: Vector,
     -994444869: Error,
     1450380236: Null,
     2134579434: InputPeerEmpty,

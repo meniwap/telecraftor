@@ -21,6 +21,7 @@ PROD_DCS: dict[int, tuple[str, int]] = {
     5: ("91.108.56.130", 443),
 }
 
+
 async def _run(args: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
 

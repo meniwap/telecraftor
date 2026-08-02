@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from telecraft._private_storage import ensure_private_file
 
 _SCHEMA_INIT_LOCK = threading.Lock()
 _SCHEMA_INIT_MAX_ATTEMPTS = 10
@@ -51,16 +54,31 @@ class GroupBotStorage:
         p = Path(path).expanduser()
         if not p.is_absolute():
             p = (Path.cwd() / p).resolve()
-        p.parent.mkdir(parents=True, exist_ok=True)
-        self.path = p
+        self.path = ensure_private_file(p)
         self._conn = sqlite3.connect(str(p), timeout=30.0, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
         try:
             self._init_schema()
+            self._restrict_sqlite_files()
         except BaseException:
             self._conn.close()
             raise
+
+    def _restrict_sqlite_files(self) -> None:
+        """Keep the database and SQLite sidecars private on multi-user hosts."""
+
+        if os.name == "nt":
+            return
+        for path in (
+            self.path,
+            self.path.with_name(self.path.name + "-wal"),
+            self.path.with_name(self.path.name + "-shm"),
+        ):
+            try:
+                path.chmod(0o600)
+            except FileNotFoundError:
+                continue
 
     def close(self) -> None:
         with self._lock:

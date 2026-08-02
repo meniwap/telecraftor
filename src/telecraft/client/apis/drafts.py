@@ -53,9 +53,7 @@ class DraftsAPI:
             flags |= 16
 
         reply_to = (
-            InputMessageReplyTo(id=int(reply_to_msg_id))
-            if reply_to_msg_id is not None
-            else None
+            InputMessageReplyTo(id=int(reply_to_msg_id)) if reply_to_msg_id is not None else None
         )
 
         return await self._raw.invoke_api(

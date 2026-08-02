@@ -23,6 +23,7 @@ from .peers import Peer, PeerRef, PeerType
 from .premium import PremiumBoostSlots
 from .privacy import PrivacyKey, PrivacyRuleBuilder
 from .reports import ReportReasonBuilder
+from .runtime_isolation import resolve_current_session_path
 from .sponsored import SponsoredMessageRef, SponsoredReportOption
 from .stickers import DocumentRef, StickerSetRef
 from .takeout import TakeoutScopes, TakeoutSessionRef
@@ -58,6 +59,7 @@ __all__ = [
     "ReplyToMessageRef",
     "ReplyToStoryRef",
     "ReportReasonBuilder",
+    "resolve_current_session_path",
     "FolderAssignment",
     "StickerSetRef",
     "StarsAmountRef",

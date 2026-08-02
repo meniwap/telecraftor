@@ -16,10 +16,16 @@ def _read(path: Path) -> str:
 
 
 def _merge(a, b):
-    # Simple merge; later we can dedupe intelligently by id/name if needed.
+    # The transport schema contains primitive placeholders (notably ``vector``)
+    # that are also present as real constructors in the API schema. Prefer the
+    # later definition so generated Python names and registry entries are unique.
+    constructors_by_name = {item.name: item for item in a.constructors}
+    constructors_by_name.update({item.name: item for item in b.constructors})
+    methods_by_name = {item.name: item for item in a.methods}
+    methods_by_name.update({item.name: item for item in b.methods})
     return type(a)(
-        constructors=a.constructors + b.constructors,
-        methods=a.methods + b.methods,
+        constructors=tuple(constructors_by_name.values()),
+        methods=tuple(methods_by_name.values()),
     )
 
 

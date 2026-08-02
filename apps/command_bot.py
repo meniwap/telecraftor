@@ -148,8 +148,7 @@ async def main(args: argparse.Namespace) -> None:
         if e.text:
             direction = "OUT" if e.outgoing else "IN"
             print(
-                f"[{direction}] peer={e.peer_type}:{e.peer_id} "
-                f"sender={e.sender_id} text={e.text!r}"
+                f"[{direction}] peer={e.peer_type}:{e.peer_id} sender={e.sender_id} text={e.text!r}"
             )
 
     # Userbot-style commands: trigger on outgoing messages you type yourself.
