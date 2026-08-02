@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from telecraft.client.apis._utils import resolve_input_peer, resolve_input_user
+from telecraft.client.entities import EntityCache
 from telecraft.client.mtproto import ClientInit, MtprotoClient
 from telecraft.client.peers import Peer
 from telecraft.tl.generated.types import InputPeerSelf, InputUserSelf
@@ -27,6 +28,30 @@ def test_resolve_peer_self_alias_returns_current_user(alias: str) -> None:
     resolved = asyncio.run(client.resolve_peer(alias))
 
     assert resolved == Peer.user(123)
+    assert client.entities.self_user_id == 123
+
+
+def test_entity_cache_uses_self_constructors_without_access_hash() -> None:
+    cache = EntityCache(self_user_id=123)
+
+    assert isinstance(cache.input_peer(Peer.user(123)), InputPeerSelf)
+    assert isinstance(cache.input_user(123), InputUserSelf)
+
+
+def test_send_action_self_alias_uses_input_peer_self_without_access_hash() -> None:
+    client = _client()
+    client.self_user_id = 123
+    seen: list[Any] = []
+
+    async def invoke_api(request: Any, *, timeout: float) -> bool:
+        seen.append((request, timeout))
+        return True
+
+    client.invoke_api = invoke_api  # type: ignore[assignment]
+
+    assert asyncio.run(client.send_action("self", timeout=7.0)) is True
+    assert isinstance(seen[0][0].peer, InputPeerSelf)
+    assert seen[0][1] == 7.0
 
 
 def test_resolve_peer_self_alias_fetches_current_user_when_not_cached() -> None:
@@ -118,6 +143,7 @@ def test_history_self_alias_uses_input_peer_self(method: str, alias: str) -> Non
     if method == "get_history":
         assert asyncio.run(client.get_history(alias, limit=5, timeout=7.0)) == []
     else:
+
         async def consume() -> list[Any]:
             return [item async for item in client.iter_messages(alias, limit=5, timeout=7.0)]
 

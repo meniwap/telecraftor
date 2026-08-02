@@ -30,13 +30,15 @@ from telecraft.tl.generated.types import (
     ServerDhParamsOk,
 )
 
-from .dh import make_dh_result
-from .kdf import new_nonce_hash, server_salt, tmp_aes_key_iv
+from .dh import DhResult, make_dh_result
+from .kdf import auth_key_aux_hash, new_nonce_hash, server_salt, tmp_aes_key_iv
 from .pq import factorize_pq
 
 logger = logging.getLogger(__name__)
 
 _UNENCRYPTED_ENVELOPE_MIN_LEN = 8 + 8 + 4  # auth_key_id + msg_id + length
+_MAX_PQ_BYTES = 8
+_MAX_DH_GEN_RETRIES = 3
 
 
 class AuthHandshakeError(Exception):
@@ -111,6 +113,12 @@ def build_pq_inner_data(res_pq: ResPq) -> HandshakeState:
         raise AuthHandshakeError("resPQ.server_nonce is not int128 bytes")
     if not isinstance(pq_bytes, (bytes, bytearray)):
         raise AuthHandshakeError("resPQ.pq is not bytes")
+    if not pq_bytes:
+        raise AuthHandshakeError("resPQ.pq is empty")
+    if len(pq_bytes) > _MAX_PQ_BYTES:
+        raise AuthHandshakeError(
+            f"resPQ.pq is too large: {len(pq_bytes)} bytes (maximum {_MAX_PQ_BYTES})"
+        )
     pq_int = _pq_bytes_to_int(bytes(pq_bytes))
     logger.debug(f"Factorizing pq: {pq_int} (hex: {pq_int:x})")
     p_int, q_int = factorize_pq(pq_int)
@@ -331,9 +339,7 @@ def _validate_server_dh_params_response(
         raise AuthHandshakeError(f"Unexpected response to req_DH_params: {type(response)}")
 
     response_name = (
-        "server_DH_params_ok"
-        if isinstance(response, ServerDhParamsOk)
-        else "server_DH_params_fail"
+        "server_DH_params_ok" if isinstance(response, ServerDhParamsOk) else "server_DH_params_fail"
     )
     _validate_known_nonces(
         response,
@@ -361,11 +367,9 @@ def _validate_dh_gen_response(
     server_nonce: bytes,
     new_nonce: bytes,
     auth_key: bytes,
-) -> None:
+) -> DhGenOk | DhGenRetry:
     if not isinstance(response, (DhGenOk, DhGenRetry, DhGenFail)):
-        raise AuthHandshakeError(
-            f"Unexpected response to set_client_DH_params: {type(response)}"
-        )
+        raise AuthHandshakeError(f"Unexpected response to set_client_DH_params: {type(response)}")
     _validate_known_nonces(
         response,
         response_name=type(response).__name__,
@@ -382,7 +386,7 @@ def _validate_dh_gen_response(
         )
         if not hmac.compare_digest(actual, expected):
             raise AuthHandshakeError("dh_gen_ok new_nonce_hash1 mismatch")
-        return
+        return response
 
     if isinstance(response, DhGenRetry):
         expected = new_nonce_hash(new_nonce=new_nonce, auth_key=auth_key, number=2)
@@ -393,7 +397,7 @@ def _validate_dh_gen_response(
         )
         if not hmac.compare_digest(actual, expected):
             raise AuthHandshakeError("dh_gen_retry new_nonce_hash2 mismatch")
-        raise AuthHandshakeError("Server requested dh_gen_retry (not supported in smoke flow yet)")
+        return response
 
     expected = new_nonce_hash(new_nonce=new_nonce, auth_key=auth_key, number=3)
     actual = _require_bytes(
@@ -404,6 +408,76 @@ def _validate_dh_gen_response(
     if not hmac.compare_digest(actual, expected):
         raise AuthHandshakeError("dh_gen_fail new_nonce_hash3 mismatch")
     raise AuthHandshakeError("Server returned dh_gen_fail")
+
+
+def _auth_key_aux_hash_as_long(auth_key: bytes) -> int:
+    """Encode auth_key_aux_hash as the signed little-endian TL ``long`` value."""
+
+    return int.from_bytes(auth_key_aux_hash(auth_key), "little", signed=True)
+
+
+async def _complete_client_dh_exchange(
+    transport: PacketTransport,
+    msg_id_gen: MsgIdGenerator,
+    *,
+    nonce: bytes,
+    server_nonce: bytes,
+    new_nonce: bytes,
+    g: int,
+    dh_prime: bytes,
+    g_a: bytes,
+    max_retries: int = _MAX_DH_GEN_RETRIES,
+) -> DhResult:
+    """Send client DH values, honoring validated ``dh_gen_retry`` responses."""
+
+    if max_retries < 0:
+        raise ValueError("max_retries must be non-negative")
+
+    tmp_key, tmp_iv = tmp_aes_key_iv(new_nonce=new_nonce, server_nonce=server_nonce)
+    retry_id = 0
+    retries = 0
+
+    while True:
+        # A retry must use a newly generated b, hence a fresh DH result.
+        dh_res = make_dh_result(g=g, dh_prime=dh_prime, g_a=g_a)
+        client_inner = ClientDhInnerData(
+            nonce=nonce,
+            server_nonce=server_nonce,
+            retry_id=retry_id,
+            g_b=dh_res.g_b,
+        )
+        client_data = dumps(client_inner)
+        plain = sha1(client_data) + client_data
+        plain += random_bytes((-len(plain)) % 16)
+
+        encrypted_data = AesIge(key=tmp_key, iv=tmp_iv).encrypt(plain)
+        request = SetClientDhParams(
+            nonce=nonce,
+            server_nonce=server_nonce,
+            encrypted_data=encrypted_data,
+        )
+        answer = await _send_unencrypted_request(transport, msg_id_gen, request)
+        result = _validate_dh_gen_response(
+            answer,
+            nonce=nonce,
+            server_nonce=server_nonce,
+            new_nonce=new_nonce,
+            auth_key=dh_res.auth_key,
+        )
+        if isinstance(result, DhGenOk):
+            return dh_res
+
+        if retries >= max_retries:
+            raise AuthHandshakeError(
+                f"Server requested too many dh_gen_retry attempts (maximum {max_retries})"
+            )
+        retries += 1
+        retry_id = _auth_key_aux_hash_as_long(dh_res.auth_key)
+        logger.info(
+            "Server requested dh_gen_retry; generating a fresh client DH value (retry %d/%d)",
+            retries,
+            max_retries,
+        )
 
 
 async def exchange_auth_key(
@@ -487,33 +561,15 @@ async def exchange_auth_key(
     if not isinstance(server_inner.server_time, int):
         raise AuthHandshakeError("server_DH_inner_data.server_time is not int")
 
-    dh_res = make_dh_result(
-        g=int(server_inner.g),
-        dh_prime=bytes(server_inner.dh_prime),
-        g_a=bytes(server_inner.g_a),
-    )
-
-    client_inner = ClientDhInnerData(
-        nonce=st.nonce,
-        server_nonce=st.server_nonce,
-        retry_id=0,
-        g_b=dh_res.g_b,
-    )
-    client_data = dumps(client_inner)
-    plain = sha1(client_data) + client_data
-    plain += random_bytes((-len(plain)) % 16)
-
-    tmp_key, tmp_iv = tmp_aes_key_iv(new_nonce=st.new_nonce, server_nonce=st.server_nonce)
-    enc = AesIge(key=tmp_key, iv=tmp_iv).encrypt(plain)
-
-    set_dh = SetClientDhParams(nonce=st.nonce, server_nonce=st.server_nonce, encrypted_data=enc)
-    ans = await _send_unencrypted_request(transport, msg_id_gen, set_dh)
-    _validate_dh_gen_response(
-        ans,
+    dh_res = await _complete_client_dh_exchange(
+        transport,
+        msg_id_gen,
         nonce=st.nonce,
         server_nonce=st.server_nonce,
         new_nonce=st.new_nonce,
-        auth_key=dh_res.auth_key,
+        g=int(server_inner.g),
+        dh_prime=bytes(server_inner.dh_prime),
+        g_a=bytes(server_inner.g_a),
     )
 
     salt = server_salt(new_nonce=st.new_nonce, server_nonce=st.server_nonce)

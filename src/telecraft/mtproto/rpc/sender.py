@@ -89,6 +89,13 @@ class ReceiverTerminated:
     error: RpcSenderError
 
 
+@dataclass(frozen=True, slots=True)
+class UpdatesRecoveryRequired:
+    """Signal that the updates consumer must recover with ``updates.getDifference``."""
+
+    reason: str
+
+
 def _parse_inner_message(inner: bytes) -> tuple[int, int, bytes]:
     if len(inner) < 16:
         raise RpcSenderError("Inner message too short")
@@ -240,6 +247,9 @@ class _PendingCall:
     future: asyncio.Future[Any]
     msg_ids: set[int] = field(default_factory=set)
     attempts: int = 0
+    active_msg_id: int | None = None
+    bad_salt_retries: int = 0
+    bad_time_retries: int = 0
 
 
 @dataclass(slots=True)
@@ -269,7 +279,10 @@ class MtprotoEncryptedSender:
         *,
         state: MtprotoState,
         msg_id_gen: MsgIdGenerator,
-        incoming_queue: asyncio.Queue[ReceivedMessage | ReceiverTerminated] | None = None,
+        incoming_queue: asyncio.Queue[
+            ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired
+        ]
+        | None = None,
         flood_wait_config: FloodWaitConfig | None = None,
     ) -> None:
         self._transport = transport
@@ -292,9 +305,7 @@ class MtprotoEncryptedSender:
     def is_healthy(self) -> bool:
         task = self._recv_task
         return (
-            not self._closed
-            and self._terminal_error is None
-            and (task is None or not task.done())
+            not self._closed and self._terminal_error is None and (task is None or not task.done())
         )
 
     @property
@@ -406,34 +417,25 @@ class MtprotoEncryptedSender:
 
         try:
             await self._send_new_attempt(call)
-
-            for attempt in range(2):
-                try:
-                    result = await asyncio.wait_for(fut, timeout=timeout)
-                except TimeoutError as e:
-                    if attempt == 0 and not fut.done():
-                        logger.warning("Timed out waiting for RPC result; retrying once")
-                        await self._send_new_attempt(call)
-                        continue
-                    if not fut.done():
-                        fut.cancel()
-                    self._cleanup_call(call)
-                    raise RpcSenderError(
-                        f"Timed out waiting for response (timeout={timeout}s)"
-                    ) from e
-                except FloodWaitError:
-                    # Return FloodWaitError for handling by invoke_tl
-                    self._cleanup_call(call)
-                    raise
-                except Exception:
-                    self._cleanup_call(call)
-                    raise
-                else:
-                    self._cleanup_call(call)
-                    return result
-
-            self._cleanup_call(call)
-            raise RpcSenderError("Too many retries")
+            try:
+                # A timeout does not prove that Telegram failed to execute the
+                # request. Blindly resending a non-idempotent RPC with a fresh
+                # msg_id can execute it twice; safe retry needs msgs_state_req
+                # or a protocol-level container strategy.
+                result = await asyncio.wait_for(fut, timeout=timeout)
+            except TimeoutError as e:
+                self._cleanup_call(call)
+                raise RpcSenderError(f"Timed out waiting for response (timeout={timeout}s)") from e
+            except FloodWaitError:
+                # Return FloodWaitError for handling by invoke_tl
+                self._cleanup_call(call)
+                raise
+            except Exception:
+                self._cleanup_call(call)
+                raise
+            else:
+                self._cleanup_call(call)
+                return result
         except FloodWaitError as e:
             # Return error for outer loop to handle
             return e
@@ -460,6 +462,8 @@ class MtprotoEncryptedSender:
             # may be processed while transport.send() is still yielding.
             call.attempts += 1
             call.msg_ids.add(msg_id)
+            previous_active_msg_id = call.active_msg_id
+            call.active_msg_id = msg_id
             self._pending[msg_id] = call
             self._sent[msg_id] = (seqno, call.req_bytes)
             try:
@@ -470,6 +474,7 @@ class MtprotoEncryptedSender:
                     self._pending.pop(msg_id, None)
                 self._sent.pop(msg_id, None)
                 call.msg_ids.discard(msg_id)
+                call.active_msg_id = previous_active_msg_id
                 raise
         return msg_id
 
@@ -655,7 +660,77 @@ class MtprotoEncryptedSender:
             return out
         return [ReceivedMessage(msg_id=msg_id, seqno=seqno, obj=obj)]
 
-    async def _handle_message(self, msg: ReceivedMessage) -> None:
+    def _matching_active_call(
+        self,
+        *,
+        bad_msg_id: int,
+        bad_seqno: int,
+    ) -> _PendingCall | None:
+        call = self._pending.get(int(bad_msg_id))
+        sent = self._sent.get(int(bad_msg_id))
+        if (
+            call is None
+            or call.future.done()
+            or call.active_msg_id != int(bad_msg_id)
+            or bad_msg_id not in call.msg_ids
+            or sent is None
+        ):
+            return None
+        if int(bad_seqno) != int(sent[0]):
+            logger.warning(
+                "Ignoring bad-message recovery with mismatched seqno "
+                "bad_msg_id=%s expected=%s got=%s",
+                bad_msg_id,
+                sent[0],
+                bad_seqno,
+            )
+            return None
+        return call
+
+    def _validated_time_recovery_ids(
+        self,
+        obj: Any,
+        *,
+        outer_msg_id: int,
+        outer_seqno: int,
+    ) -> set[int]:
+        """Return server IDs carrying a validated time/salt recovery notification."""
+
+        correction_ids: set[int] = set()
+        for message in self._unwrap_received(
+            obj,
+            msg_id=int(outer_msg_id),
+            seqno=int(outer_seqno),
+        ):
+            notification = message.obj
+            if isinstance(notification, BadMsgNotification):
+                if int(cast(int, notification.error_code)) not in {16, 17}:
+                    continue
+            elif isinstance(notification, BadServerSalt):
+                if int(cast(int, notification.error_code)) != 48:
+                    continue
+            else:
+                continue
+
+            bad_msg_id = int(cast(int, notification.bad_msg_id))
+            bad_seqno = int(cast(int, notification.bad_msg_seqno))
+            if (
+                self._matching_active_call(
+                    bad_msg_id=bad_msg_id,
+                    bad_seqno=bad_seqno,
+                )
+                is None
+            ):
+                continue
+            correction_ids.add(int(message.msg_id))
+        return correction_ids
+
+    async def _handle_message(
+        self,
+        msg: ReceivedMessage,
+        *,
+        clock_already_synchronized: bool = False,
+    ) -> None:
         obj = msg.obj
 
         # Some MTProto "service" methods (notably `ping`) may be answered directly,
@@ -704,46 +779,77 @@ class MtprotoEncryptedSender:
         if isinstance(obj, NewSessionCreated):
             salt_i64 = cast(int, obj.server_salt)
             self._state.server_salt = _i64_to_le_bytes(int(salt_i64))
-            logger.debug("NewSessionCreated received; updated server_salt")
+            logger.info(
+                "NewSessionCreated received; updated server_salt and requesting updates recovery"
+            )
+            if self._incoming_queue is not None:
+                await self._incoming_queue.put(
+                    UpdatesRecoveryRequired(reason="new_session_created")
+                )
             return
 
         if isinstance(obj, BadServerSalt):
+            bad_msg_id = int(cast(int, obj.bad_msg_id))
+            bad_seqno = int(cast(int, obj.bad_msg_seqno))
+            call = self._matching_active_call(
+                bad_msg_id=bad_msg_id,
+                bad_seqno=bad_seqno,
+            )
+            if call is None:
+                logger.warning(
+                    "Ignoring BadServerSalt for unknown, stale, or mismatched msg_id=%s",
+                    bad_msg_id,
+                )
+                return
+
             new_salt_i64 = cast(int, obj.new_server_salt)
             self._state.server_salt = _i64_to_le_bytes(int(new_salt_i64))
 
-            bad_msg_id = int(cast(int, obj.bad_msg_id))
-            call = self._pending.get(bad_msg_id)
-            if call is None:
-                logger.warning("BadServerSalt for unknown msg_id=%s; updated salt only", bad_msg_id)
-                return
-
-            if call.future.done():
-                return
-
-            if call.attempts >= 2:
+            if call.bad_salt_retries >= 1:
                 call.future.set_exception(RpcSenderError("Too many retries after BadServerSalt"))
                 return
 
+            call.bad_salt_retries += 1
             logger.warning("BadServerSalt received; updating salt and retrying once")
             await self._send_new_attempt(call)
             return
 
         if isinstance(obj, BadMsgNotification):
             bad_msg_id = int(cast(int, obj.bad_msg_id))
-            call = self._pending.get(bad_msg_id)
+            bad_seqno = int(cast(int, obj.bad_msg_seqno))
+            call = self._matching_active_call(
+                bad_msg_id=bad_msg_id,
+                bad_seqno=bad_seqno,
+            )
             if call is None:
                 logger.warning(
-                    "BadMsgNotification for unknown msg_id=%s (error_code=%s)",
+                    "Ignoring BadMsgNotification for unknown, stale, or mismatched "
+                    "msg_id=%s (error_code=%s)",
                     bad_msg_id,
                     int(cast(int, obj.error_code)),
                 )
                 return
-            if not call.future.done():
-                call.future.set_exception(
-                    RpcSenderError(
-                        f"BadMsgNotification error_code={int(cast(int, obj.error_code))}"
+            error_code = int(cast(int, obj.error_code))
+            if error_code in {16, 17}:
+                if call.bad_time_retries >= 1:
+                    call.future.set_exception(
+                        RpcSenderError("Too many retries after bad msg_id time correction")
                     )
+                    return
+                if not clock_already_synchronized:
+                    self._msg_id_gen.synchronize_from_msg_id(msg.msg_id)
+                    # synchronize_from_msg_id resets the rejected client floor.
+                    # Re-observe the valid server notification so the retry is
+                    # still newer than the message that authorized correction.
+                    self._msg_id_gen.observe(msg.msg_id)
+                call.bad_time_retries += 1
+                logger.warning(
+                    "BadMsgNotification error_code=%s; correcting clock and retrying once",
+                    error_code,
                 )
+                await self._send_new_attempt(call)
+                return
+            call.future.set_exception(RpcSenderError(f"BadMsgNotification error_code={error_code}"))
             return
 
         if isinstance(obj, MsgResendReq):
@@ -774,14 +880,18 @@ class MtprotoEncryptedSender:
                 inner_resp = self._state.decrypt_packet(packet, from_server=True)
                 outer_msg_id, outer_seqno, body = _parse_inner_message(inner_resp)
 
-                now = int(time.time())
+                now = int(self._msg_id_gen.now())
                 floor = min(self._received_msg_ids) if self._received_msg_ids else None
                 reason = self._server_msg_id_rejection_reason(
                     outer_msg_id,
                     now=now,
                     floor=floor,
                 )
-                if reason is not None:
+                time_rejection = reason in {
+                    "more than 30 seconds in the future",
+                    "more than 300 seconds in the past",
+                }
+                if reason is not None and not time_rejection:
                     logger.debug(
                         "Ignoring incoming packet with server msg_id=%s: %s",
                         outer_msg_id,
@@ -810,8 +920,37 @@ class MtprotoEncryptedSender:
                         outer_msg_id=outer_msg_id,
                         error=e,
                     )
+                    if self._incoming_queue is not None:
+                        # Telegram requires getDifference after an update payload
+                        # cannot be deserialized. The raw payload may be an RPC
+                        # result, an update, or a container containing both, so a
+                        # recovery request is the only safe classification here.
+                        await self._incoming_queue.put(
+                            UpdatesRecoveryRequired(reason="tl_decode_failure")
+                        )
                     await self._send_ack([outer_msg_id])
                     continue
+
+                clock_correction_ids: set[int] = set()
+                if time_rejection:
+                    # A cryptographically valid bad_msg_notification is the
+                    # recovery mechanism for a client clock outside the normal
+                    # receive window. Telegram additionally requires that it
+                    # refer to a recently sent message before adjusting time.
+                    clock_correction_ids = self._validated_time_recovery_ids(
+                        obj,
+                        outer_msg_id=outer_msg_id,
+                        outer_seqno=outer_seqno,
+                    )
+                    if not clock_correction_ids:
+                        logger.warning(
+                            "Ignoring time-skewed server msg_id=%s without a valid "
+                            "pending-call clock correction",
+                            outer_msg_id,
+                        )
+                        continue
+                    self._msg_id_gen.synchronize_from_msg_id(max(clock_correction_ids))
+                    now = int(self._msg_id_gen.now())
 
                 candidate_ids, container_msg_ids = self._collect_received_msg_ids(
                     obj,
@@ -833,16 +972,17 @@ class MtprotoEncryptedSender:
                     processed_ids.add(m.msg_id)
                     if not isinstance(m.obj, MsgsAck):
                         ack_ids.append(m.msg_id)
-                    await self._handle_message(m)
+                    await self._handle_message(
+                        m,
+                        clock_already_synchronized=m.msg_id in clock_correction_ids,
+                    )
 
                 await self._send_ack(ack_ids)
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001
             logger.exception("Receiver loop crashed; failing all pending calls")
-            error = RpcSenderError(
-                f"Receiver loop crashed ({type(exc).__name__}: {exc})"
-            )
+            error = RpcSenderError(f"Receiver loop crashed ({type(exc).__name__}: {exc})")
             error.__cause__ = exc
             self._terminal_error = error
             self._fail_all_pending(error)

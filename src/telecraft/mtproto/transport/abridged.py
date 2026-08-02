@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .base import TransportError
+from .base import MAX_FRAME_SIZE_BYTES, TransportError
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +24,8 @@ class AbridgedFraming:
     def encode(self, payload: bytes) -> bytes:
         if len(payload) % 4 != 0:
             raise TransportError("Abridged framing requires payload length multiple of 4 bytes.")
+        if len(payload) > MAX_FRAME_SIZE_BYTES:
+            raise TransportError("Payload too large for abridged framing.")
 
         ln_words = len(payload) // 4
         if ln_words < 127:
@@ -44,7 +46,13 @@ class AbridgedFraming:
         else:
             ln_words = first
             header_len = 1
-        total = header_len + (ln_words * 4)
+        payload_len = ln_words * 4
+        if payload_len > MAX_FRAME_SIZE_BYTES:
+            raise TransportError(
+                f"Abridged payload exceeds maximum frame size: {payload_len} > "
+                f"{MAX_FRAME_SIZE_BYTES}"
+            )
+        total = header_len + payload_len
         if len(buffer) < total:
             return None
         payload = bytes(buffer[header_len:total])

@@ -3,7 +3,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 
-from .base import TransportError
+from .base import MAX_FRAME_SIZE_BYTES, TransportError
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +27,7 @@ class IntermediateFraming:
             raise TransportError(
                 "Intermediate framing requires payload length multiple of 4 bytes."
             )
-        if len(payload) >= 2**31:
+        if len(payload) > MAX_FRAME_SIZE_BYTES:
             raise TransportError("Payload too large for intermediate framing.")
         return struct.pack("<i", len(payload)) + payload
 
@@ -37,11 +37,15 @@ class IntermediateFraming:
         (ln,) = struct.unpack("<i", buffer[:4])
         if ln < 0:
             raise TransportError(f"Negative length in intermediate framing: {ln}")
+        if ln > MAX_FRAME_SIZE_BYTES:
+            raise TransportError(
+                f"Intermediate payload exceeds maximum frame size: {ln} > {MAX_FRAME_SIZE_BYTES}"
+            )
+        if ln % 4 != 0:
+            raise TransportError("Intermediate payload length is not multiple of 4.")
         total = 4 + ln
         if len(buffer) < total:
             return None
         payload = bytes(buffer[4:total])
         del buffer[:total]
-        if len(payload) % 4 != 0:
-            raise TransportError("Intermediate payload length is not multiple of 4.")
         return payload

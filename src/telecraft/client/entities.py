@@ -14,6 +14,7 @@ from telecraft.tl.generated.types import (
     InputPeerSelf,
     InputPeerUser,
     InputUser,
+    InputUserSelf,
 )
 
 
@@ -25,7 +26,7 @@ class EntityCacheStorageError(Exception):
     pass
 
 
-_ENTITY_CACHE_VERSION = 2
+_ENTITY_CACHE_VERSION = 3
 
 
 def _decode_str(v: object) -> str | None:
@@ -51,6 +52,10 @@ class EntityCache:
     # High-level maps to enable resolve-by-string without hitting the network.
     username_to_peer: dict[str, tuple[PeerType, int]] = field(default_factory=dict)
     phone_to_user_id: dict[str, int] = field(default_factory=dict)
+    # Hex-encoded MTProto auth_key_id. Access hashes are scoped to the
+    # authorization that produced them and must not cross account boundaries.
+    auth_key_id: str | None = None
+    self_user_id: int | None = None
 
     def ingest_users(self, users: list[Any]) -> None:
         for u in users:
@@ -117,16 +122,20 @@ class EntityCache:
             return self.input_peer_chat(peer.peer_id)
         raise EntityCacheError(f"Unknown peer_type: {peer.peer_type!r}")
 
-    def input_peer_user(self, user_id: int) -> InputPeerUser:
+    def input_peer_user(self, user_id: int) -> InputPeerUser | InputPeerSelf:
+        if self.self_user_id is not None and int(user_id) == self.self_user_id:
+            return InputPeerSelf()
         ah = self.user_access_hash.get(int(user_id))
         if ah is None:
             raise EntityCacheError(f"Unknown user access_hash for user_id={user_id}")
         return InputPeerUser(user_id=int(user_id), access_hash=int(ah))
 
-    def input_user(self, user_id: int) -> InputUser:
+    def input_user(self, user_id: int) -> InputUser | InputUserSelf:
         """
         Build InputUser (used by some methods like channels.editAdmin).
         """
+        if self.self_user_id is not None and int(user_id) == self.self_user_id:
+            return InputUserSelf()
         ah = self.user_access_hash.get(int(user_id))
         if ah is None:
             raise EntityCacheError(f"Unknown user access_hash for user_id={user_id}")
@@ -176,6 +185,8 @@ class EntityCache:
     def to_json_dict(self) -> dict[str, object]:
         return {
             "version": _ENTITY_CACHE_VERSION,
+            "auth_key_id": self.auth_key_id,
+            "self_user_id": self.self_user_id,
             "user_access_hash": {str(k): int(v) for k, v in self.user_access_hash.items()},
             "channel_access_hash": {str(k): int(v) for k, v in self.channel_access_hash.items()},
             "username_to_peer": {
@@ -191,8 +202,29 @@ class EntityCache:
             if not isinstance(version_obj, (int, str)):
                 raise EntityCacheStorageError("Invalid version")
             version = int(version_obj)
-            if version not in {1, _ENTITY_CACHE_VERSION}:
+            if version not in {1, 2, _ENTITY_CACHE_VERSION}:
                 raise EntityCacheStorageError(f"Unsupported entity cache version: {version}")
+
+            auth_key_id: str | None = None
+            self_user_id: int | None = None
+            if version >= 3:
+                auth_key_id_obj = data.get("auth_key_id")
+                if auth_key_id_obj is not None:
+                    if not isinstance(auth_key_id_obj, str):
+                        raise EntityCacheStorageError("Invalid auth_key_id")
+                    auth_key_id = auth_key_id_obj.casefold()
+                    if len(auth_key_id) != 16 or any(
+                        char not in "0123456789abcdef" for char in auth_key_id
+                    ):
+                        raise EntityCacheStorageError("Invalid auth_key_id")
+
+                self_user_id_obj = data.get("self_user_id")
+                if self_user_id_obj is not None:
+                    if not isinstance(self_user_id_obj, (int, str)):
+                        raise EntityCacheStorageError("Invalid self_user_id")
+                    self_user_id = int(self_user_id_obj)
+                    if self_user_id <= 0:
+                        raise EntityCacheStorageError("Invalid self_user_id")
 
             ua = data.get("user_access_hash", {})
             ca = data.get("channel_access_hash", {})
@@ -241,6 +273,8 @@ class EntityCache:
         out.channel_access_hash = channel_access_hash
         out.username_to_peer = username_to_peer
         out.phone_to_user_id = phone_to_user_id
+        out.auth_key_id = auth_key_id
+        out.self_user_id = self_user_id
         return out
 
 

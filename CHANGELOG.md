@@ -12,8 +12,39 @@ The format follows a simplified Keep a Changelog style:
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-03
+
+Production hardening and public-package follow-up release.
+
+### Added
+
+- Added the installed `telecraft` operator CLI, while keeping `apps/run.py` as a compatibility
+  wrapper, plus a strict public resolver for the current concrete session file.
+- Added auth-bound entity and updates sidecars with an explicit one-time trust option for migrating
+  legacy unbound updates checkpoints without silently choosing between continuity and account
+  isolation.
+- Added complete recursive contract discovery for all 576 reachable high-level API call paths.
+
+### Changed
+
+- Raised the `cryptography` dependency floor to `48.0.1` and report the real package version in
+  Telegram's `initConnection` metadata.
+- Clarified that generated Telegram result objects are not all normalized into statically typed
+  DTO return values.
+
 ### Fixed
 
+- Made logout atomically tear down the connection, remove session sidecars and matching current
+  pointers, and reset account identity before a waiting reconnect can proceed.
+- Prevented concurrent cross-DC media clients from leaking or duplicating authorization imports.
+- Preserved ordinary co-delivered updates when `updatePtsChanged` refreshes global state, recovered
+  after new sessions, decode failures and idle gaps, and bounded difference pagination with
+  transactional rollback.
+- Implemented `dh_gen_retry` with a fresh exponent and the previous key's auxiliary hash, rejected
+  oversized factorization input, and removed duplicate generated `Vector` definitions.
+- Made `self`/`me` consistently use Telegram's self constructors without requiring an access hash.
+- Removed unsafe blind RPC resends after ambiguous timeouts; explicit server rejection recovery
+  remains bounded and validated.
 - Reserved bare `self` and `me` peer aliases for the current account across message, media,
   history, and v2 peer-resolution APIs instead of resolving them as public usernames.
 - Made concurrent GroupBot SQLite schema initialization retry transient `BUSY`/`LOCKED` failures
@@ -22,6 +53,15 @@ The format follows a simplified Keep a Changelog style:
 
 ### Security
 
+- Bounded inbound and outbound MTProto transport frames to 16 MiB.
+- Accepted time/salt recovery notifications outside the normal receive window only when their
+  message ID and sequence number match the active pending request, including nested containers.
+- Ensured generated client message IDs have a non-zero fractional component after clock sync.
+- Created GroupBot SQLite databases, WAL/SHM sidecars, and current-session pointers with private
+  permissions and atomic durable replacement.
+- Hid interactively entered bot tokens instead of echoing them to the terminal.
+- Documented that GroupBot plugins execute with the bot process's full privileges and must be
+  owner-controlled; syntax preflight is not a sandbox.
 - Rejected additional control, bidirectional-spoofing, and Windows device-name variants in
   untrusted download filenames.
 - Added a best-effort parent-directory durability barrier after private atomic file replacements.

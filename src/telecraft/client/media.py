@@ -495,9 +495,7 @@ async def iter_download_via_get_file(
             break
         next_offset = offset + len(chunk)
         if expected_size is not None and next_offset > expected_size:
-            raise MediaError(
-                f"download_media: file exceeded declared size {expected_size} bytes"
-            )
+            raise MediaError(f"download_media: file exceeded declared size {expected_size} bytes")
         if max_size is not None and next_offset > max_size:
             raise MediaError(
                 f"download_media: received more than in-memory limit {max_size}; "

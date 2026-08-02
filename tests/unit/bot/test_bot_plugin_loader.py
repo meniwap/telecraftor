@@ -38,8 +38,7 @@ def test_plugin_loader__reload__returns_expected_shape() -> None:
         with TemporaryDirectory() as td:
             plugin_path = Path(td) / "plugin_b.py"
             plugin_path.write_text(
-                "def setup(router):\n"
-                "    router._plugin_reload_value = 3\n",
+                "def setup(router):\n    router._plugin_reload_value = 3\n",
                 encoding="utf-8",
                 newline="\n",
             )
@@ -47,8 +46,7 @@ def test_plugin_loader__reload__returns_expected_shape() -> None:
             first = int(getattr(router, "_plugin_reload_value", 0))
 
             plugin_path.write_text(
-                "def setup(router):\n"
-                "    router._plugin_reload_value = 7\n",
+                "def setup(router):\n    router._plugin_reload_value = 7\n",
                 encoding="utf-8",
                 newline="\n",
             )

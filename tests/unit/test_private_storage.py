@@ -19,6 +19,16 @@ def test_atomic_write_private_text__creates_target_with_mode_0600(tmp_path: Path
     assert stat.S_IMODE(target.stat().st_mode) == 0o600
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX mode assertion")
+def test_ensure_private_file__creates_and_tightens_mode(tmp_path: Path) -> None:
+    target = tmp_path / "private.sqlite"
+    target.write_bytes(b"")
+    target.chmod(0o644)
+
+    assert _private_storage.ensure_private_file(target) == target
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+
+
 def test_atomic_write_private_text__fsyncs_parent_after_replace(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

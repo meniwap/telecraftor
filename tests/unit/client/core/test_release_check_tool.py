@@ -36,7 +36,7 @@ def _create_repo(
     changelog_version = version if changelog_version is None else changelog_version
     _write_file(
         root / "pyproject.toml",
-        f"[project]\nname = \"telecraft\"\nversion = \"{version}\"\n",
+        f'[project]\nname = "telecraft"\nversion = "{version}"\n',
     )
     _write_file(
         root / "CHANGELOG.md",
@@ -89,9 +89,7 @@ def _create_repo(
     _write_file(root / ".gitignore", "reports/\nout/\nrelease/\nunused/\n")
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.name", "Telecraft Tests"], cwd=root, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "tests@invalid.example"], cwd=root, check=True
-    )
+    subprocess.run(["git", "config", "user.email", "tests@invalid.example"], cwd=root, check=True)
     subprocess.run(["git", "add", "."], cwd=root, check=True)
     subprocess.run(["git", "commit", "-qm", "fixture"], cwd=root, check=True)
 
@@ -208,9 +206,7 @@ def test_release_check__internal_0_1_line_does_not_require_prod_safe_artifacts(
     )
     assert rc == 0
 
-    manifest = json.loads(
-        (tmp_path / "out/release_manifest.json").read_text(encoding="utf-8")
-    )
+    manifest = json.loads((tmp_path / "out/release_manifest.json").read_text(encoding="utf-8"))
     assert manifest["is_public_release_line"] is False
     assert manifest["checks"]["prod_safe_gate_required"] is False
     assert manifest["prod_safe_runs"]["core"] == "not required for internal 0.1.x line"
