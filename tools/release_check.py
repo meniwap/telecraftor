@@ -254,12 +254,16 @@ def _load_live_evidence_map(root: Path) -> dict[str, dict[str, Any]]:
             raise ReleaseCheckError(f"live evidence suite {name} must be an object")
         steps = suite.get("required_steps")
         methods = suite.get("stable_methods")
-        if not isinstance(steps, list) or not steps or not all(
-            isinstance(step, str) and step for step in steps
+        if (
+            not isinstance(steps, list)
+            or not steps
+            or not all(isinstance(step, str) and step for step in steps)
         ):
             raise ReleaseCheckError(f"live evidence suite {name} has invalid required_steps")
-        if not isinstance(methods, list) or not methods or not all(
-            isinstance(method, str) and method for method in methods
+        if (
+            not isinstance(methods, list)
+            or not methods
+            or not all(isinstance(method, str) and method for method in methods)
         ):
             raise ReleaseCheckError(f"live evidence suite {name} has invalid stable_methods")
     return suites
@@ -335,9 +339,7 @@ def _load_run_artifacts(
         if not isinstance(item, dict) or not isinstance(item.get("name"), str):
             raise ReleaseCheckError(f"prod-safe run {run_id} has malformed step entry")
         if item.get("status") != "PASS":
-            raise ReleaseCheckError(
-                f"prod-safe run {run_id} step {item['name']} did not pass"
-            )
+            raise ReleaseCheckError(f"prod-safe run {run_id} step {item['name']} did not pass")
         observed_steps.append(str(item["name"]))
     if observed_steps != required_steps:
         raise ReleaseCheckError(
@@ -345,9 +347,7 @@ def _load_run_artifacts(
             f"expected={required_steps!r}, observed={observed_steps!r}"
         )
     if pass_count != len(required_steps):
-        raise ReleaseCheckError(
-            f"prod-safe run {run_id} pass_count mismatch: {pass_count}"
-        )
+        raise ReleaseCheckError(f"prod-safe run {run_id} pass_count mismatch: {pass_count}")
 
     probes = artifacts_data.get("connection_health_probes")
     if not isinstance(probes, dict):
@@ -430,9 +430,7 @@ def _validate_evidence_run(
         "connection_health_probes",
     }
     if set(value) != allowed_run_fields:
-        raise ReleaseCheckError(
-            f"release evidence suite {suite_name} contains unexpected fields"
-        )
+        raise ReleaseCheckError(f"release evidence suite {suite_name} contains unexpected fields")
     run_id = value.get("run_id")
     digest = value.get("artifact_sha256")
     steps = value.get("steps")
@@ -444,17 +442,13 @@ def _validate_evidence_run(
             f"release evidence suite {suite_name} is not bound to the tested clean source"
         )
     if not isinstance(digest, str) or SHA256_RE.fullmatch(digest) is None:
-        raise ReleaseCheckError(
-            f"release evidence suite {suite_name} has invalid artifact_sha256"
-        )
+        raise ReleaseCheckError(f"release evidence suite {suite_name} has invalid artifact_sha256")
     if value.get("fail_count") != 0 or value.get("cleanup_errors") != 0:
         raise ReleaseCheckError(f"release evidence suite {suite_name} reports failures")
     if value.get("pass_count") != len(required_steps) or steps != required_steps:
         raise ReleaseCheckError(f"release evidence suite {suite_name} has incomplete step coverage")
     if not isinstance(probes, dict) or probes.get("fail") != 0:
-        raise ReleaseCheckError(
-            f"release evidence suite {suite_name} has failed health probes"
-        )
+        raise ReleaseCheckError(f"release evidence suite {suite_name} has failed health probes")
     if set(probes) != {"enabled", "probe", "pass", "fail"}:
         raise ReleaseCheckError(
             f"release evidence suite {suite_name} has unexpected health probe fields"
@@ -464,9 +458,7 @@ def _validate_evidence_run(
         or probes.get("probe") != "profile.me"
         or probes.get("pass") != len(required_steps)
     ):
-        raise ReleaseCheckError(
-            f"release evidence suite {suite_name} has incomplete health probes"
-        )
+        raise ReleaseCheckError(f"release evidence suite {suite_name} has incomplete health probes")
     return value
 
 
@@ -515,9 +507,7 @@ def _load_release_evidence(
     if (
         not isinstance(evidence_checks, dict)
         or set(evidence_checks) != required_checks
-        or any(
-        evidence_checks.get(name) is not True for name in required_checks
-        )
+        or any(evidence_checks.get(name) is not True for name in required_checks)
     ):
         raise ReleaseCheckError("release evidence has incomplete static checks")
 

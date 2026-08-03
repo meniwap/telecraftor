@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from telecraft.mtproto.core.msg_id import MsgIdGenerator
 from telecraft.mtproto.gzip_utils import MAX_GZIP_UNPACKED_SIZE
 from telecraft.mtproto.rpc.sender import (
     MtprotoEncryptedSender,
@@ -22,7 +23,12 @@ from telecraft.mtproto.rpc.sender import (
     extract_req_msg_ids_from_payload,
 )
 from telecraft.tl.codec import dumps
-from telecraft.tl.generated.types import Pong, UpdateConfig
+from telecraft.tl.generated.types import (
+    BadMsgNotification,
+    BadServerSalt,
+    Pong,
+    UpdateConfig,
+)
 
 _RPC_RESULT_CONSTRUCTOR_ID = -212046591
 _MSG_CONTAINER_CONSTRUCTOR_ID = 1945237724
@@ -47,6 +53,8 @@ class _FakeMsgIdGen:
     def __init__(self) -> None:
         self._next = 9000
         self.observed: list[int] = []
+        self.synchronized: list[int] = []
+        self._now = time.time()
 
     def next(self) -> int:
         self._next += 4
@@ -54,6 +62,19 @@ class _FakeMsgIdGen:
 
     def observe(self, msg_id: int) -> None:
         self.observed.append(int(msg_id))
+
+    def now(self) -> float:
+        return self._now
+
+    def synchronize_from_msg_id(
+        self,
+        server_msg_id: int,
+        *,
+        reset_last: bool = True,
+    ) -> None:
+        _ = reset_last
+        self.synchronized.append(int(server_msg_id))
+        self._now = float(int(server_msg_id) >> 32)
 
 
 class _FakeTransport:
@@ -376,6 +397,303 @@ def test_sender__registers_call_before_send_can_receive_fast_response() -> None:
     asyncio.run(_run())
 
 
+def test_sender__rpc_timeout_does_not_blindly_resend_non_idempotent_request() -> None:
+    async def _run() -> None:
+        transport = _FakeTransport()
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=_FakeMsgIdGen(),
+        )
+
+        with pytest.raises(RpcSenderError, match="Timed out waiting"):
+            await sender._invoke_tl_once(
+                object(),
+                dumps_fn=lambda _: b"req!",
+                timeout=0.01,
+            )
+
+        assert len(transport.sent) == 1
+        assert sender._pending == {}
+        assert sender._sent == {}
+
+    asyncio.run(_run())
+
+
+def test_sender__clock_skew_bad_msg_is_accepted_and_request_is_retried() -> None:
+    async def _run() -> None:
+        request_msg_id = 101
+        server_msg_id = _server_msg_id(low_bits=1, seconds=3_600)
+        bad_msg = dumps(
+            BadMsgNotification(
+                bad_msg_id=request_msg_id,
+                bad_msg_seqno=1,
+                error_code=16,
+            )
+        )
+        transport = _FakeTransport([_make_inner_packet(server_msg_id, bad_msg)])
+        msg_id_gen = _FakeMsgIdGen()
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=msg_id_gen,
+        )
+        call = _PendingCall(
+            req_bytes=b"req!",
+            future=asyncio.get_running_loop().create_future(),
+            attempts=1,
+            active_msg_id=request_msg_id,
+        )
+        call.msg_ids.add(request_msg_id)
+        sender._pending[request_msg_id] = call
+        sender._sent[request_msg_id] = (1, call.req_bytes)
+
+        task = asyncio.create_task(sender._recv_loop())
+        try:
+            for _ in range(100):
+                if call.attempts == 2:
+                    break
+                await asyncio.sleep(0.001)
+
+            assert call.attempts == 2
+            assert msg_id_gen.synchronized == [server_msg_id]
+            assert server_msg_id in sender._received_msg_ids
+            assert call.future.done() is False
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+            sender._cleanup_call(call)
+
+    asyncio.run(_run())
+
+
+def test_sender__normal_window_clock_correction_keeps_server_msg_id_floor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _run() -> None:
+        frozen_time = 1_700_000_000.5
+        monkeypatch.setattr(
+            "telecraft.mtproto.core.msg_id.time.time",
+            lambda: frozen_time,
+        )
+        correction_msg_id = (1_700_000_000 << 32) | 0xF0000001
+        request_msg_id = 101
+        transport = _FakeTransport()
+        msg_id_gen = MsgIdGenerator()
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=msg_id_gen,
+        )
+        call = _PendingCall(
+            req_bytes=b"req!",
+            future=asyncio.get_running_loop().create_future(),
+            attempts=1,
+            active_msg_id=request_msg_id,
+        )
+        call.msg_ids.add(request_msg_id)
+        sender._pending[request_msg_id] = call
+        sender._sent[request_msg_id] = (1, call.req_bytes)
+
+        await sender._handle_message(
+            ReceivedMessage(
+                msg_id=correction_msg_id,
+                seqno=1,
+                obj=BadMsgNotification(
+                    bad_msg_id=request_msg_id,
+                    bad_msg_seqno=1,
+                    error_code=16,
+                ),
+            )
+        )
+
+        assert call.active_msg_id is not None
+        assert call.active_msg_id > correction_msg_id
+        sender._cleanup_call(call)
+
+    asyncio.run(_run())
+
+
+def test_sender__clock_skew_bad_msg_must_match_a_recent_pending_call() -> None:
+    async def _run() -> None:
+        server_msg_id = _server_msg_id(low_bits=1, seconds=3_600)
+        bad_msg = dumps(
+            BadMsgNotification(
+                bad_msg_id=999_999,
+                bad_msg_seqno=1,
+                error_code=16,
+            )
+        )
+        transport = _FakeTransport([_make_inner_packet(server_msg_id, bad_msg)])
+        msg_id_gen = _FakeMsgIdGen()
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=msg_id_gen,
+        )
+
+        task = asyncio.create_task(sender._recv_loop())
+        try:
+            await asyncio.sleep(0.01)
+            assert msg_id_gen.synchronized == []
+            assert sender._received_msg_ids == set()
+            assert transport.sent == []
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+    asyncio.run(_run())
+
+
+def test_sender__clock_skew_bad_msg_inside_container_retries_request() -> None:
+    async def _run() -> None:
+        request_msg_id = 101
+        correction_msg_id = _server_msg_id(low_bits=1, seconds=3_600)
+        outer_msg_id = _server_msg_id(low_bits=5, seconds=3_600)
+        bad_msg = dumps(
+            BadMsgNotification(
+                bad_msg_id=request_msg_id,
+                bad_msg_seqno=1,
+                error_code=17,
+            )
+        )
+        container = _msg_container_body([(correction_msg_id, bad_msg)])
+        transport = _FakeTransport([_make_inner_packet(outer_msg_id, container)])
+        msg_id_gen = _FakeMsgIdGen()
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=msg_id_gen,
+        )
+        call = _PendingCall(
+            req_bytes=b"req!",
+            future=asyncio.get_running_loop().create_future(),
+            attempts=1,
+            active_msg_id=request_msg_id,
+        )
+        call.msg_ids.add(request_msg_id)
+        sender._pending[request_msg_id] = call
+        sender._sent[request_msg_id] = (1, call.req_bytes)
+
+        task = asyncio.create_task(sender._recv_loop())
+        try:
+            for _ in range(100):
+                if call.attempts == 2:
+                    break
+                await asyncio.sleep(0.001)
+
+            assert call.attempts == 2
+            assert msg_id_gen.synchronized == [correction_msg_id]
+            assert sender._received_msg_ids == {correction_msg_id, outer_msg_id}
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+            sender._cleanup_call(call)
+
+    asyncio.run(_run())
+
+
+def test_sender__stale_bad_server_salt_cannot_mutate_session_or_resend() -> None:
+    async def _run() -> None:
+        transport = _FakeTransport()
+        state = _FakeState(server_salt=b"old-salt")
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=state,
+            msg_id_gen=_FakeMsgIdGen(),
+        )
+        call = _PendingCall(
+            req_bytes=b"req!",
+            future=asyncio.get_running_loop().create_future(),
+            attempts=2,
+            active_msg_id=202,
+        )
+        call.msg_ids.update({101, 202})
+        sender._pending.update({101: call, 202: call})
+        sender._sent.update({101: (1, call.req_bytes), 202: (3, call.req_bytes)})
+
+        await sender._handle_message(
+            ReceivedMessage(
+                msg_id=_server_msg_id(low_bits=1),
+                seqno=1,
+                obj=BadServerSalt(
+                    bad_msg_id=101,
+                    bad_msg_seqno=1,
+                    error_code=48,
+                    new_server_salt=123,
+                ),
+            )
+        )
+
+        assert state.server_salt == b"old-salt"
+        assert transport.sent == []
+        assert call.future.done() is False
+        sender._cleanup_call(call)
+
+    asyncio.run(_run())
+
+
+def test_sender__salt_and_time_recovery_have_independent_retry_budgets() -> None:
+    async def _run() -> None:
+        request_msg_id = 101
+        transport = _FakeTransport()
+        msg_id_gen = _FakeMsgIdGen()
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=msg_id_gen,
+        )
+        call = _PendingCall(
+            req_bytes=b"req!",
+            future=asyncio.get_running_loop().create_future(),
+            attempts=1,
+            active_msg_id=request_msg_id,
+        )
+        call.msg_ids.add(request_msg_id)
+        sender._pending[request_msg_id] = call
+        sender._sent[request_msg_id] = (1, call.req_bytes)
+
+        await sender._handle_message(
+            ReceivedMessage(
+                msg_id=_server_msg_id(low_bits=1),
+                seqno=1,
+                obj=BadServerSalt(
+                    bad_msg_id=request_msg_id,
+                    bad_msg_seqno=1,
+                    error_code=48,
+                    new_server_salt=123,
+                ),
+            )
+        )
+        after_salt_msg_id = call.active_msg_id
+        assert after_salt_msg_id is not None
+        after_salt_seqno = sender._sent[after_salt_msg_id][0]
+
+        await sender._handle_message(
+            ReceivedMessage(
+                msg_id=_server_msg_id(low_bits=5),
+                seqno=1,
+                obj=BadMsgNotification(
+                    bad_msg_id=after_salt_msg_id,
+                    bad_msg_seqno=after_salt_seqno,
+                    error_code=16,
+                ),
+            )
+        )
+
+        assert call.attempts == 3
+        assert call.bad_salt_retries == 1
+        assert call.bad_time_retries == 1
+        assert len(transport.sent) == 2
+        assert call.future.done() is False
+        sender._cleanup_call(call)
+
+    asyncio.run(_run())
+
+
 def test_sender__close_does_not_deadlock_behind_blocked_send() -> None:
     async def _run() -> None:
         transport = _BlockingSendTransport()
@@ -497,9 +815,7 @@ def test_sender__container_ids_are_validated_against_one_cache_snapshot() -> Non
         inner_second = _server_msg_id(low_bits=5)
         outer = _server_msg_id(low_bits=21)
         update = dumps(UpdateConfig())
-        container = _msg_container_body(
-            [(inner_first, update), (inner_second, update)]
-        )
+        container = _msg_container_body([(inner_first, update), (inner_second, update)])
         transport = _FakeTransport([_make_inner_packet(outer, container)])
         incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated] = asyncio.Queue()
         sender = MtprotoEncryptedSender(

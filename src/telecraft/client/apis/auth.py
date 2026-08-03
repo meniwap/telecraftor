@@ -11,7 +11,6 @@ from telecraft.tl.generated.functions import (
     AuthImportAuthorization,
     AuthImportBotAuthorization,
     AuthImportLoginToken,
-    AuthLogOut,
     AuthRecoverPassword,
     AuthRequestPasswordRecovery,
     AuthResetAuthorizations,
@@ -75,7 +74,7 @@ class AuthAPI:
         return await self._raw.check_password(password, timeout=timeout)
 
     async def log_out(self, *, timeout: float = 20.0) -> Any:
-        return await self._raw.invoke_api(AuthLogOut(), timeout=timeout)
+        return await self._raw.log_out(timeout=timeout)
 
     async def reset_authorizations(self, *, timeout: float = 20.0) -> Any:
         return await self._raw.invoke_api(AuthResetAuthorizations(), timeout=timeout)

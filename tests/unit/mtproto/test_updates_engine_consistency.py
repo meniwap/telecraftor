@@ -40,9 +40,7 @@ def _difference(*, update: Any, pts: int, date: int, seq: int) -> UpdatesDiffere
     "envelope",
     [
         Updates(updates=[], users=[], chats=[], date=200, seq=7),
-        UpdatesCombined(
-            updates=[], users=[], chats=[], date=200, seq_start=7, seq=8
-        ),
+        UpdatesCombined(updates=[], users=[], chats=[], date=200, seq_start=7, seq=8),
     ],
 )
 def test_seq_gap_recovers_without_emitting_discontinuous_envelope(envelope: Any) -> None:
@@ -418,9 +416,7 @@ def test_permanently_unavailable_channel_error_is_isolated(error_message: str) -
     engine.state = UpdatesState(pts=10, qts=0, date=100, seq=5)
     engine._channel_pts[123] = 8
 
-    applied = asyncio.run(
-        engine.apply(UpdateChannelTooLong(flags=0, channel_id=123, pts=None))
-    )
+    applied = asyncio.run(engine.apply(UpdateChannelTooLong(flags=0, channel_id=123, pts=None)))
 
     assert applied.updates == []
     assert applied.new_messages == []
@@ -485,9 +481,7 @@ def test_channel_pages_are_not_partially_delivered_if_access_is_lost() -> None:
     )
     engine.state = UpdatesState(pts=10, qts=0, date=100, seq=5)
 
-    applied = asyncio.run(
-        engine.apply(UpdateChannelTooLong(flags=0, channel_id=123, pts=None))
-    )
+    applied = asyncio.run(engine.apply(UpdateChannelTooLong(flags=0, channel_id=123, pts=None)))
 
     assert calls == 2
     assert applied.new_messages == []

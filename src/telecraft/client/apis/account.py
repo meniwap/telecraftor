@@ -477,9 +477,7 @@ class AccountMusicAPI:
                 unsave=True if unsave else None,
                 id=build_input_document(document),
                 after_id=(
-                    build_input_document(after_document)
-                    if after_document is not None
-                    else None
+                    build_input_document(after_document) if after_document is not None else None
                 ),
             ),
             timeout=timeout,

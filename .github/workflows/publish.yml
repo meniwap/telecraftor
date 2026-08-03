@@ -151,6 +151,7 @@ jobs:
           test -n "$wheel"
           python -m venv "$RUNNER_TEMP/telecraft-release-venv"
           "$RUNNER_TEMP/telecraft-release-venv/bin/python" -m pip install "$wheel"
+          "$RUNNER_TEMP/telecraft-release-venv/bin/telecraft" --help >/dev/null
           "$RUNNER_TEMP/telecraft-release-venv/bin/python" - <<'PY'
           import importlib.metadata
           import os
@@ -160,6 +161,12 @@ jobs:
           installed = importlib.metadata.version("telecraft")
           assert installed == os.environ["EXPECTED_VERSION"]
           assert telecraft.__version__ == installed
+          scripts = {
+              ep.name: ep.value
+              for ep in importlib.metadata.distribution("telecraft").entry_points
+              if ep.group == "console_scripts"
+          }
+          assert scripts.get("telecraft") == "telecraft.cli:main"
           PY
 
       - name: Upload package distributions

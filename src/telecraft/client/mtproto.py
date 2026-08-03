@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 import types
 from collections.abc import AsyncIterator
@@ -17,6 +18,7 @@ from telecraft.client.entities import (
 from telecraft.client.peers import (
     Peer,
     PeerRef,
+    is_self_peer_ref,
     normalize_phone,
     normalize_username,
     parse_peer_ref,
@@ -32,6 +34,7 @@ from telecraft.mtproto.rpc.sender import (
     ReceivedMessage,
     ReceiverTerminated,
     RpcErrorException,
+    UpdatesRecoveryRequired,
 )
 from telecraft.mtproto.session import MtprotoSession, load_session_file, save_session_file
 from telecraft.mtproto.transport.abridged import AbridgedFraming
@@ -46,6 +49,7 @@ from telecraft.tl.generated.functions import (
     AuthCheckPassword,
     AuthExportAuthorization,
     AuthImportAuthorization,
+    AuthLogOut,
     AuthSendCode,
     AuthSignIn,
     AuthSignUp,
@@ -113,6 +117,9 @@ from telecraft.tl.generated.types import (
     InputUser,
     InputUserSelf,
 )
+from telecraft.version import __version__
+
+logger = logging.getLogger(__name__)
 
 
 class MtprotoClientError(Exception):
@@ -135,6 +142,8 @@ PROD_DCS: dict[int, tuple[str, int]] = {
     5: ("91.108.56.130", 443),
 }
 
+_UPDATES_IDLE_RECOVERY_SECONDS = 15 * 60
+
 
 @dataclass(slots=True)
 class ClientInit:
@@ -142,7 +151,7 @@ class ClientInit:
     api_hash: str | None = None
     device_model: str = "telecraft"
     system_version: str = "telecraft"
-    app_version: str = "0.0"
+    app_version: str = __version__
     system_lang_code: str = "en"
     lang_pack: str = ""
     lang_code: str = "en"
@@ -191,6 +200,7 @@ class MtprotoClient:
         framing: str = "intermediate",
         session_path: str | Path | None = None,
         init: ClientInit | None = None,
+        trust_legacy_updates_state: bool = False,
     ) -> None:
         if network not in {"test", "prod"}:
             raise MtprotoClientError("network must be 'test' or 'prod'")
@@ -201,13 +211,16 @@ class MtprotoClient:
         self._framing_name = framing
         self._session_path = Path(session_path) if session_path is not None else None
         self._init = init
+        self._trust_legacy_updates_state = bool(trust_legacy_updates_state)
 
         self._transport: TcpTransport | None = None
         self._sender: MtprotoEncryptedSender | None = None
         self._state: MtprotoState | None = None
         self._msg_id_gen: MsgIdGenerator | None = None
         self._did_init_connection: bool = False
-        self._incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated] | None = None
+        self._incoming: (
+            asyncio.Queue[ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired] | None
+        ) = None
         self._updates_engine: UpdatesEngine | None = None
         self._updates_task: asyncio.Task[None] | None = None
         self._updates_out: asyncio.Queue[Any] | None = None
@@ -280,6 +293,7 @@ class MtprotoClient:
 
                 auth_key: bytes
                 server_salt: bytes
+                server_time: int | None = None
                 if sess is not None:
                     auth_key = sess.auth_key
                     server_salt = sess.server_salt
@@ -291,8 +305,9 @@ class MtprotoClient:
                     )
                     auth_key = res.auth_key
                     server_salt = res.server_salt
+                    server_time = int(res.server_time)
 
-                msg_id_gen = MsgIdGenerator()
+                msg_id_gen = MsgIdGenerator(server_time=server_time)
                 state = MtprotoState(
                     auth_key=auth_key,
                     server_salt=server_salt,
@@ -302,9 +317,9 @@ class MtprotoClient:
                     session_id=b"",
                 )
 
-                incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated] = asyncio.Queue(
-                    maxsize=2048
-                )
+                incoming: asyncio.Queue[
+                    ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired
+                ] = asyncio.Queue(maxsize=2048)
                 sender = MtprotoEncryptedSender(
                     transport,
                     state=state,
@@ -324,7 +339,10 @@ class MtprotoClient:
                 if sess is not None:
                     self._load_entities_cache()
                 else:
-                    self.entities = EntityCache()
+                    # A new authorization at a reused path must not inherit any
+                    # account-scoped sidecar left by the previous session.
+                    self._clear_session_sidecars()
+                    self.entities = EntityCache(auth_key_id=self._auth_key_id_hex())
 
                 # Bootstrap as a "real" API client.
                 if self._init is not None:
@@ -449,6 +467,20 @@ class MtprotoClient:
         ping_id = randbits(63)
         return await self.invoke(Ping(ping_id=ping_id), timeout=timeout)
 
+    async def log_out(self, *, timeout: float = 20.0) -> Any:
+        """Log out remotely, disconnect, and remove the now-invalid local authorization."""
+
+        async with self._lifecycle_lock:
+            result = await self.invoke_api(AuthLogOut(), timeout=timeout)
+            await self._teardown_locked(persist=False, raise_errors=False)
+            # Keep invalid-session deletion and identity reset in the same
+            # critical section so a waiting connect cannot reload the logged-
+            # out authorization and then lose files underneath itself.
+            self._clear_local_session_files()
+            self.entities = EntityCache()
+            self.self_user_id = None
+            return result
+
     async def start_updates(self, *, timeout: float = 20.0) -> None:
         """
         Start updates engine and background consumer.
@@ -473,9 +505,7 @@ class MtprotoClient:
             raise MtprotoClientError("ClientInit(api_id=...) is required to start updates")
 
         updates_out: asyncio.Queue[Any] = asyncio.Queue(maxsize=4096)
-        updates_terminal: asyncio.Future[BaseException] = (
-            asyncio.get_running_loop().create_future()
-        )
+        updates_terminal: asyncio.Future[BaseException] = asyncio.get_running_loop().create_future()
         updates_engine = UpdatesEngine(
             invoke_api=lambda req: self.invoke_api(req, timeout=timeout),
             resolve_input_channel=lambda channel_id: self.entities.input_channel_or_none(
@@ -595,14 +625,36 @@ class MtprotoClient:
                 await dispatch(checkpoint=checkpoint, applied=applied)
 
             while True:
-                msg = await incoming.get()
+                try:
+                    msg = await asyncio.wait_for(
+                        incoming.get(),
+                        timeout=_UPDATES_IDLE_RECOVERY_SECONDS,
+                    )
+                except asyncio.TimeoutError:
+                    logger.info("No updates received for 15 minutes; fetching difference")
+                    checkpoint = updates_engine.checkpoint()
+                    try:
+                        applied = await updates_engine.recover()
+                        await dispatch(checkpoint=checkpoint, applied=applied)
+                    except BaseException:
+                        updates_engine.restore(checkpoint)
+                        raise
+                    continue
+
                 if isinstance(msg, ReceiverTerminated):
                     self._finish_updates(msg.error)
                     return
 
                 checkpoint = updates_engine.checkpoint()
                 try:
-                    applied = await updates_engine.apply(msg.obj)
+                    if isinstance(msg, UpdatesRecoveryRequired):
+                        logger.info(
+                            "Updates recovery requested: %s",
+                            msg.reason,
+                        )
+                        applied = await updates_engine.recover()
+                    else:
+                        applied = await updates_engine.apply(msg.obj)
                     await dispatch(checkpoint=checkpoint, applied=applied)
                 except BaseException:
                     updates_engine.restore(checkpoint)
@@ -623,14 +675,76 @@ class MtprotoClient:
             return p.with_name(name)
         return p.with_name(p.name + ".updates.json")
 
+    def _auth_key_id_hex(self) -> str | None:
+        state = self._state
+        if state is None:
+            return None
+        return int(state.auth_key_id).to_bytes(8, "little", signed=False).hex()
+
+    def _clear_session_sidecars(self) -> None:
+        for path in (self._entities_path(), self._updates_state_path()):
+            if path is not None:
+                path.unlink(missing_ok=True)
+
+    def _clear_local_session_files(self) -> None:
+        self._clear_session_sidecars()
+        if self._session_path is not None:
+            session = self._session_path.expanduser().resolve()
+            parent = session.parent
+            pointer_candidates = {
+                parent / "current",
+                parent / "current_bot",
+                parent / "prod.current",
+                parent / "prod.bot.current",
+                parent.parent / "prod.current",
+                parent.parent / "prod.bot.current",
+            }
+            for pointer in pointer_candidates:
+                try:
+                    raw_target = pointer.read_text(encoding="utf-8").strip()
+                except (FileNotFoundError, OSError, UnicodeError):
+                    continue
+                target = Path(raw_target).expanduser()
+                if not target.is_absolute():
+                    target = (Path.cwd() / target).resolve()
+                if target == session:
+                    pointer.unlink(missing_ok=True)
+            self._session_path.unlink(missing_ok=True)
+
     def _load_updates_state(self) -> UpdatesState | None:
         p = self._updates_state_path()
         if p is None or not p.exists():
             return None
         try:
-            from telecraft.mtproto.updates.storage import load_updates_state_file
+            from telecraft.mtproto.updates.storage import (
+                LegacyUpdatesStateMigrationRequired,
+                load_updates_state_file,
+            )
 
-            return load_updates_state_file(p)
+            auth_key_id = self._auth_key_id_hex()
+            if auth_key_id is None:
+                return None
+            try:
+                state = load_updates_state_file(
+                    p,
+                    expected_auth_key_id=auth_key_id,
+                    allow_unbound_legacy=self._trust_legacy_updates_state,
+                )
+            except LegacyUpdatesStateMigrationRequired as exc:
+                raise MtprotoClientError(
+                    "Legacy updates checkpoint cannot be proven to belong to this account. "
+                    "Delete the .updates.json sidecar to reset from current server state, "
+                    "or explicitly pass trust_legacy_updates_state=True once to preserve "
+                    "offline update continuity."
+                ) from exc
+            if self._trust_legacy_updates_state:
+                logger.warning(
+                    "Trusting a legacy unbound updates checkpoint for one-time migration: %s",
+                    p,
+                )
+            return state
+        except MtprotoClientError:
+            raise
         except Exception:
             # Best-effort: if storage is corrupted/missing fields, start from server getState.
             return None
@@ -648,7 +762,14 @@ class MtprotoClient:
         try:
             from telecraft.mtproto.updates.storage import save_updates_state_file
 
-            save_updates_state_file(p, self._updates_engine.state)
+            auth_key_id = self._auth_key_id_hex()
+            if auth_key_id is None:
+                return
+            save_updates_state_file(
+                p,
+                self._updates_engine.state,
+                auth_key_id=auth_key_id,
+            )
         except Exception:
             # Best-effort persistence; never break the running client.
             return
@@ -665,11 +786,16 @@ class MtprotoClient:
         return p.with_name(p.name + ".entities.json")
 
     def _load_entities_cache(self) -> None:
+        auth_key_id = self._auth_key_id_hex()
+        self.entities = EntityCache(auth_key_id=auth_key_id)
         p = self._entities_path()
-        if p is None or not p.exists():
+        if auth_key_id is None or p is None or not p.exists():
             return
         try:
-            self.entities = load_entity_cache_file(p)
+            loaded = load_entity_cache_file(p)
+            if loaded.auth_key_id != auth_key_id:
+                return
+            self.entities = loaded
         except Exception:
             # Best-effort; corrupted cache should not break connect.
             return
@@ -683,6 +809,10 @@ class MtprotoClient:
             return
         self._entities_last_save = now
         try:
+            auth_key_id = self._auth_key_id_hex()
+            if auth_key_id is None:
+                return
+            self.entities.auth_key_id = auth_key_id
             save_entity_cache_file(p, self.entities)
         except Exception:
             # Best-effort persistence; never break the running client.
@@ -707,7 +837,6 @@ class MtprotoClient:
             full = await self.invoke_api(UsersGetFullUser(id=InputUserSelf()), timeout=timeout)
             users = _users_from_result(full)
         self.entities.ingest_users(users)
-        self._persist_entities_cache()
         me = users[0] if users else None
 
         # Check for UserEmpty (returned when not logged in properly)
@@ -720,6 +849,8 @@ class MtprotoClient:
         mid = getattr(me, "id", None)
         if isinstance(mid, int):
             self.self_user_id = int(mid)
+            self.entities.self_user_id = int(mid)
+        self._persist_entities_cache()
         return me
 
     async def resolve_username(
@@ -803,6 +934,13 @@ class MtprotoClient:
             s = ref.strip()
             if not s:
                 raise MtprotoClientError("resolve_peer: empty string")
+            if is_self_peer_ref(s):
+                if self.self_user_id is None:
+                    await self.get_me(timeout=timeout)
+                if self.self_user_id is None:
+                    raise MtprotoClientError("resolve_peer: cannot determine the current account")
+                self.entities.self_user_id = int(self.self_user_id)
+                return Peer.user(self.self_user_id)
             # Support 'user:123'/'chat:123'/'channel:123' and t.me links.
             try:
                 parsed = parse_peer_ref(s)
@@ -1031,17 +1169,31 @@ class MtprotoClient:
     ) -> Any:
         """
         High-level send message:
-        - accepts Peer / ('user'|'chat'|'channel', id) / '@username' / '+phone' / cached int id
+        - accepts Peer / ('user'|'chat'|'channel', id) / 'self' / 'me'
+          / '@username' / '+phone' / cached int id
         - resolves to InputPeer and calls messages.sendMessage
 
         Args:
-            peer: Target peer (can be Peer, tuple, @username, +phone, or cached int id)
+            peer: Target peer (can be self/me, Peer, tuple, @username, +phone,
+                or cached int id)
             text: Message text
             reply_to_msg_id: Optional message ID to reply to
             silent: Send without notification
             reply_markup: Optional raw Telegram ReplyMarkup TL object
             timeout: RPC timeout in seconds
         """
+        if is_self_peer_ref(peer):
+            from telecraft.tl.generated.types import InputPeerSelf
+
+            return await self.send_message_peer(
+                InputPeerSelf(),
+                text,
+                reply_to_msg_id=reply_to_msg_id,
+                silent=silent,
+                reply_markup=reply_markup,
+                timeout=timeout,
+            )
+
         p = await self.resolve_peer(peer, timeout=timeout)
 
         async def _build_input_peer() -> Any:
@@ -1187,7 +1339,7 @@ class MtprotoClient:
                 todo_item_id=None,
             )
 
-        if isinstance(peer, str) and peer.strip().lower() == "self":
+        if is_self_peer_ref(peer):
             input_peer = InputPeerSelf()
         else:
             p2 = await self.resolve_peer(peer, timeout=timeout)
@@ -1271,7 +1423,7 @@ class MtprotoClient:
         if captions is not None and len(captions) != len(paths):
             raise MtprotoClientError("send_album: captions must match paths length")
 
-        if isinstance(peer, str) and peer.strip().lower() == "self":
+        if is_self_peer_ref(peer):
             input_peer = InputPeerSelf()
         else:
             p = await self.resolve_peer(peer, timeout=timeout)
@@ -2247,7 +2399,7 @@ class MtprotoClient:
         if u.peer_type != "user":
             raise MtprotoClientError(f"edit_admin: user must be a user, got {u.peer_type}")
         try:
-            input_user: InputUser = self.entities.input_user(int(u.peer_id))
+            input_user: InputUser | InputUserSelf = self.entities.input_user(int(u.peer_id))
         except EntityCacheError:
             await self._prime_entities_for_reply(want=Peer.user(int(u.peer_id)), timeout=timeout)
             input_user = self.entities.input_user(int(u.peer_id))
@@ -4843,7 +4995,7 @@ class MtprotoClient:
         if u.peer_type != "user":
             raise MtprotoClientError(f"add_user_to_group: user must be a user, got {u.peer_type}")
 
-        async def _build_input_user() -> InputUser:
+        async def _build_input_user() -> InputUser | InputUserSelf:
             try:
                 return self.entities.input_user(int(u.peer_id))
             except EntityCacheError:
@@ -5212,29 +5364,62 @@ class MtprotoClient:
         """
         if int(dc_id) == int(self._dc_id):
             return self
-        existing = self._media_clients.get(int(dc_id))
-        if existing is not None and existing.is_connected:
-            return existing
+        # Share the lifecycle lock with close(): this both deduplicates concurrent
+        # creators and prevents a newly connected child from escaping teardown.
+        async with self._lifecycle_lock:
+            existing = self._media_clients.get(int(dc_id))
+            if existing is not None and existing.is_connected:
+                return existing
+            if existing is not None:
+                # An unhealthy child may still own a transport or receiver task.
+                # Remove it before awaiting cleanup so it cannot be returned or
+                # overwritten without releasing those resources.
+                self._media_clients.pop(int(dc_id), None)
+                try:
+                    await existing.close()
+                except asyncio.CancelledError:
+                    raise
+                except BaseException:
+                    logger.warning(
+                        "Failed to close unhealthy cross-DC client dc_id=%s",
+                        dc_id,
+                        exc_info=True,
+                    )
 
-        if self._init is None:
-            raise MtprotoClientError("ClientInit(api_id=...) is required for cross-DC operations")
+            if not self.is_connected:
+                raise MtprotoClientError("Not connected")
+            if self._init is None:
+                raise MtprotoClientError(
+                    "ClientInit(api_id=...) is required for cross-DC operations"
+                )
 
-        c = MtprotoClient(
-            network=self._network, dc_id=int(dc_id), init=self._init, session_path=None
-        )
-        await c.connect(timeout=timeout)
-        exported = await self.invoke_api(AuthExportAuthorization(dc_id=int(dc_id)), timeout=timeout)
-        exp_id = getattr(exported, "id", None)
-        exp_bytes = getattr(exported, "bytes", None)
-        if not isinstance(exp_id, int) or not isinstance(exp_bytes, (bytes, bytearray)):
-            raise MtprotoClientError(
-                f"Unexpected auth.exportAuthorization result: {type(exported).__name__}"
+            c = MtprotoClient(
+                network=self._network, dc_id=int(dc_id), init=self._init, session_path=None
             )
-        await c.invoke_api(
-            AuthImportAuthorization(id=int(exp_id), bytes=bytes(exp_bytes)), timeout=timeout
-        )
-        self._media_clients[int(dc_id)] = c
-        return c
+            try:
+                await c.connect(timeout=timeout)
+                exported = await self.invoke_api(
+                    AuthExportAuthorization(dc_id=int(dc_id)), timeout=timeout
+                )
+                exp_id = getattr(exported, "id", None)
+                exp_bytes = getattr(exported, "bytes", None)
+                if not isinstance(exp_id, int) or not isinstance(exp_bytes, (bytes, bytearray)):
+                    raise MtprotoClientError(
+                        f"Unexpected auth.exportAuthorization result: {type(exported).__name__}"
+                    )
+                await c.invoke_api(
+                    AuthImportAuthorization(id=int(exp_id), bytes=bytes(exp_bytes)),
+                    timeout=timeout,
+                )
+            except BaseException:
+                try:
+                    await c.close()
+                except BaseException:
+                    pass
+                raise
+
+            self._media_clients[int(dc_id)] = c
+            return c
 
     async def download_media(
         self,
@@ -5442,17 +5627,21 @@ class MtprotoClient:
             Message TL objects (newest first by default)
         """
         from telecraft.tl.generated.types import (
+            InputPeerSelf,
             MessagesChannelMessages,
             MessagesMessages,
             MessagesMessagesSlice,
         )
 
-        p = await self.resolve_peer(peer, timeout=timeout)
-        try:
-            input_peer = self.entities.input_peer(p)
-        except EntityCacheError:
-            await self._prime_entities_for_reply(want=p, timeout=timeout)
-            input_peer = self.entities.input_peer(p)
+        if is_self_peer_ref(peer):
+            input_peer = InputPeerSelf()
+        else:
+            p = await self.resolve_peer(peer, timeout=timeout)
+            try:
+                input_peer = self.entities.input_peer(p)
+            except EntityCacheError:
+                await self._prime_entities_for_reply(want=p, timeout=timeout)
+                input_peer = self.entities.input_peer(p)
 
         total_yielded = 0
         current_offset_id = offset_id
@@ -5578,17 +5767,21 @@ class MtprotoClient:
         users/chats into EntityCache.
         """
         from telecraft.tl.generated.types import (
+            InputPeerSelf,
             MessagesChannelMessages,
             MessagesMessages,
             MessagesMessagesSlice,
         )
 
-        p = await self.resolve_peer(peer, timeout=timeout)
-        try:
-            input_peer = self.entities.input_peer(p)
-        except EntityCacheError:
-            await self._prime_entities_for_reply(want=p, timeout=timeout)
-            input_peer = self.entities.input_peer(p)
+        if is_self_peer_ref(peer):
+            input_peer = InputPeerSelf()
+        else:
+            p = await self.resolve_peer(peer, timeout=timeout)
+            try:
+                input_peer = self.entities.input_peer(p)
+            except EntityCacheError:
+                await self._prime_entities_for_reply(want=p, timeout=timeout)
+                input_peer = self.entities.input_peer(p)
 
         res = await self.invoke_api(
             MessagesGetHistory(

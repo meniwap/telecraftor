@@ -34,8 +34,8 @@ def _validate_server_response(response: object) -> ServerDhParamsOk:
     )
 
 
-def _validate_final_response(response: object) -> None:
-    _validate_dh_gen_response(
+def _validate_final_response(response: object) -> DhGenOk | DhGenRetry:
+    return _validate_dh_gen_response(
         response,
         nonce=_NONCE,
         server_nonce=_SERVER_NONCE,
@@ -161,7 +161,7 @@ def test_validate_dh_gen_ok_accepts_expected_nonces_and_hash() -> None:
         ),
     )
 
-    _validate_final_response(response)
+    assert _validate_final_response(response) is response
 
 
 @pytest.mark.parametrize(
@@ -201,40 +201,32 @@ def test_validate_dh_gen_ok_rejects_hash_mismatch() -> None:
         _validate_final_response(response)
 
 
-@pytest.mark.parametrize(
-    ("response", "message"),
-    [
-        (
-            DhGenRetry(
-                nonce=_NONCE,
-                server_nonce=_SERVER_NONCE,
-                new_nonce_hash2=new_nonce_hash(
-                    new_nonce=_NEW_NONCE,
-                    auth_key=_AUTH_KEY,
-                    number=2,
-                ),
-            ),
-            "Server requested dh_gen_retry",
+def test_validate_dh_gen_retry_accepts_expected_nonces_and_hash() -> None:
+    response = DhGenRetry(
+        nonce=_NONCE,
+        server_nonce=_SERVER_NONCE,
+        new_nonce_hash2=new_nonce_hash(
+            new_nonce=_NEW_NONCE,
+            auth_key=_AUTH_KEY,
+            number=2,
         ),
-        (
-            DhGenFail(
-                nonce=_NONCE,
-                server_nonce=_SERVER_NONCE,
-                new_nonce_hash3=new_nonce_hash(
-                    new_nonce=_NEW_NONCE,
-                    auth_key=_AUTH_KEY,
-                    number=3,
-                ),
-            ),
-            "Server returned dh_gen_fail",
+    )
+
+    assert _validate_final_response(response) is response
+
+
+def test_validate_dh_gen_fail_accepts_fields_then_reports_failure() -> None:
+    response = DhGenFail(
+        nonce=_NONCE,
+        server_nonce=_SERVER_NONCE,
+        new_nonce_hash3=new_nonce_hash(
+            new_nonce=_NEW_NONCE,
+            auth_key=_AUTH_KEY,
+            number=3,
         ),
-    ],
-)
-def test_validate_dh_gen_retry_and_fail_accept_fields_then_report_result(
-    response: object,
-    message: str,
-) -> None:
-    with pytest.raises(AuthHandshakeError, match=message):
+    )
+
+    with pytest.raises(AuthHandshakeError, match="Server returned dh_gen_fail"):
         _validate_final_response(response)
 
 

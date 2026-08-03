@@ -4,7 +4,7 @@
 
 `telecraft` supports bot accounts through MTProto login (`auth.importBotAuthorization`).
 This is not Bot API HTTP polling/webhooks. The bot still pulls updates through MTProto.
-HTTP Bot API support is out of scope for the `0.2.x` public beta.
+HTTP Bot API support is out of scope for the stable `0.2.x` release line.
 
 ## Why use this mode
 

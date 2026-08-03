@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from telecraft.mtproto.updates.engine import UpdatesEngine
+import pytest
+
+from telecraft.mtproto.updates.engine import UpdatesEngine, UpdatesEngineError
 from telecraft.mtproto.updates.state import UpdatesState
 from telecraft.tl.generated.types import (
     ChannelMessagesFilterEmpty,
@@ -50,3 +52,26 @@ def test_update_channel_metadata_does_not_claim_a_channel_pts_gap() -> None:
     applied = asyncio.run(eng.apply(update))
 
     assert applied.updates == [update]
+
+
+def test_channel_difference_rejects_no_progress_after_initial_force_transition() -> None:
+    calls: list[Any] = []
+
+    async def invoke(req: Any) -> Any:
+        calls.append(req)
+        return UpdatesChannelDifferenceEmpty(flags=0, final=False, pts=1, timeout=None)
+
+    eng = UpdatesEngine(
+        invoke_api=invoke,
+        resolve_input_channel=lambda cid: InputChannel(channel_id=int(cid), access_hash=123),
+    )
+    eng.state = UpdatesState(pts=1, qts=1, date=0, seq=0)
+
+    with pytest.raises(UpdatesEngineError, match="made no state progress"):
+        asyncio.run(eng.apply(UpdateChannelTooLong(flags=0, channel_id=100, pts=None)))
+
+    # The first same-PTS response is a valid force=True -> force=False state
+    # transition.  A second identical non-final page cannot make progress.
+    assert [call.force for call in calls] == [True, False]
+    assert [call.pts for call in calls] == [1, 1]
+    assert 100 not in eng._channel_pts

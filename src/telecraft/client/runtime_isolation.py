@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from telecraft._private_storage import atomic_write_private_text
+
 RuntimeMode = Literal["prod"]
 NetworkMode = Literal["prod"]
 SessionKind = Literal["user", "bot"]
@@ -134,7 +136,7 @@ def _resolve_pointer_target(pointer_file: Path) -> str | None:
     p = Path(target).expanduser()
     if not p.is_absolute():
         p = (Path.cwd() / p).resolve()
-    if p.exists():
+    if p.is_file():
         return str(p)
     return None
 
@@ -142,15 +144,20 @@ def _resolve_pointer_target(pointer_file: Path) -> str | None:
 def read_current_session(paths: SessionPaths, *, kind: SessionKind = "user") -> str | None:
     resolved_kind = resolve_session_kind(kind)
     if resolved_kind == "bot":
-        cur = _resolve_pointer_target(paths.current_bot_pointer)
-        if cur is not None:
-            return cur
-        return _resolve_pointer_target(paths.legacy_current_bot_pointer)
+        pointers = (paths.current_bot_pointer, paths.legacy_current_bot_pointer)
+    else:
+        pointers = (paths.current_pointer, paths.legacy_current_pointer)
 
-    cur = _resolve_pointer_target(paths.current_pointer)
-    if cur is not None:
-        return cur
-    return _resolve_pointer_target(paths.legacy_current_pointer)
+    for pointer in pointers:
+        if not pointer.exists():
+            continue
+        current = _resolve_pointer_target(pointer)
+        if current is None:
+            raise RuntimeIsolationError(
+                f"Current {resolved_kind} session pointer is empty or dangling: {pointer}"
+            )
+        return current
+    return None
 
 
 def pick_latest_session(paths: SessionPaths, *, kind: SessionKind = "user") -> str | None:
@@ -190,6 +197,33 @@ def pick_existing_session(
     return str(preferred.resolve())
 
 
+def resolve_current_session_path(
+    *,
+    sessions_root: Path | str = ".sessions",
+    preferred_dc: int = 2,
+    kind: SessionKind = "user",
+) -> Path:
+    """Resolve the current concrete production session file.
+
+    The CLI stores ``current`` as a pointer file.  Client constructors expect
+    the pointed-to JSON session itself, so public callers should use this
+    helper instead of passing the pointer path directly.
+    """
+
+    paths = resolve_session_paths(sessions_root=sessions_root)
+    resolved_kind = resolve_session_kind(kind)
+    _ = preferred_dc  # retained for backwards-compatible call signatures
+    current = read_current_session(paths, kind=resolved_kind)
+    if current is None:
+        raise RuntimeIsolationError(
+            f"No current {resolved_kind} session pointer found under {paths.runtime_root}. "
+            "Run `telecraft login --runtime prod --allow-prod` first."
+        )
+    session = Path(current)
+    validate_session_matches_network(session_path=session, expected_network="prod")
+    return session
+
+
 def write_current_session_pointer(
     paths: SessionPaths,
     session_path: str | Path,
@@ -200,9 +234,8 @@ def write_current_session_pointer(
     p = Path(session_path).expanduser()
     if not p.is_absolute():
         p = (Path.cwd() / p).resolve()
-    paths.runtime_root.mkdir(parents=True, exist_ok=True)
     pointer_path = paths.current_bot_pointer if resolved_kind == "bot" else paths.current_pointer
-    pointer_path.write_text(str(p) + "\n", encoding="utf-8", newline="\n")
+    atomic_write_private_text(pointer_path, str(p) + "\n")
 
 
 def _host_to_network(host: str, session_name: str) -> str | None:

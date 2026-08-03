@@ -16,6 +16,7 @@ from telecraft.tl.generated.types import (
     ChannelMessagesFilterEmpty,
     InputChannel,
     UpdateChannelTooLong,
+    UpdatePtsChanged,
     Updates,
     UpdatesChannelDifference,
     UpdatesChannelDifferenceEmpty,
@@ -36,6 +37,9 @@ from telecraft.tl.generated.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+_MAX_DIFFERENCE_PAGES = 4096
+_MAX_CHANNEL_DIFFERENCE_PAGES = 4096
 
 _CHANNEL_DIFFERENCE_UNAVAILABLE_ERRORS = frozenset(
     {
@@ -204,6 +208,24 @@ class UpdatesEngine:
             self.restore(checkpoint)
             raise
 
+    async def recover(self) -> AppliedUpdates:
+        """Fetch the global difference transactionally after an out-of-band signal."""
+        if self.state is None:
+            raise UpdatesEngineError("Updates engine not initialized (call initialize())")
+
+        checkpoint = self.checkpoint()
+        try:
+            return await self._fetch_difference()
+        except BaseException:
+            self.restore(checkpoint)
+            raise
+
+    async def _refresh_state(self) -> AppliedUpdates:
+        """Replace global counters with an authoritative ``updates.getState`` result."""
+        res = await self._invoke_api(UpdatesGetState())
+        self.state = UpdatesState.from_tl(res)
+        return AppliedUpdates.empty()
+
     async def _apply(self, obj: Any) -> AppliedUpdates:
         if self.state is None:
             raise UpdatesEngineError("No state")
@@ -212,11 +234,20 @@ class UpdatesEngine:
         if isinstance(obj, UpdatesTooLong):
             return await self._fetch_difference()
 
+        # updatePtsChanged invalidates the local common PTS. It carries no
+        # event payload; Telegram instructs clients to fetch authoritative state.
+        if isinstance(obj, UpdatePtsChanged):
+            return await self._refresh_state()
+
         if isinstance(obj, UpdateChannelTooLong):
             channel_id = self._channel_id_from_update(obj)
             if channel_id is None:
                 raise UpdatesEngineError("updateChannelTooLong has no channel_id")
-            return await self._fetch_channel_difference(channel_id)
+            trigger_pts = getattr(obj, "pts", None)
+            return await self._fetch_channel_difference(
+                channel_id,
+                initial_pts=trigger_pts if isinstance(trigger_pts, int) else None,
+            )
 
         # Short variants do not participate in seq, but their message-box counters
         # still need the same gap and duplicate handling as nested updates.
@@ -224,15 +255,65 @@ class UpdatesEngine:
             return await self._apply_unsequenced([obj], date=int(cast(int, obj.date)))
 
         if isinstance(obj, UpdateShort):
+            if isinstance(obj.update, UpdatePtsChanged):
+                return await self._refresh_state()
             return await self._apply_unsequenced(
                 [obj.update],
                 date=int(cast(int, obj.date)),
             )
 
         if isinstance(obj, (Updates, UpdatesCombined)):
+            envelope_updates = cast(list[Any], obj.updates)
+            if any(isinstance(update, UpdatePtsChanged) for update in envelope_updates):
+                return await self._apply_pts_changed_envelope(obj)
             return await self._apply_envelope(obj)
 
         return await self._apply_unsequenced([obj], date=None)
+
+    async def _apply_pts_changed_envelope(
+        self,
+        obj: Updates | UpdatesCombined,
+    ) -> AppliedUpdates:
+        """Refresh global state without dropping co-delivered independent updates."""
+
+        updates = [
+            update
+            for update in cast(list[Any], obj.updates)
+            if not isinstance(update, UpdatePtsChanged)
+        ]
+        users = cast(list[Any], getattr(obj, "users", []))
+        chats = cast(list[Any], getattr(obj, "chats", []))
+
+        # Classify siblings against the last committed counters.  Classifying
+        # after getState would make a co-delivered update whose pts/qts is
+        # reflected by that snapshot look stale, dropping its payload.
+        preview = self._preview_message_boxes(updates)
+
+        if preview.gap:
+            # Recover from the last committed counters before replacing them
+            # with getState.  Refreshing first would skip the very range that
+            # contains the co-delivered payload.  Difference owns all countered
+            # output in this branch, so do not append preview.accepted again.
+            applied = await self._fetch_difference()
+            await self._refresh_state()
+            applied.updates.extend(preview.ordinary)
+        else:
+            await self._refresh_state()
+            # getState remains authoritative for every global counter.  The
+            # preview is used only to decide which payloads were new at receipt
+            # time, so each accepted sibling is still delivered exactly once.
+            applied = AppliedUpdates(
+                updates=[*preview.accepted, *preview.ordinary],
+                new_messages=[],
+                users=[],
+                chats=[],
+            )
+
+        applied.extend(await self._apply_channel_updates(preview.channel, chats=chats))
+        if applied.updates or applied.new_messages:
+            applied.users.extend(users)
+            applied.chats.extend(chats)
+        return applied
 
     async def _apply_unsequenced(
         self,
@@ -278,8 +359,7 @@ class UpdatesEngine:
                 logger.info("PTS/QTS gap detected; fetching difference")
             else:
                 logger.info(
-                    "SEQ gap detected (have=%s, seq_start=%s, seq=%s); "
-                    "fetching difference",
+                    "SEQ gap detected (have=%s, seq_start=%s, seq=%s); fetching difference",
                     self.state.seq,
                     getattr(obj, "seq_start", getattr(obj, "seq", None)),
                     getattr(obj, "seq", None),
@@ -348,9 +428,7 @@ class UpdatesEngine:
         gap = False
 
         for update in updates:
-            if isinstance(update, UpdateChannelTooLong) or self._looks_like_channel_counter(
-                update
-            ):
+            if isinstance(update, UpdateChannelTooLong) or self._looks_like_channel_counter(update):
                 channel.append(update)
                 continue
 
@@ -382,8 +460,7 @@ class UpdatesEngine:
                 expected_pts = pts + count
                 if expected_pts < update_pts:
                     logger.info(
-                        "PTS gap in %s (have=%s, expected=%s, got=%s); "
-                        "fetching difference",
+                        "PTS gap in %s (have=%s, expected=%s, got=%s); fetching difference",
                         tl_name,
                         pts,
                         expected_pts,
@@ -461,10 +538,12 @@ class UpdatesEngine:
             input_channel = self._input_channel_from_chats(channel_id, supporting_chats)
 
             if isinstance(update, UpdateChannelTooLong):
+                trigger_pts = getattr(update, "pts", None)
                 applied.extend(
                     await self._fetch_channel_difference(
                         channel_id,
                         input_channel=input_channel,
+                        initial_pts=(trigger_pts if isinstance(trigger_pts, int) else None),
                     )
                 )
                 continue
@@ -496,8 +575,7 @@ class UpdatesEngine:
                 continue
             if expected_pts < remote_pts:
                 logger.info(
-                    "Channel PTS gap channel_id=%s have=%s got=%s count=%s; "
-                    "fetching difference",
+                    "Channel PTS gap channel_id=%s have=%s got=%s count=%s; fetching difference",
                     channel_id,
                     local_pts,
                     remote_pts,
@@ -522,9 +600,7 @@ class UpdatesEngine:
         channel_updates: list[Any] = []
         ordinary_updates: list[Any] = []
         for update in applied.updates:
-            if isinstance(update, UpdateChannelTooLong) or self._looks_like_channel_counter(
-                update
-            ):
+            if isinstance(update, UpdateChannelTooLong) or self._looks_like_channel_counter(update):
                 channel_updates.append(update)
             else:
                 ordinary_updates.append(update)
@@ -537,9 +613,7 @@ class UpdatesEngine:
             users=list(applied.users),
             chats=list(applied.chats),
         )
-        expanded.extend(
-            await self._apply_channel_updates(channel_updates, chats=applied.chats)
-        )
+        expanded.extend(await self._apply_channel_updates(channel_updates, chats=applied.chats))
         return expanded
 
     async def _fetch_difference(self) -> AppliedUpdates:
@@ -550,8 +624,10 @@ class UpdatesEngine:
         out_messages: list[Any] = []
         out_users: list[Any] = []
         out_chats: list[Any] = []
+        refresh_state_after_difference = False
 
-        while True:
+        for _page in range(_MAX_DIFFERENCE_PAGES):
+            previous_state = self._copy_state(self.state)
             req = UpdatesGetDifference(
                 flags=0 if self._pts_total_limit is None else 1,
                 pts=self.state.pts,
@@ -566,6 +642,8 @@ class UpdatesEngine:
             if isinstance(diff, UpdatesDifferenceEmpty):
                 self.state.date = int(cast(int, diff.date))
                 self.state.seq = int(cast(int, diff.seq))
+                if refresh_state_after_difference:
+                    await self._refresh_state()
                 return await self._expand_difference_channel_updates(
                     AppliedUpdates(
                         updates=out_updates,
@@ -576,25 +654,33 @@ class UpdatesEngine:
                 )
 
             if isinstance(diff, UpdatesDifferenceTooLong):
-                # Reset state via getState (simple & safe).
-                logger.warning("differenceTooLong received; reinitializing updates state")
-                _ = int(cast(int, diff.pts))
-                await self.initialize()
-                return await self._expand_difference_channel_updates(
-                    AppliedUpdates(
-                        updates=out_updates,
-                        new_messages=out_messages,
-                        users=out_users,
-                        chats=out_chats,
+                # Only the common message box is too old to recover through
+                # the old PTS. Keep qts/date/seq intact because they are
+                # independent sequences, then refetch using the supplied PTS as
+                # required by Telegram instead of silently skipping those boxes.
+                logger.warning("differenceTooLong received; retrying from the supplied common pts")
+                next_pts = int(cast(int, diff.pts))
+                if next_pts == self.state.pts:
+                    raise UpdatesEngineError(
+                        "updates.differenceTooLong made no common pts progress"
                     )
-                )
+                self.state.pts = next_pts
+                continue
 
             if isinstance(diff, UpdatesDifference):
                 out_messages.extend(cast(list[Any], diff.new_messages))
-                out_updates.extend(cast(list[Any], diff.other_updates))
+                other_updates = cast(list[Any], diff.other_updates)
+                refresh_state_after_difference = refresh_state_after_difference or any(
+                    isinstance(update, UpdatePtsChanged) for update in other_updates
+                )
+                out_updates.extend(
+                    update for update in other_updates if not isinstance(update, UpdatePtsChanged)
+                )
                 out_users.extend(cast(list[Any], diff.users))
                 out_chats.extend(cast(list[Any], diff.chats))
                 self.state = UpdatesState.from_tl(cast(TlUpdatesState, diff.state))
+                if refresh_state_after_difference:
+                    await self._refresh_state()
                 return await self._expand_difference_channel_updates(
                     AppliedUpdates(
                         updates=out_updates,
@@ -606,28 +692,38 @@ class UpdatesEngine:
 
             if isinstance(diff, UpdatesDifferenceSlice):
                 out_messages.extend(cast(list[Any], diff.new_messages))
-                out_updates.extend(cast(list[Any], diff.other_updates))
+                other_updates = cast(list[Any], diff.other_updates)
+                refresh_state_after_difference = refresh_state_after_difference or any(
+                    isinstance(update, UpdatePtsChanged) for update in other_updates
+                )
+                out_updates.extend(
+                    update for update in other_updates if not isinstance(update, UpdatePtsChanged)
+                )
                 out_users.extend(cast(list[Any], diff.users))
                 out_chats.extend(cast(list[Any], diff.chats))
                 self.state = UpdatesState.from_tl(cast(TlUpdatesState, diff.intermediate_state))
+                if self.state == previous_state:
+                    raise UpdatesEngineError("updates.getDifference slice made no state progress")
                 continue
 
             raise UpdatesEngineError(
                 f"Unexpected updates.getDifference result: {type(diff).__name__}"
             )
 
+        raise UpdatesEngineError("Too many updates.getDifference pages")
+
     async def _fetch_channel_difference(
         self,
         channel_id: int,
         *,
         input_channel: Any | None = None,
+        initial_pts: int | None = None,
     ) -> AppliedUpdates:
         """Fetch a channel difference transactionally and paginate until ``final``."""
         if input_channel is None:
             if self._resolve_input_channel is None:
                 logger.warning(
-                    "Skipping channel difference without an InputChannel resolver "
-                    "channel_id=%s",
+                    "Skipping channel difference without an InputChannel resolver channel_id=%s",
                     channel_id,
                 )
                 self._channel_pts.pop(int(channel_id), None)
@@ -640,22 +736,28 @@ class UpdatesEngine:
                 ) from ex
             if input_channel is None:
                 logger.warning(
-                    "Skipping channel difference without a reusable full access hash "
-                    "channel_id=%s",
+                    "Skipping channel difference without a reusable full access hash channel_id=%s",
                     channel_id,
                 )
                 self._channel_pts.pop(int(channel_id), None)
                 return AppliedUpdates.empty()
 
-        pts = int(self._channel_pts.get(int(channel_id), 1))
-        force = int(channel_id) not in self._channel_pts
+        stored_pts = self._channel_pts.get(int(channel_id))
+        if stored_pts is not None:
+            pts = int(stored_pts)
+            force = False
+        else:
+            pts = int(initial_pts) if isinstance(initial_pts, int) and initial_pts >= 0 else 1
+            force = True
 
         out_updates: list[Any] = []
         out_messages: list[Any] = []
         out_users: list[Any] = []
         out_chats: list[Any] = []
 
-        for _page in range(128):
+        for _page in range(_MAX_CHANNEL_DIFFERENCE_PAGES):
+            request_pts = int(pts)
+            request_force = force
             logger.info(
                 "getChannelDifference(channel_id=%s, pts=%s, force=%s)",
                 channel_id,
@@ -704,6 +806,11 @@ class UpdatesEngine:
                         chats=out_chats,
                     )
                 force = False
+                if pts == request_pts and force == request_force:
+                    raise UpdatesEngineError(
+                        "updates.getChannelDifference made no state progress "
+                        f"channel_id={channel_id}"
+                    )
                 continue
 
             if isinstance(diff, UpdatesChannelDifference):
@@ -729,6 +836,11 @@ class UpdatesEngine:
                         chats=out_chats,
                     )
                 force = False
+                if pts == request_pts and force == request_force:
+                    raise UpdatesEngineError(
+                        "updates.getChannelDifference made no state progress "
+                        f"channel_id={channel_id}"
+                    )
                 continue
 
             if isinstance(diff, UpdatesChannelDifferenceTooLong):
@@ -757,6 +869,11 @@ class UpdatesEngine:
                         chats=out_chats,
                     )
                 force = False
+                if pts == request_pts and force == request_force:
+                    raise UpdatesEngineError(
+                        "updates.getChannelDifference made no state progress "
+                        f"channel_id={channel_id}"
+                    )
                 continue
 
             raise UpdatesEngineError(
