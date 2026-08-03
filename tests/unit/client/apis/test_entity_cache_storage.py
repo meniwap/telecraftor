@@ -15,7 +15,7 @@ from telecraft.client.entities import (
 
 def test_entity_cache_storage_roundtrip(tmp_path) -> None:
     p = tmp_path / "x.entities.json"
-    cache = EntityCache()
+    cache = EntityCache(auth_key_id="0123456789abcdef", self_user_id=111)
     cache.user_access_hash[111] = 222
     cache.channel_access_hash[333] = 444
     cache.username_to_peer["alice"] = ("user", 111)
@@ -27,6 +27,8 @@ def test_entity_cache_storage_roundtrip(tmp_path) -> None:
     assert got.channel_access_hash == cache.channel_access_hash
     assert got.username_to_peer == cache.username_to_peer
     assert got.phone_to_user_id == cache.phone_to_user_id
+    assert got.auth_key_id == cache.auth_key_id
+    assert got.self_user_id == cache.self_user_id
 
 
 def test_entity_cache_storage_bad_version(tmp_path) -> None:
@@ -64,6 +66,25 @@ def test_entity_cache_storage_migrates_v1(tmp_path) -> None:
     assert got.channel_access_hash == {3: 4}
     assert got.username_to_peer == {}
     assert got.phone_to_user_id == {}
+    assert got.auth_key_id is None
+
+
+def test_entity_cache_storage_rejects_invalid_auth_key_id(tmp_path) -> None:
+    p = tmp_path / "x.entities.json"
+    p.write_text(
+        json.dumps(
+            {
+                "version": 3,
+                "auth_key_id": "not-hex",
+                "user_access_hash": {},
+                "channel_access_hash": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(EntityCacheStorageError):
+        load_entity_cache_file(p)
 
 
 def test_entity_cache_rejects_context_bound_min_access_hashes() -> None:

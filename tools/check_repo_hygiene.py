@@ -118,9 +118,7 @@ def _unexpected_artifact_member_reason(artifact: Path, path: str) -> str | None:
 
     if artifact.suffix == ".whl":
         root = parts[0]
-        if root == "telecraft" or (
-            root.startswith("telecraft-") and root.endswith(".dist-info")
-        ):
+        if root == "telecraft" or (root.startswith("telecraft-") and root.endswith(".dist-info")):
             return None
         return "unexpected path outside telecraft package or distribution metadata"
 
@@ -181,8 +179,7 @@ def _artifact_members(path: Path) -> list[str]:
     if path.suffix == ".whl":
         with zipfile.ZipFile(path) as zf:
             return [
-                _normalize_artifact_member(name, strip_project_root=False)
-                for name in zf.namelist()
+                _normalize_artifact_member(name, strip_project_root=False) for name in zf.namelist()
             ]
     if path.name.endswith(".tar.gz"):
         with tarfile.open(path, "r:gz") as tf:

@@ -190,9 +190,7 @@ def test_finalize_run__client_close_failure_blocks_release_evidence(tmp_path: Pa
                 client=_FakeClient(close_error=OSError("persist failed")),  # type: ignore[arg-type]
                 ctx=ctx,
                 reporter=reporter,
-                results=[
-                    shared.StepResult(name="identity.profile", status="PASS", details="ok")
-                ],
+                results=[shared.StepResult(name="identity.profile", status="PASS", details="ok")],
                 resource_ids={},
             )
         )

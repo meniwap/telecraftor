@@ -10,147 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from telecraft.client.apis import (
-    AccountAPI,
-    AccountContentAPI,
-    AccountGiftThemesAPI,
-    AccountIdentityAPI,
-    AccountMusicAPI,
-    AccountMusicSavedAPI,
-    AccountPaidMessagesAPI,
-    AccountPasskeysAPI,
-    AccountPersonalChannelAPI,
-    AccountProfileTabAPI,
-    AccountSessionsAPI,
-    AccountTermsAPI,
-    AccountThemesAPI,
-    AccountTTLAPI,
-    AccountWallpapersAPI,
-    AccountWebSessionsAPI,
-    AdminAPI,
-    AuthAPI,
-    BotsAPI,
-    BusinessAPI,
-    BusinessLinksAPI,
-    BusinessProfileAPI,
-    BusinessQuickRepliesAPI,
-    CallsAPI,
-    CallsConferenceAPI,
-    CallsGroupAPI,
-    CallsGroupChainAPI,
-    CallsStreamAPI,
-    ChannelsAPI,
-    ChannelSettingsAPI,
-    ChannelsSearchPostsAPI,
-    ChatlistInvitesAPI,
-    ChatlistsAPI,
-    ChatlistSuggestionsAPI,
-    ChatlistUpdatesAPI,
-    ChatsAPI,
-    ContactsAPI,
-    ContactsRequirementsAPI,
-    DialogsAPI,
-    DialogsFiltersAPI,
-    DialogsPinnedAPI,
-    DialogsUnreadAPI,
-    DiscoveryAPI,
-    DiscoveryBotsAPI,
-    DiscoveryChannelsAPI,
-    DiscoverySponsoredAPI,
-    DraftsAPI,
-    FoldersAPI,
-    GamesAPI,
-    GameScoresAPI,
-    GiftsAPI,
-    GiftsCollectionsAPI,
-    GiftsNotificationsAPI,
-    GiftsResaleAPI,
-    GiftsSavedAPI,
-    GiftsUniqueAPI,
-    HelpAPI,
-    LangpackAPI,
-    MediaAPI,
-    MessagesAPI,
-    MessagesAttachMenuAPI,
-    MessagesChatThemeAPI,
-    MessagesDiscussionAPI,
-    MessagesEffectsAPI,
-    MessagesFactChecksAPI,
-    MessagesGifsAPI,
-    MessagesHistoryImportAPI,
-    MessagesInlineAPI,
-    MessagesInlinePreparedAPI,
-    MessagesPaidReactionsAPI,
-    MessagesReceiptsAPI,
-    MessagesSavedTagsAPI,
-    MessagesScheduledAPI,
-    MessagesSentMediaAPI,
-    MessagesSponsoredAPI,
-    MessagesSuggestedPostsAPI,
-    MessagesWebAPI,
-    NotificationsAPI,
-    NotificationsContactSignupAPI,
-    NotificationsReactionsAPI,
-    PaymentsAPI,
-    PaymentsFormsAPI,
-    PaymentsGiftCodesAPI,
-    PaymentsInvoiceAPI,
-    PaymentsStarsAPI,
-    PeersAPI,
-    PollsAPI,
-    PremiumAPI,
-    PremiumBoostsAPI,
-    PresenceAPI,
-    PrivacyAPI,
-    PrivacyGlobalSettingsAPI,
-    ProfileAPI,
-    ReactionsAPI,
-    ReactionsChatAPI,
-    ReactionsDefaultsAPI,
-    ReportsAPI,
-    SavedAPI,
-    SavedDialogsAPI,
-    SavedGifsAPI,
-    SavedHistoryAPI,
-    SavedPinnedAPI,
-    SavedReactionTagsAPI,
-    SearchAPI,
-    StarsAPI,
-    StarsFormsAPI,
-    StarsRevenueAPI,
-    StarsTransactionsAPI,
-    StatsAPI,
-    StatsChannelsAPI,
-    StatsGraphAPI,
-    StatsPublicForwardsAPI,
-    StickerEmojiAPI,
-    StickerFavoritesAPI,
-    StickerRecentAPI,
-    StickersAPI,
-    StickerSearchAPI,
-    StickerSetsAPI,
-    StoriesAlbumsAPI,
-    StoriesAPI,
-    StoriesCapabilitiesAPI,
-    StoriesFeedAPI,
-    StoriesLinksAPI,
-    StoriesPeersAPI,
-    StoriesReactionsAPI,
-    StoriesStealthAPI,
-    StoriesViewsAPI,
-    TakeoutAPI,
-    TakeoutMediaAPI,
-    TakeoutMessagesAPI,
-    TodosAPI,
-    TopicsAPI,
-    TopicsForumAPI,
-    TranslateAPI,
-    UpdatesAPI,
-    UploadsAPI,
-    UsersAPI,
-    WebAppsAPI,
-)
-from telecraft.client.apis.chats import ChatInvitesAPI, ChatMembersAPI
 from telecraft.client.client import Client
 
 MATRIX_PATH = Path("tests/meta/v2_method_matrix.yaml")
@@ -177,6 +36,10 @@ class MethodRef:
     method: str
 
 
+SYNCHRONOUS_HELPERS = {MethodRef(namespace="notifications", method="peer")}
+SCENARIOS_STABLE_SYNC_MIN = {"forwards_args", "returns_expected_shape"}
+
+
 def _normalize_token(token: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", token.lower()).strip("_")
 
@@ -188,326 +51,68 @@ def _scenario_test_name(namespace: str, method: str, scenario: str) -> str:
     return f"test_{ns}__{meth}__{scen}"
 
 
-def _discover_v2_methods() -> set[MethodRef]:
-    refs: set[MethodRef] = set()
-
-    for name, fn in inspect.getmembers(Client, inspect.iscoroutinefunction):
-        if not name.startswith("_"):
-            refs.add(MethodRef(namespace="client", method=name))
-
-    classes = (
-        ("account", AccountAPI),
-        ("account.sessions", AccountSessionsAPI),
-        ("account.web_sessions", AccountWebSessionsAPI),
-        ("account.content", AccountContentAPI),
-        ("account.ttl", AccountTTLAPI),
-        ("account.terms", AccountTermsAPI),
-        ("account.themes", AccountThemesAPI),
-        ("account.wallpapers", AccountWallpapersAPI),
-        ("account.profile_tab", AccountProfileTabAPI),
-        ("account.gift_themes", AccountGiftThemesAPI),
-        ("account.music", AccountMusicAPI),
-        ("account.music.saved", AccountMusicSavedAPI),
-        ("account.paid_messages", AccountPaidMessagesAPI),
-        ("account.passkeys", AccountPasskeysAPI),
-        ("account.identity", AccountIdentityAPI),
-        ("account.personal_channel", AccountPersonalChannelAPI),
-        ("admin", AdminAPI),
-        ("auth", AuthAPI),
-        ("bots", BotsAPI),
-        ("chats", ChatsAPI),
-        ("chats.members", ChatMembersAPI),
-        ("chats.invites", ChatInvitesAPI),
-        ("contacts", ContactsAPI),
-        ("contacts.requirements", ContactsRequirementsAPI),
-        ("search", SearchAPI),
-        ("drafts", DraftsAPI),
-        ("reports", ReportsAPI),
-        ("folders", FoldersAPI),
-        ("media", MediaAPI),
-        ("messages", MessagesAPI),
-        ("messages.scheduled", MessagesScheduledAPI),
-        ("messages.web", MessagesWebAPI),
-        ("messages.chat_theme", MessagesChatThemeAPI),
-        ("messages.suggested_posts", MessagesSuggestedPostsAPI),
-        ("messages.fact_checks", MessagesFactChecksAPI),
-        ("messages.sponsored", MessagesSponsoredAPI),
-        ("messages.saved_tags", MessagesSavedTagsAPI),
-        ("messages.attach_menu", MessagesAttachMenuAPI),
-        ("messages.discussion", MessagesDiscussionAPI),
-        ("messages.receipts", MessagesReceiptsAPI),
-        ("messages.effects", MessagesEffectsAPI),
-        ("messages.sent_media", MessagesSentMediaAPI),
-        ("messages.gifs", MessagesGifsAPI),
-        ("messages.paid_reactions", MessagesPaidReactionsAPI),
-        ("messages.inline", MessagesInlineAPI),
-        ("messages.inline.prepared", MessagesInlinePreparedAPI),
-        ("messages.history_import", MessagesHistoryImportAPI),
-        ("peers", PeersAPI),
-        ("polls", PollsAPI),
-        ("presence", PresenceAPI),
-        ("profile", ProfileAPI),
-        ("dialogs", DialogsAPI),
-        ("dialogs.pinned", DialogsPinnedAPI),
-        ("dialogs.unread", DialogsUnreadAPI),
-        ("dialogs.filters", DialogsFiltersAPI),
-        ("stickers", StickersAPI),
-        ("stickers.sets", StickerSetsAPI),
-        ("stickers.search", StickerSearchAPI),
-        ("stickers.recent", StickerRecentAPI),
-        ("stickers.favorites", StickerFavoritesAPI),
-        ("stickers.emoji", StickerEmojiAPI),
-        ("topics", TopicsAPI),
-        ("topics.forum", TopicsForumAPI),
-        ("reactions", ReactionsAPI),
-        ("reactions.defaults", ReactionsDefaultsAPI),
-        ("reactions.chat", ReactionsChatAPI),
-        ("privacy", PrivacyAPI),
-        ("privacy.global_settings", PrivacyGlobalSettingsAPI),
-        ("notifications", NotificationsAPI),
-        ("notifications.reactions", NotificationsReactionsAPI),
-        ("notifications.contact_signup", NotificationsContactSignupAPI),
-        ("business", BusinessAPI),
-        ("business.links", BusinessLinksAPI),
-        ("business.profile", BusinessProfileAPI),
-        ("business.quick_replies", BusinessQuickRepliesAPI),
-        ("stories", StoriesAPI),
-        ("stories.capabilities", StoriesCapabilitiesAPI),
-        ("stories.feed", StoriesFeedAPI),
-        ("chatlists", ChatlistsAPI),
-        ("chatlists.invites", ChatlistInvitesAPI),
-        ("chatlists.updates", ChatlistUpdatesAPI),
-        ("chatlists.suggestions", ChatlistSuggestionsAPI),
-        ("channels", ChannelsAPI),
-        ("channels.search_posts", ChannelsSearchPostsAPI),
-        ("channels.settings", ChannelSettingsAPI),
-        ("stats", StatsAPI),
-        ("stats.channels", StatsChannelsAPI),
-        ("stats.graph", StatsGraphAPI),
-        ("stats.public_forwards", StatsPublicForwardsAPI),
-        ("discovery", DiscoveryAPI),
-        ("discovery.channels", DiscoveryChannelsAPI),
-        ("discovery.bots", DiscoveryBotsAPI),
-        ("discovery.sponsored", DiscoverySponsoredAPI),
-        ("calls", CallsAPI),
-        ("calls.group", CallsGroupAPI),
-        ("calls.group.chain", CallsGroupChainAPI),
-        ("calls.stream", CallsStreamAPI),
-        ("calls.conference", CallsConferenceAPI),
-        ("premium", PremiumAPI),
-        ("premium.boosts", PremiumBoostsAPI),
-        ("takeout", TakeoutAPI),
-        ("takeout.messages", TakeoutMessagesAPI),
-        ("takeout.media", TakeoutMediaAPI),
-        ("webapps", WebAppsAPI),
-        ("todos", TodosAPI),
-        ("translate", TranslateAPI),
-        ("uploads", UploadsAPI),
-        ("games", GamesAPI),
-        ("games.scores", GameScoresAPI),
-        ("saved", SavedAPI),
-        ("saved.gifs", SavedGifsAPI),
-        ("saved.dialogs", SavedDialogsAPI),
-        ("saved.history", SavedHistoryAPI),
-        ("saved.reaction_tags", SavedReactionTagsAPI),
-        ("saved.pinned", SavedPinnedAPI),
-        ("stars", StarsAPI),
-        ("stars.transactions", StarsTransactionsAPI),
-        ("stars.revenue", StarsRevenueAPI),
-        ("stars.forms", StarsFormsAPI),
-        ("gifts", GiftsAPI),
-        ("gifts.saved", GiftsSavedAPI),
-        ("gifts.resale", GiftsResaleAPI),
-        ("gifts.unique", GiftsUniqueAPI),
-        ("gifts.notifications", GiftsNotificationsAPI),
-        ("gifts.collections", GiftsCollectionsAPI),
-        ("help", HelpAPI),
-        ("langpack", LangpackAPI),
-        ("payments", PaymentsAPI),
-        ("payments.forms", PaymentsFormsAPI),
-        ("payments.invoice", PaymentsInvoiceAPI),
-        ("payments.gift_codes", PaymentsGiftCodesAPI),
-        ("payments.stars", PaymentsStarsAPI),
-        ("updates", UpdatesAPI),
-        ("users", UsersAPI),
-        ("stories.links", StoriesLinksAPI),
-        ("stories.views", StoriesViewsAPI),
-        ("stories.reactions", StoriesReactionsAPI),
-        ("stories.stealth", StoriesStealthAPI),
-        ("stories.peers", StoriesPeersAPI),
-        ("stories.albums", StoriesAlbumsAPI),
+def _is_public_callable(value: Any) -> bool:
+    return (
+        inspect.iscoroutinefunction(value)
+        or inspect.isasyncgenfunction(value)
+        or inspect.isfunction(value)
+        or inspect.ismethod(value)
     )
 
-    for namespace, cls in classes:
-        for name, fn in inspect.getmembers(cls, inspect.iscoroutinefunction):
-            if not name.startswith("_"):
-                refs.add(MethodRef(namespace=namespace, method=name))
 
+def _discover_v2_callables() -> dict[MethodRef, Any]:
+    """Discover the facade exactly as users reach it at runtime."""
+
+    refs: dict[MethodRef, Any] = {}
+    visited: set[int] = set()
+    client = Client(raw=object())  # type: ignore[arg-type]
+
+    def add(ref: MethodRef, value: Any) -> None:
+        previous = refs.setdefault(ref, value)
+        assert previous is value or inspect.signature(previous) == inspect.signature(value), (
+            f"Conflicting public callables at {ref.namespace}.{ref.method}"
+        )
+
+    def visit(obj: Any, namespace: str) -> None:
+        if id(obj) in visited:
+            return
+        visited.add(id(obj))
+
+        for name, declared in inspect.getmembers(type(obj)):
+            if name.startswith("_") or not _is_public_callable(declared):
+                continue
+            add(MethodRef(namespace=namespace, method=name), getattr(obj, name))
+
+        for name, nested in vars(obj).items():
+            if name.startswith("_") or name == "raw":
+                continue
+            if not type(nested).__module__.startswith("telecraft.client.apis."):
+                continue
+
+            # Callable namespace objects are normally mirrored by a method on
+            # their parent (for example ``channels.search_posts(...)``). If a
+            # future namespace omits that alias, still track the callable path.
+            declared = getattr(type(obj), name, None)
+            call = getattr(type(nested), "__call__", None)
+            if _is_public_callable(call) and not _is_public_callable(declared):
+                add(MethodRef(namespace=namespace, method=name), nested)
+
+            child_namespace = name if namespace == "client" else f"{namespace}.{name}"
+            visit(nested, child_namespace)
+
+    visit(client, "client")
     return refs
 
 
+def _discover_v2_methods() -> set[MethodRef]:
+    return set(_discover_v2_callables())
+
+
 def _discover_timeout_support() -> dict[MethodRef, bool]:
-    timeout_support: dict[MethodRef, bool] = {}
-
-    for name, fn in inspect.getmembers(Client, inspect.iscoroutinefunction):
-        if name.startswith("_"):
-            continue
-        sig = inspect.signature(fn)
-        timeout_support[MethodRef(namespace="client", method=name)] = "timeout" in sig.parameters
-
-    classes = (
-        ("account", AccountAPI),
-        ("account.sessions", AccountSessionsAPI),
-        ("account.web_sessions", AccountWebSessionsAPI),
-        ("account.content", AccountContentAPI),
-        ("account.ttl", AccountTTLAPI),
-        ("account.terms", AccountTermsAPI),
-        ("account.themes", AccountThemesAPI),
-        ("account.wallpapers", AccountWallpapersAPI),
-        ("account.profile_tab", AccountProfileTabAPI),
-        ("account.gift_themes", AccountGiftThemesAPI),
-        ("account.music", AccountMusicAPI),
-        ("account.music.saved", AccountMusicSavedAPI),
-        ("account.paid_messages", AccountPaidMessagesAPI),
-        ("account.passkeys", AccountPasskeysAPI),
-        ("account.identity", AccountIdentityAPI),
-        ("account.personal_channel", AccountPersonalChannelAPI),
-        ("admin", AdminAPI),
-        ("auth", AuthAPI),
-        ("bots", BotsAPI),
-        ("chats", ChatsAPI),
-        ("chats.members", ChatMembersAPI),
-        ("chats.invites", ChatInvitesAPI),
-        ("contacts", ContactsAPI),
-        ("contacts.requirements", ContactsRequirementsAPI),
-        ("search", SearchAPI),
-        ("drafts", DraftsAPI),
-        ("reports", ReportsAPI),
-        ("folders", FoldersAPI),
-        ("media", MediaAPI),
-        ("messages", MessagesAPI),
-        ("messages.scheduled", MessagesScheduledAPI),
-        ("messages.web", MessagesWebAPI),
-        ("messages.chat_theme", MessagesChatThemeAPI),
-        ("messages.suggested_posts", MessagesSuggestedPostsAPI),
-        ("messages.fact_checks", MessagesFactChecksAPI),
-        ("messages.sponsored", MessagesSponsoredAPI),
-        ("messages.saved_tags", MessagesSavedTagsAPI),
-        ("messages.attach_menu", MessagesAttachMenuAPI),
-        ("messages.discussion", MessagesDiscussionAPI),
-        ("messages.receipts", MessagesReceiptsAPI),
-        ("messages.effects", MessagesEffectsAPI),
-        ("messages.sent_media", MessagesSentMediaAPI),
-        ("messages.gifs", MessagesGifsAPI),
-        ("messages.paid_reactions", MessagesPaidReactionsAPI),
-        ("messages.inline", MessagesInlineAPI),
-        ("messages.inline.prepared", MessagesInlinePreparedAPI),
-        ("messages.history_import", MessagesHistoryImportAPI),
-        ("peers", PeersAPI),
-        ("polls", PollsAPI),
-        ("presence", PresenceAPI),
-        ("profile", ProfileAPI),
-        ("dialogs", DialogsAPI),
-        ("dialogs.pinned", DialogsPinnedAPI),
-        ("dialogs.unread", DialogsUnreadAPI),
-        ("dialogs.filters", DialogsFiltersAPI),
-        ("stickers", StickersAPI),
-        ("stickers.sets", StickerSetsAPI),
-        ("stickers.search", StickerSearchAPI),
-        ("stickers.recent", StickerRecentAPI),
-        ("stickers.favorites", StickerFavoritesAPI),
-        ("stickers.emoji", StickerEmojiAPI),
-        ("topics", TopicsAPI),
-        ("topics.forum", TopicsForumAPI),
-        ("reactions", ReactionsAPI),
-        ("reactions.defaults", ReactionsDefaultsAPI),
-        ("reactions.chat", ReactionsChatAPI),
-        ("privacy", PrivacyAPI),
-        ("privacy.global_settings", PrivacyGlobalSettingsAPI),
-        ("notifications", NotificationsAPI),
-        ("notifications.reactions", NotificationsReactionsAPI),
-        ("notifications.contact_signup", NotificationsContactSignupAPI),
-        ("business", BusinessAPI),
-        ("business.links", BusinessLinksAPI),
-        ("business.profile", BusinessProfileAPI),
-        ("business.quick_replies", BusinessQuickRepliesAPI),
-        ("stories", StoriesAPI),
-        ("stories.capabilities", StoriesCapabilitiesAPI),
-        ("stories.feed", StoriesFeedAPI),
-        ("chatlists", ChatlistsAPI),
-        ("chatlists.invites", ChatlistInvitesAPI),
-        ("chatlists.updates", ChatlistUpdatesAPI),
-        ("chatlists.suggestions", ChatlistSuggestionsAPI),
-        ("channels", ChannelsAPI),
-        ("channels.search_posts", ChannelsSearchPostsAPI),
-        ("channels.settings", ChannelSettingsAPI),
-        ("stats", StatsAPI),
-        ("stats.channels", StatsChannelsAPI),
-        ("stats.graph", StatsGraphAPI),
-        ("stats.public_forwards", StatsPublicForwardsAPI),
-        ("discovery", DiscoveryAPI),
-        ("discovery.channels", DiscoveryChannelsAPI),
-        ("discovery.bots", DiscoveryBotsAPI),
-        ("discovery.sponsored", DiscoverySponsoredAPI),
-        ("calls", CallsAPI),
-        ("calls.group", CallsGroupAPI),
-        ("calls.group.chain", CallsGroupChainAPI),
-        ("calls.stream", CallsStreamAPI),
-        ("calls.conference", CallsConferenceAPI),
-        ("premium", PremiumAPI),
-        ("premium.boosts", PremiumBoostsAPI),
-        ("takeout", TakeoutAPI),
-        ("takeout.messages", TakeoutMessagesAPI),
-        ("takeout.media", TakeoutMediaAPI),
-        ("webapps", WebAppsAPI),
-        ("todos", TodosAPI),
-        ("translate", TranslateAPI),
-        ("uploads", UploadsAPI),
-        ("games", GamesAPI),
-        ("games.scores", GameScoresAPI),
-        ("saved", SavedAPI),
-        ("saved.gifs", SavedGifsAPI),
-        ("saved.dialogs", SavedDialogsAPI),
-        ("saved.history", SavedHistoryAPI),
-        ("saved.reaction_tags", SavedReactionTagsAPI),
-        ("saved.pinned", SavedPinnedAPI),
-        ("stars", StarsAPI),
-        ("stars.transactions", StarsTransactionsAPI),
-        ("stars.revenue", StarsRevenueAPI),
-        ("stars.forms", StarsFormsAPI),
-        ("gifts", GiftsAPI),
-        ("gifts.saved", GiftsSavedAPI),
-        ("gifts.resale", GiftsResaleAPI),
-        ("gifts.unique", GiftsUniqueAPI),
-        ("gifts.notifications", GiftsNotificationsAPI),
-        ("gifts.collections", GiftsCollectionsAPI),
-        ("help", HelpAPI),
-        ("langpack", LangpackAPI),
-        ("payments", PaymentsAPI),
-        ("payments.forms", PaymentsFormsAPI),
-        ("payments.invoice", PaymentsInvoiceAPI),
-        ("payments.gift_codes", PaymentsGiftCodesAPI),
-        ("payments.stars", PaymentsStarsAPI),
-        ("updates", UpdatesAPI),
-        ("users", UsersAPI),
-        ("stories.links", StoriesLinksAPI),
-        ("stories.views", StoriesViewsAPI),
-        ("stories.reactions", StoriesReactionsAPI),
-        ("stories.stealth", StoriesStealthAPI),
-        ("stories.peers", StoriesPeersAPI),
-        ("stories.albums", StoriesAlbumsAPI),
-    )
-
-    for namespace, cls in classes:
-        for name, fn in inspect.getmembers(cls, inspect.iscoroutinefunction):
-            if name.startswith("_"):
-                continue
-            sig = inspect.signature(fn)
-            timeout_support[MethodRef(namespace=namespace, method=name)] = (
-                "timeout" in sig.parameters
-            )
-
-    return timeout_support
+    return {
+        ref: "timeout" in inspect.signature(fn).parameters
+        for ref, fn in _discover_v2_callables().items()
+    }
 
 
 def _load_matrix() -> list[dict[str, Any]]:
@@ -578,9 +183,12 @@ def test_v2_method_matrix_is_complete_and_valid() -> None:
         seen.add(ref)
 
         if stability == "stable" and tier == "unit":
-            expected = set(SCENARIOS_STABLE_UNIT_MIN)
-            if timeout_support.get(ref, False):
-                expected.add("passes_timeout")
+            if ref in SYNCHRONOUS_HELPERS:
+                expected = set(SCENARIOS_STABLE_SYNC_MIN)
+            else:
+                expected = set(SCENARIOS_STABLE_UNIT_MIN)
+                if timeout_support.get(ref, False):
+                    expected.add("passes_timeout")
             assert expected.issubset(set(required_scenarios)), (
                 f"{namespace}.{method} must include stable minimum scenarios"
             )

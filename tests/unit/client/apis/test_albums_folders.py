@@ -72,7 +72,8 @@ class TestSendAlbum:
                 )
             )
 
-    def test_send_album_self_uses_input_peer_self(self, tmp_path) -> None:
+    @pytest.mark.parametrize("alias", ["self", "ME", " me "])
+    def test_send_album_self_alias_uses_input_peer_self(self, tmp_path, alias: str) -> None:
         c = _make_connected_client()
         paths = [tmp_path / "one.jpg", tmp_path / "two.jpg"]
         for path in paths:
@@ -89,7 +90,7 @@ class TestSendAlbum:
         c.resolve_peer = fail_resolve  # type: ignore[assignment]
         c.invoke_api = invoke_api  # type: ignore[assignment]
 
-        asyncio.run(c.send_album("self", paths))
+        asyncio.run(c.send_album(alias, paths))
 
         request = [
             item for item in seen if getattr(item, "TL_NAME", None) == "messages.sendMultiMedia"

@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from telecraft.client import mtproto as mtproto_module
 from telecraft.client.media import (
     ExtractedMediaWithCache,
     MediaError,
@@ -26,6 +27,154 @@ from telecraft.tl.generated.types import (
     StorageFileUnknown,
     UploadFile,
 )
+
+
+def test_cross_dc_client_failure_closes_uncached_child(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Child:
+        is_connected = False
+
+        def __init__(self, **kwargs: Any) -> None:
+            _ = kwargs
+            self.closed = False
+
+        async def connect(self, *, timeout: float) -> None:
+            _ = timeout
+            self.is_connected = True
+
+        async def close(self) -> None:
+            self.closed = True
+            self.is_connected = False
+
+    async def _run() -> None:
+        parent = MtprotoClient(init=SimpleNamespace(api_id=1, api_hash="x"))
+        parent._transport = object()  # type: ignore[assignment]
+        parent._state = object()  # type: ignore[assignment]
+        parent._sender = SimpleNamespace(is_healthy=True)  # type: ignore[assignment]
+        children: list[Child] = []
+
+        def make_child(**kwargs: Any) -> Child:
+            child = Child(**kwargs)
+            children.append(child)
+            return child
+
+        async def fail_export(req: Any, *, timeout: float) -> Any:
+            _ = req, timeout
+            raise RuntimeError("export failed")
+
+        monkeypatch.setattr(mtproto_module, "MtprotoClient", make_child)
+        monkeypatch.setattr(parent, "invoke_api", fail_export)
+
+        with pytest.raises(RuntimeError, match="export failed"):
+            await parent._client_for_dc(4)
+        assert len(children) == 1
+        assert children[0].closed is True
+        assert parent._media_clients == {}
+
+    asyncio.run(_run())
+
+
+def test_cross_dc_client_creation_is_deduplicated(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Child:
+        is_connected = False
+
+        def __init__(self, **kwargs: Any) -> None:
+            _ = kwargs
+            self.imports = 0
+
+        async def connect(self, *, timeout: float) -> None:
+            _ = timeout
+            await asyncio.sleep(0)
+            self.is_connected = True
+
+        async def invoke_api(self, req: Any, *, timeout: float) -> Any:
+            _ = req, timeout
+            self.imports += 1
+            return True
+
+        async def close(self) -> None:
+            self.is_connected = False
+
+    async def _run() -> None:
+        parent = MtprotoClient(init=SimpleNamespace(api_id=1, api_hash="x"))
+        parent._transport = object()  # type: ignore[assignment]
+        parent._state = object()  # type: ignore[assignment]
+        parent._sender = SimpleNamespace(is_healthy=True)  # type: ignore[assignment]
+        children: list[Child] = []
+
+        def make_child(**kwargs: Any) -> Child:
+            child = Child(**kwargs)
+            children.append(child)
+            return child
+
+        async def export(req: Any, *, timeout: float) -> Any:
+            _ = req, timeout
+            await asyncio.sleep(0)
+            return SimpleNamespace(id=1, bytes=b"auth")
+
+        monkeypatch.setattr(mtproto_module, "MtprotoClient", make_child)
+        monkeypatch.setattr(parent, "invoke_api", export)
+
+        first, second = await asyncio.gather(
+            parent._client_for_dc(4),
+            parent._client_for_dc(4),
+        )
+        assert first is second
+        assert len(children) == 1
+        assert children[0].imports == 1
+
+    asyncio.run(_run())
+
+
+def test_cross_dc_unhealthy_cached_child_is_closed_before_replacement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Child:
+        def __init__(self, **kwargs: Any) -> None:
+            _ = kwargs
+            self.is_connected = False
+            self.closed = False
+
+        async def connect(self, *, timeout: float) -> None:
+            _ = timeout
+            self.is_connected = True
+
+        async def invoke_api(self, req: Any, *, timeout: float) -> Any:
+            _ = req, timeout
+            return True
+
+        async def close(self) -> None:
+            self.closed = True
+            self.is_connected = False
+
+    async def _run() -> None:
+        parent = MtprotoClient(init=SimpleNamespace(api_id=1, api_hash="x"))
+        parent._transport = object()  # type: ignore[assignment]
+        parent._state = object()  # type: ignore[assignment]
+        parent._sender = SimpleNamespace(is_healthy=True)  # type: ignore[assignment]
+        stale = Child()
+        parent._media_clients[4] = stale  # type: ignore[assignment]
+        children: list[Child] = []
+
+        def make_child(**kwargs: Any) -> Child:
+            child = Child(**kwargs)
+            children.append(child)
+            return child
+
+        async def export(req: Any, *, timeout: float) -> Any:
+            _ = req, timeout
+            return SimpleNamespace(id=1, bytes=b"auth")
+
+        monkeypatch.setattr(mtproto_module, "MtprotoClient", make_child)
+        monkeypatch.setattr(parent, "invoke_api", export)
+
+        replacement = await parent._client_for_dc(4)
+
+        assert stale.closed is True
+        assert len(children) == 1
+        assert replacement is children[0]
+        assert parent._media_clients[4] is replacement
+
+    asyncio.run(_run())
 
 
 def test_download_via_get_file_assembles_bytes() -> None:
@@ -212,11 +361,20 @@ def test_download_via_get_file_to_path_keeps_existing_file_on_failure(tmp_path) 
         r"\\server\share\escape.txt",
         "unsafe:name.txt",
         "CON.txt",
+        "COM¹.log",
+        "LPT³",
+        "delete\x7fme.txt",
+        "control\x85name.txt",
+        "photo\u202egnp.exe",
     ],
 )
 def test_safe_download_filename_rejects_cross_platform_paths(file_name: str) -> None:
     with pytest.raises(MediaError):
         safe_download_filename(file_name)
+
+
+def test_safe_download_filename_allows_non_device_superscript_name() -> None:
+    assert safe_download_filename("report¹.txt") == "report¹.txt"
 
 
 def test_ensure_dest_path_keeps_safe_remote_name_inside_directory(tmp_path) -> None:

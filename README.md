@@ -1,15 +1,21 @@
 # Telecraft
 
+[![PyPI version](https://img.shields.io/pypi/v/telecraft.svg)](https://pypi.org/project/telecraft/)
+[![CI](https://github.com/meniwap/telecraftor/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/meniwap/telecraftor/actions/workflows/ci.yml)
+[![Python versions](https://img.shields.io/pypi/pyversions/telecraft.svg)](https://pypi.org/project/telecraft/)
+[![License: MIT-0](https://img.shields.io/pypi/l/telecraft.svg)](https://github.com/meniwap/telecraftor/blob/main/LICENSE)
+[![Typing: typed](https://img.shields.io/badge/typing-typed-blue.svg)](https://peps.python.org/pep-0561/)
+
 Telecraft is an async, MTProto-first Telegram client library for Python.
 
 It supports:
 
 - user sessions for userbot workflows
 - bot sessions through MTProto login with `auth.importBotAuthorization`
-- typed high-level client namespaces for messages, dialogs, media, bots, admin helpers, and more
+- high-level client namespaces for messages, dialogs, media, bots, admin helpers, and more
 - an event stack for MTProto update routing with `Router` and `Dispatcher`
 
-Current stable release: `0.2.0`.
+Current stable version: `0.2.1`.
 
 Telecraft does **not** implement the HTTP Telegram Bot API. Bot accounts are supported
 through MTProto, so you still need Telegram API credentials plus a bot token from BotFather.
@@ -22,6 +28,8 @@ through MTProto, so you still need Telegram API credentials plus a bot token fro
 ## Known Limitations
 
 - This is an MTProto-first library, not a drop-in replacement for Telethon or Pyrogram.
+- Method signatures are annotated, but many Telegram responses are generated TL objects whose
+  concrete return types are currently exposed as `Any` rather than normalized DTOs.
 - HTTP Bot API is intentionally not included; bot sessions use MTProto.
 - Secret chats, calls, and full TDLib parity are not in scope for this release.
 - Media downloads redirected through Telegram's CDN are not yet supported.
@@ -37,10 +45,10 @@ python -m pip install -U pip
 python -m pip install telecraft
 ```
 
-From GitHub for development or pre-release fallback:
+From GitHub at the matching stable tag:
 
 ```bash
-python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.0"
+python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.1"
 ```
 
 For local development from a clone:
@@ -70,10 +78,11 @@ Local sessions contain Telegram auth keys. Treat `.sessions/` like passwords and
 
 ## Login
 
-The local operator CLI is under `apps/`. Production access is intentionally double-gated:
+The `telecraft` command included in `0.2.1` handles login and session operations.
+Production access is intentionally double-gated:
 
 ```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login --runtime prod --allow-prod
+TELECRAFT_ALLOW_PROD=1 telecraft login --runtime prod --allow-prod
 ```
 
 The phone prompt happens before Telecraft opens a Telegram connection. After the code is sent,
@@ -82,13 +91,13 @@ Telecraft keeps the connection alive while you type the code or 2FA password.
 Check the session:
 
 ```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-prod
+TELECRAFT_ALLOW_PROD=1 telecraft me --runtime prod --allow-prod
 ```
 
 Send a message:
 
 ```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py send @your_username "hello from Telecraft" --runtime prod --allow-prod
+TELECRAFT_ALLOW_PROD=1 telecraft send @your_username "hello from Telecraft" --runtime prod --allow-prod
 ```
 
 ## Minimal Use
@@ -96,13 +105,13 @@ TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py send @your_username "hello
 ```python
 import asyncio
 
-from telecraft.client import Client, ClientInit
+from telecraft.client import Client, ClientInit, resolve_current_session_path
 
 
 async def main() -> None:
     client = Client(
         network="prod",
-        session_path=".sessions/prod/current",
+        session_path=resolve_current_session_path(),
         init=ClientInit(
             api_id=12345,
             api_hash="your_api_hash",
@@ -126,7 +135,7 @@ asyncio.run(main())
 Login a bot account through MTProto:
 
 ```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod
+TELECRAFT_ALLOW_PROD=1 telecraft login-bot --runtime prod --allow-prod
 ```
 
 Bot sessions use a separate pointer at `.sessions/prod/current_bot`.
@@ -134,7 +143,7 @@ Bot sessions use a separate pointer at `.sessions/prod/current_bot`.
 Run a bot session check:
 
 ```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py me --runtime prod --allow-prod --session-kind bot
+TELECRAFT_ALLOW_PROD=1 telecraft me --runtime prod --allow-prod --session-kind bot
 ```
 
 ## Examples
@@ -161,7 +170,7 @@ Normal local gate:
 ./.venv/bin/python -m ruff check src tests tools apps examples
 ./.venv/bin/python -m mypy src
 ./.venv/bin/python -m pytest tests/meta -q
-./.venv/bin/python -m pytest -m "not live" -q
+./.venv/bin/python -m pytest -m "not live" --cov=telecraft --cov-report=term-missing
 ./.venv/bin/python -m pytest tests/live --collect-only -q
 ./.venv/bin/python -m build
 ./.venv/bin/python tools/check_repo_hygiene.py --artifacts

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import stat
+import threading
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -16,6 +20,24 @@ from telecraft.bot.groupbot import (
     validate_group_bot_config,
     validate_group_bot_scope,
 )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX mode assertion")
+def test_groupbot_storage__creates_private_database_and_sidecars(tmp_path: Path) -> None:
+    database = tmp_path / "groupbot.sqlite3"
+    old_umask = os.umask(0o022)
+    try:
+        storage = GroupBotStorage(database)
+        storage.set_group_setting(peer_key="chat:1", key="secret", value="value")
+        paths = [database, database.with_name(database.name + "-wal")]
+        shm = database.with_name(database.name + "-shm")
+        if shm.exists():
+            paths.append(shm)
+
+        assert all(stat.S_IMODE(path.stat().st_mode) == 0o600 for path in paths)
+        storage.close()
+    finally:
+        os.umask(old_umask)
 
 
 def test_groupbot_config__load_defaults__returns_expected_shape() -> None:
@@ -186,7 +208,7 @@ def test_groupbot_storage__warnings_stats_logs__returns_expected_shape() -> None
 
 def test_groupbot_storage__migrates_legacy_schedule_schema(tmp_path: Path) -> None:
     path = tmp_path / "legacy.sqlite3"
-    with sqlite3.connect(path) as conn:
+    with closing(sqlite3.connect(path)) as conn:
         conn.execute(
             """
             CREATE TABLE scheduled_jobs (
@@ -206,6 +228,7 @@ def test_groupbot_storage__migrates_legacy_schedule_schema(tmp_path: Path) -> No
             ) VALUES ('legacy', 'channel:1', 'hello', 60, 1, 0)
             """
         )
+        conn.commit()
 
     db = GroupBotStorage(path)
     try:
@@ -219,7 +242,7 @@ def test_groupbot_storage__migrates_legacy_schedule_schema(tmp_path: Path) -> No
 
 def test_groupbot_storage__serializes_concurrent_legacy_migration(tmp_path: Path) -> None:
     path = tmp_path / "legacy-concurrent.sqlite3"
-    with sqlite3.connect(path) as conn:
+    with closing(sqlite3.connect(path)) as conn:
         conn.execute(
             """
             CREATE TABLE scheduled_jobs (
@@ -232,8 +255,12 @@ def test_groupbot_storage__serializes_concurrent_legacy_migration(tmp_path: Path
             )
             """
         )
+        conn.commit()
+
+    start = threading.Barrier(8)
 
     def _open_and_close() -> None:
+        start.wait()
         db = GroupBotStorage(path)
         db.close()
 
@@ -242,8 +269,52 @@ def test_groupbot_storage__serializes_concurrent_legacy_migration(tmp_path: Path
 
     db = GroupBotStorage(path)
     try:
-        with sqlite3.connect(path) as conn:
+        with closing(sqlite3.connect(path)) as conn:
             columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(scheduled_jobs)")}
         assert {"source", "suppressed"} <= columns
     finally:
         db.close()
+
+
+def test_groupbot_storage__retries_complete_initialization_after_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = GroupBotStorage._init_schema_once
+    attempts = 0
+
+    def _locked_then_initialize(self: GroupBotStorage) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise sqlite3.OperationalError("database is locked")
+        original(self)
+
+    monkeypatch.setattr(GroupBotStorage, "_init_schema_once", _locked_then_initialize)
+
+    db = GroupBotStorage(tmp_path / "retry.sqlite3")
+    try:
+        assert attempts == 3
+        db.set_group_setting(peer_key="channel:1", key="ready", value=True)
+        assert db.get_group_setting(peer_key="channel:1", key="ready") is True
+    finally:
+        db.close()
+
+
+def test_groupbot_storage__does_not_retry_unrelated_operational_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+
+    def _fail_initialization(_self: GroupBotStorage) -> None:
+        nonlocal attempts
+        attempts += 1
+        raise sqlite3.OperationalError("disk I/O error")
+
+    monkeypatch.setattr(GroupBotStorage, "_init_schema_once", _fail_initialization)
+
+    with pytest.raises(sqlite3.OperationalError, match="disk I/O error"):
+        GroupBotStorage(tmp_path / "broken.sqlite3")
+
+    assert attempts == 1

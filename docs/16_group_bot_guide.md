@@ -87,7 +87,9 @@ Key fields:
 
 Plugin files are checked for existence and Python syntax before Telegram connection. An import or
 `setup()` failure is fatal for that process; fix the plugin and restart instead of retrying inside a
-partially registered router.
+partially registered router. Plugins execute as ordinary Python inside the bot process, with the
+same access as the bot account and host user. Only load owner-controlled, reviewed plugin files;
+syntax validation is not a sandbox or a trust check.
 
 Per-peer overrides are stored in SQLite (`group_settings`) and survive restarts.
 

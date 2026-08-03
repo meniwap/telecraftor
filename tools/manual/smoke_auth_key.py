@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import base64
 import json
 import logging
 from pathlib import Path
@@ -21,10 +20,6 @@ PROD_DCS: dict[int, tuple[str, int]] = {
     4: ("149.154.167.91", 443),
     5: ("91.108.56.130", 443),
 }
-
-
-def _b64(data: bytes) -> str:
-    return base64.b64encode(data).decode("ascii")
 
 
 async def _run(args: argparse.Namespace) -> int:
@@ -62,15 +57,11 @@ async def _run(args: argparse.Namespace) -> int:
         "server_salt_hex": res.server_salt.hex(),
         "server_time": res.server_time,
     }
-    if args.unsafe_include_auth_key:
-        summary["auth_key_b64"] = _b64(res.auth_key)
-    else:
-        summary["auth_key_b64"] = "<redacted; pass --unsafe-include-auth-key for local debugging>"
 
     if args.out is not None:
         out_path = Path(args.out)
         out_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        print(f"Wrote auth key info to {out_path}")
+        print(f"Wrote auth exchange diagnostics to {out_path}")
     else:
         print(json.dumps(summary, indent=2, sort_keys=True))
 
@@ -96,12 +87,6 @@ def main() -> int:
     )
     p.add_argument("--timeout", type=float, default=30.0, help="Overall timeout (seconds)")
     p.add_argument("--out", type=str, default=None, help="Write JSON output to this path")
-    p.add_argument(
-        "--unsafe-include-auth-key",
-        action="store_true",
-        default=False,
-        help="Include raw auth_key_b64 in output. Unsafe: do not paste or commit this output.",
-    )
     args = p.parse_args()
 
     return asyncio.run(_run(args))

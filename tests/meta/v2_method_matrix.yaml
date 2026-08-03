@@ -9031,5 +9031,178 @@
     ],
     "introduced_in": "v4.4",
     "deprecation_target": null
+  },
+  {
+    "namespace": "channels.admin_log",
+    "method": "list",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "channels.links",
+    "method": "message",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages",
+    "method": "iter_dialogs",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "messages",
+    "method": "iter_messages",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "profile.emoji_status",
+    "method": "channel_defaults",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "profile.emoji_status",
+    "method": "clear_recent",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "profile.emoji_status",
+    "method": "defaults",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "profile.emoji_status",
+    "method": "recent",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "profile.emoji_status",
+    "method": "update",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "uploads",
+    "method": "iter_file",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "delegates_to_raw",
+      "passes_timeout",
+      "forwards_args",
+      "returns_expected_shape",
+      "handles_rpc_error"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
+  },
+  {
+    "namespace": "notifications",
+    "method": "peer",
+    "stability": "stable",
+    "tier": "unit",
+    "requires_second_account": false,
+    "required_scenarios": [
+      "forwards_args",
+      "returns_expected_shape"
+    ],
+    "introduced_in": "v4.4",
+    "deprecation_target": null
   }
 ]

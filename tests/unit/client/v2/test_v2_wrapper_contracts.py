@@ -7,6 +7,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from telecraft.client import (
@@ -31,10 +32,12 @@ UNIT_SCENARIOS = {
     "handles_rpc_error",
 }
 DEFAULT_TIMEOUT = 9.5
-ASYNC_ITER_METHODS = {
-    ("messages", "iter_dialogs"),
-    ("messages", "iter_messages"),
+ASYNC_ITER_RESULTS = {
+    ("messages", "iter_dialogs"): [{"dialog": 1}, {"dialog": 2}],
+    ("messages", "iter_messages"): [{"message": 1}, {"message": 2}],
+    ("uploads", "iter_file"): [b"chunk"],
 }
+SYNCHRONOUS_HELPERS = {("notifications", "peer")}
 VOID_METHODS = {
     ("client", "close"),
     ("client", "connect"),
@@ -124,6 +127,8 @@ class SpyRaw:
 
     async def invoke_api(self, req: Any, *, timeout: float = 20.0) -> Any:
         self._record("invoke_api", (req,), {"timeout": timeout})
+        if type(req).__name__ == "UploadGetFile":
+            return SimpleNamespace(bytes=b"chunk")
         return {"ok": True, "kind": "invoke_api", "request": type(req).__name__}
 
     async def prime_entities(
@@ -418,6 +423,7 @@ FORWARDED_ARG_ALIASES: dict[str, tuple[str, ...]] = {
     "link_obj": ("link",),
     "message_obj_or_none": ("message",),
     "sticker_set": ("stickerset",),
+    "status": ("emoji_status",),
     "query": ("q",),
     "story_id": ("id",),
     "target": ("peer",),
@@ -590,7 +596,9 @@ async def _invoke(bound_method: Any, args: list[Any], kwargs: dict[str, Any]) ->
         async for item in out:
             values.append(item)
         return values
-    return await out
+    if inspect.isawaitable(out):
+        return await out
+    return out
 
 
 async def _run_scenario(namespace: str, method: str, scenario: str) -> None:
@@ -646,6 +654,11 @@ async def _run_scenario(namespace: str, method: str, scenario: str) -> None:
         return
 
     if scenario == "forwards_args":
+        if (namespace, method) in SYNCHRONOUS_HELPERS:
+            assert isinstance(result, NotifyTarget)
+            assert result.kind == "peer"
+            assert result.peer == expected_required["peer"]
+            return
         assert raw.calls, f"{namespace}.{method} did not call raw for arg forwarding"
         for name, value in expected_required.items():
             if _arg_forwarded(raw, name, value):
@@ -660,11 +673,8 @@ async def _run_scenario(namespace: str, method: str, scenario: str) -> None:
         if key in VOID_METHODS:
             assert result is None
             return
-        if key in ASYNC_ITER_METHODS:
-            assert result == [{"dialog": 1}, {"dialog": 2}] or result == [
-                {"message": 1},
-                {"message": 2},
-            ]
+        if key in ASYNC_ITER_RESULTS:
+            assert result == ASYNC_ITER_RESULTS[key]
             return
         if isinstance(result, dict):
             assert result.get("ok") is True

@@ -68,6 +68,7 @@ class Client:
         framing: str = "intermediate",
         session_path: str | Path | None = None,
         init: ClientInit | None = None,
+        trust_legacy_updates_state: bool = False,
         raw: MtprotoClient | None = None,
     ) -> None:
         self.raw = (
@@ -81,6 +82,7 @@ class Client:
                 framing=framing,
                 session_path=session_path,
                 init=init,
+                trust_legacy_updates_state=trust_legacy_updates_state,
             )
         )
         self.peers = PeersAPI(self.raw)

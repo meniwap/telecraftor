@@ -1,12 +1,39 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from telecraft._private_storage import ensure_private_file
+
+_SCHEMA_INIT_LOCK = threading.Lock()
+_SCHEMA_INIT_MAX_ATTEMPTS = 10
+_SCHEMA_INIT_RETRY_BASE_SECONDS = 0.025
+_SCHEMA_INIT_RETRY_MAX_SECONDS = 0.5
+_SQLITE_LOCK_RESULT_CODES = frozenset({5, 6})  # SQLITE_BUSY and SQLITE_LOCKED
+
+
+def _is_sqlite_lock_error(exc: sqlite3.OperationalError) -> bool:
+    error_code = getattr(exc, "sqlite_errorcode", None)
+    if isinstance(error_code, int):
+        primary_code = error_code & 0xFF
+        return primary_code in _SQLITE_LOCK_RESULT_CODES
+
+    # sqlite_errorcode is unavailable on older Python/SQLite combinations.
+    message = str(exc).casefold()
+    return any(
+        marker in message
+        for marker in (
+            "database is locked",
+            "database table is locked",
+            "database schema is locked",
+        )
+    )
 
 
 @dataclass(slots=True, frozen=True)
@@ -27,18 +54,63 @@ class GroupBotStorage:
         p = Path(path).expanduser()
         if not p.is_absolute():
             p = (Path.cwd() / p).resolve()
-        p.parent.mkdir(parents=True, exist_ok=True)
-        self.path = p
+        self.path = ensure_private_file(p)
         self._conn = sqlite3.connect(str(p), timeout=30.0, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
-        self._init_schema()
+        try:
+            self._init_schema()
+            self._restrict_sqlite_files()
+        except BaseException:
+            self._conn.close()
+            raise
+
+    def _restrict_sqlite_files(self) -> None:
+        """Keep the database and SQLite sidecars private on multi-user hosts."""
+
+        if os.name == "nt":
+            return
+        for path in (
+            self.path,
+            self.path.with_name(self.path.name + "-wal"),
+            self.path.with_name(self.path.name + "-shm"),
+        ):
+            try:
+                path.chmod(0o600)
+            except FileNotFoundError:
+                continue
 
     def close(self) -> None:
         with self._lock:
             self._conn.close()
 
     def _init_schema(self) -> None:
+        # SQLite may return BUSY/LOCKED immediately while another connection is
+        # changing journal mode, before its configured busy timeout takes
+        # effect. Serialize starts in this process and retry the complete,
+        # idempotent initialization for starts racing in another process.
+        with _SCHEMA_INIT_LOCK:
+            for attempt in range(_SCHEMA_INIT_MAX_ATTEMPTS):
+                try:
+                    self._init_schema_once()
+                except sqlite3.OperationalError as exc:
+                    try:
+                        self._conn.rollback()
+                    except sqlite3.Error:
+                        pass
+                    if not _is_sqlite_lock_error(exc):
+                        raise
+                    if attempt + 1 >= _SCHEMA_INIT_MAX_ATTEMPTS:
+                        raise
+                    delay = min(
+                        _SCHEMA_INIT_RETRY_BASE_SECONDS * (2**attempt),
+                        _SCHEMA_INIT_RETRY_MAX_SECONDS,
+                    )
+                    time.sleep(delay)
+                else:
+                    return
+
+    def _init_schema_once(self) -> None:
         with self._lock:
             self._conn.executescript(
                 """

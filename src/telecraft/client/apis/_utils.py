@@ -4,11 +4,13 @@ from collections.abc import Sequence
 from typing import Any
 
 from telecraft.client.entities import EntityCacheError
-from telecraft.client.peers import PeerRef
-from telecraft.tl.generated.types import InputDialogPeer, InputPeerSelf
+from telecraft.client.peers import PeerRef, is_self_peer_ref
+from telecraft.tl.generated.types import InputDialogPeer, InputPeerSelf, InputUserSelf
 
 
 async def resolve_input_peer(raw: Any, peer: PeerRef, *, timeout: float) -> Any:
+    if is_self_peer_ref(peer):
+        return InputPeerSelf()
     resolved = await raw.resolve_peer(peer, timeout=timeout)
     try:
         return raw.entities.input_peer(resolved)
@@ -18,12 +20,12 @@ async def resolve_input_peer(raw: Any, peer: PeerRef, *, timeout: float) -> Any:
 
 
 async def resolve_input_peer_or_self(raw: Any, peer: PeerRef | str, *, timeout: float) -> Any:
-    if isinstance(peer, str) and peer.strip().lower() == "self":
-        return InputPeerSelf()
     return await resolve_input_peer(raw, peer, timeout=timeout)
 
 
 async def resolve_input_user(raw: Any, user: PeerRef, *, timeout: float) -> Any:
+    if is_self_peer_ref(user):
+        return InputUserSelf()
     resolved = await raw.resolve_peer(user, timeout=timeout)
     if getattr(resolved, "peer_type", None) != "user":
         raise ValueError("Expected user peer")

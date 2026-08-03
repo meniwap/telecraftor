@@ -210,6 +210,7 @@ jobs:
           test "$(sha256sum "$wheel" | cut -d' ' -f1)" = "$EXPECTED_WHEEL_SHA256"
           test "$(sha256sum "$sdist" | cut -d' ' -f1)" = "$EXPECTED_SDIST_SHA256"
           python -m pip install --index-url https://pypi.org/simple/ "$wheel"
+          telecraft --help >/dev/null
           python - <<'PY'
           import importlib.metadata
           import os
@@ -219,6 +220,12 @@ jobs:
           installed = importlib.metadata.version("telecraft")
           assert installed == os.environ["EXPECTED_VERSION"]
           assert telecraft.__version__ == installed
+          scripts = {
+              ep.name: ep.value
+              for ep in importlib.metadata.distribution("telecraft").entry_points
+              if ep.group == "console_scripts"
+          }
+          assert scripts.get("telecraft") == "telecraft.cli:main"
           PY
           {
             echo "### Approved TestPyPI candidate"

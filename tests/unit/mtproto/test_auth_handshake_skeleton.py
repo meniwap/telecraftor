@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from telecraft.mtproto.auth.handshake import build_pq_inner_data
+import pytest
+
+from telecraft.mtproto.auth import handshake
+from telecraft.mtproto.auth.handshake import AuthHandshakeError, build_pq_inner_data
 from telecraft.tl.generated.types import ResPq
 
 
@@ -20,3 +23,21 @@ def test_build_pq_inner_data_factorizes() -> None:
     assert st.public_key_fingerprint == 123456789
     assert st.inner_data.p == st.p
     assert st.inner_data.q == st.q
+
+
+def test_build_pq_inner_data_rejects_oversized_pq_before_factorization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(_pq: int) -> tuple[int, int]:
+        raise AssertionError("oversized pq must not reach factorization")
+
+    monkeypatch.setattr(handshake, "factorize_pq", fail_if_called)
+    res = ResPq(
+        nonce=b"\x01" * 16,
+        server_nonce=b"\x02" * 16,
+        pq=b"\x01" * 9,
+        server_public_key_fingerprints=[123456789],
+    )
+
+    with pytest.raises(AuthHandshakeError, match="resPQ.pq is too large"):
+        build_pq_inner_data(res)

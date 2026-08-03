@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 import os
+import unicodedata
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -10,6 +11,7 @@ from secrets import randbits
 from typing import Any, Literal
 from uuid import uuid4
 
+from telecraft._private_storage import fsync_directory
 from telecraft.tl.generated.functions import (
     UploadGetFile,
     UploadSaveBigFilePart,
@@ -35,8 +37,19 @@ _WINDOWS_RESERVED_NAMES = {
     "PRN",
     *(f"COM{i}" for i in range(1, 10)),
     *(f"LPT{i}" for i in range(1, 10)),
+    *(f"COM{i}" for i in "¹²³"),
+    *(f"LPT{i}" for i in "¹²³"),
 }
 _WINDOWS_INVALID_FILENAME_CHARS = frozenset('<>:"/\\|?*')
+_BIDI_CONTROL_CHARACTERS = frozenset(
+    {
+        "\u061c",  # ARABIC LETTER MARK
+        "\u200e",  # LEFT-TO-RIGHT MARK
+        "\u200f",  # RIGHT-TO-LEFT MARK
+        *map(chr, range(0x202A, 0x202F)),  # embeddings, overrides, POP DIRECTIONAL FORMATTING
+        *map(chr, range(0x2066, 0x206A)),  # bidi isolates and POP DIRECTIONAL ISOLATE
+    }
+)
 
 
 class MediaError(Exception):
@@ -482,9 +495,7 @@ async def iter_download_via_get_file(
             break
         next_offset = offset + len(chunk)
         if expected_size is not None and next_offset > expected_size:
-            raise MediaError(
-                f"download_media: file exceeded declared size {expected_size} bytes"
-            )
+            raise MediaError(f"download_media: file exceeded declared size {expected_size} bytes")
         if max_size is not None and next_offset > max_size:
             raise MediaError(
                 f"download_media: received more than in-memory limit {max_size}; "
@@ -533,6 +544,7 @@ async def download_via_get_file_to_path(
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, output_path)
+        fsync_directory(output_path.parent)
     except BaseException:
         try:
             tmp.unlink()
@@ -555,6 +567,7 @@ def write_download_bytes(path: str | Path, data: bytes | bytearray) -> Path:
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, output_path)
+        fsync_directory(output_path.parent)
     except BaseException:
         try:
             tmp.unlink()
@@ -569,8 +582,10 @@ def safe_download_filename(file_name: str) -> str:
     name = str(file_name)
     if not name or name in {".", ".."}:
         raise MediaError("download_media: remote filename is empty or reserved")
-    if any(ord(char) < 32 for char in name):
+    if any(unicodedata.category(char) == "Cc" for char in name):
         raise MediaError("download_media: remote filename contains control characters")
+    if any(char in _BIDI_CONTROL_CHARACTERS for char in name):
+        raise MediaError("download_media: remote filename contains bidirectional controls")
     if any(char in _WINDOWS_INVALID_FILENAME_CHARS for char in name):
         raise MediaError("download_media: remote filename is not portable")
     if name.rstrip(" .") != name:
