@@ -630,7 +630,7 @@ class MtprotoClient:
                         incoming.get(),
                         timeout=_UPDATES_IDLE_RECOVERY_SECONDS,
                     )
-                except TimeoutError:
+                except asyncio.TimeoutError:
                     logger.info("No updates received for 15 minutes; fetching difference")
                     checkpoint = updates_engine.checkpoint()
                     try:
