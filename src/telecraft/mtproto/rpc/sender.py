@@ -423,7 +423,7 @@ class MtprotoEncryptedSender:
                 # msg_id can execute it twice; safe retry needs msgs_state_req
                 # or a protocol-level container strategy.
                 result = await asyncio.wait_for(fut, timeout=timeout)
-            except TimeoutError as e:
+            except asyncio.TimeoutError as e:
                 self._cleanup_call(call)
                 raise RpcSenderError(f"Timed out waiting for response (timeout={timeout}s)") from e
             except FloodWaitError:

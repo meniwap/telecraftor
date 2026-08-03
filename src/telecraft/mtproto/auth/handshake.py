@@ -252,7 +252,7 @@ async def _send_unencrypted_request(
                 payload = await transport.recv()
             else:
                 payload = await asyncio.wait_for(transport.recv(), timeout=recv_timeout)
-        except TimeoutError as e:
+        except asyncio.TimeoutError as e:
             raise AuthHandshakeError(
                 f"Timed out waiting for unencrypted response (timeout={recv_timeout}s)"
             ) from e
