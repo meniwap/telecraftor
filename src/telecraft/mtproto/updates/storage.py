@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from telecraft._private_storage import atomic_write_private_text
 from telecraft.mtproto.updates.state import UpdatesState
 
-_UPDATES_STATE_VERSION = 2
+_UPDATES_STATE_VERSION = 3
+_SUPPORTED_UPDATES_STATE_VERSIONS = frozenset({1, 2, _UPDATES_STATE_VERSION})
 
 
 class UpdatesStateStorageError(Exception):
@@ -31,15 +32,29 @@ class PersistedUpdatesState:
     date: int
     seq: int
     auth_key_id: str | None = None
+    channel_pts: dict[int, int] = field(default_factory=dict)
     version: int = _UPDATES_STATE_VERSION
 
     def validate(self) -> None:
-        if self.version not in {1, _UPDATES_STATE_VERSION}:
+        if self.version not in _SUPPORTED_UPDATES_STATE_VERSIONS:
             raise UpdatesStateStorageError(f"Unsupported updates state version: {self.version}")
         for name in ("pts", "qts", "date", "seq"):
             v = getattr(self, name)
-            if not isinstance(v, int) or v < 0:
+            if isinstance(v, bool) or not isinstance(v, int) or v < 0:
                 raise UpdatesStateStorageError(f"Invalid {name}: {v!r}")
+        if not isinstance(self.channel_pts, dict):
+            raise UpdatesStateStorageError("Invalid channel_pts")
+        if self.version < 3 and self.channel_pts:
+            raise UpdatesStateStorageError(
+                f"Updates state version {self.version} cannot contain channel_pts"
+            )
+        for channel_id, pts in self.channel_pts.items():
+            if isinstance(channel_id, bool) or not isinstance(channel_id, int) or channel_id <= 0:
+                raise UpdatesStateStorageError(f"Invalid channel id: {channel_id!r}")
+            if isinstance(pts, bool) or not isinstance(pts, int) or pts < 0:
+                raise UpdatesStateStorageError(
+                    f"Invalid channel pts for channel {channel_id}: {pts!r}"
+                )
         if self.auth_key_id is not None:
             value = self.auth_key_id.casefold()
             if len(value) != 16 or any(char not in "0123456789abcdef" for char in value):
@@ -48,7 +63,13 @@ class PersistedUpdatesState:
 
     def to_updates_state(self) -> UpdatesState:
         self.validate()
-        return UpdatesState(pts=self.pts, qts=self.qts, date=self.date, seq=self.seq)
+        return UpdatesState(
+            pts=self.pts,
+            qts=self.qts,
+            date=self.date,
+            seq=self.seq,
+            channel_pts=dict(self.channel_pts),
+        )
 
     @classmethod
     def from_updates_state(
@@ -63,11 +84,14 @@ class PersistedUpdatesState:
             date=int(state.date),
             seq=int(state.seq),
             auth_key_id=auth_key_id,
+            channel_pts={
+                int(channel_id): int(pts) for channel_id, pts in state.channel_pts.items()
+            },
         )
 
     def to_json_dict(self) -> dict[str, object]:
         self.validate()
-        return {
+        payload: dict[str, object] = {
             "version": int(self.version),
             "auth_key_id": self.auth_key_id,
             "pts": int(self.pts),
@@ -75,15 +99,23 @@ class PersistedUpdatesState:
             "date": int(self.date),
             "seq": int(self.seq),
         }
+        if self.version >= 3:
+            payload["channel_pts"] = {
+                str(channel_id): int(pts) for channel_id, pts in sorted(self.channel_pts.items())
+            }
+        return payload
 
     @classmethod
     def from_json_dict(cls, data: dict[str, object]) -> PersistedUpdatesState:
         try:
-            version_obj = data.get("version", _UPDATES_STATE_VERSION)
-            if not isinstance(version_obj, (int, str)):
+            # Checkpoints without an explicit version predate authorization
+            # binding, so they must receive the same explicit trust treatment
+            # as v1 instead of being mistaken for the newest format.
+            version_obj = data.get("version", 1)
+            if isinstance(version_obj, bool) or not isinstance(version_obj, (int, str)):
                 raise UpdatesStateStorageError("Invalid version")
             version = int(version_obj)
-            if version not in {1, _UPDATES_STATE_VERSION}:
+            if version not in _SUPPORTED_UPDATES_STATE_VERSIONS:
                 raise UpdatesStateStorageError(f"Unsupported updates state version: {version}")
 
             auth_key_id: str | None = None
@@ -96,7 +128,7 @@ class PersistedUpdatesState:
 
             def _need_int(k: str) -> int:
                 v = data[k]
-                if not isinstance(v, (int, str)):
+                if isinstance(v, bool) or not isinstance(v, (int, str)):
                     raise UpdatesStateStorageError(f"Invalid {k}")
                 return int(v)
 
@@ -104,6 +136,23 @@ class PersistedUpdatesState:
             qts = _need_int("qts")
             date = _need_int("date")
             seq = _need_int("seq")
+
+            channel_pts: dict[int, int] = {}
+            if version >= 3:
+                raw_channel_pts = data["channel_pts"]
+                if not isinstance(raw_channel_pts, dict):
+                    raise UpdatesStateStorageError("Invalid channel_pts")
+                for raw_channel_id, raw_pts in raw_channel_pts.items():
+                    if not isinstance(raw_channel_id, str) or not raw_channel_id.isdecimal():
+                        raise UpdatesStateStorageError("Invalid channel id")
+                    channel_id = int(raw_channel_id)
+                    if channel_id in channel_pts:
+                        raise UpdatesStateStorageError("Duplicate channel id")
+                    if isinstance(raw_pts, bool) or not isinstance(raw_pts, (int, str)):
+                        raise UpdatesStateStorageError(
+                            f"Invalid channel pts for channel {channel_id}"
+                        )
+                    channel_pts[channel_id] = int(raw_pts)
         except KeyError as e:
             raise UpdatesStateStorageError(f"Missing field: {e}") from e
         except Exception as e:  # noqa: BLE001
@@ -115,18 +164,14 @@ class PersistedUpdatesState:
             date=date,
             seq=seq,
             auth_key_id=auth_key_id,
+            channel_pts=channel_pts,
             version=version,
         )
         out.validate()
         return out
 
 
-def load_updates_state_file(
-    path: str | Path,
-    *,
-    expected_auth_key_id: str | None = None,
-    allow_unbound_legacy: bool = False,
-) -> UpdatesState:
+def _load_persisted_updates_state_file(path: str | Path) -> PersistedUpdatesState:
     p = Path(path)
     raw = p.read_text(encoding="utf-8")
     try:
@@ -135,7 +180,22 @@ def load_updates_state_file(
         raise UpdatesStateStorageError(f"Failed to parse updates state JSON: {p}") from e
     if not isinstance(data, dict):
         raise UpdatesStateStorageError("Updates state JSON must be an object")
-    persisted = PersistedUpdatesState.from_json_dict(data)
+    return PersistedUpdatesState.from_json_dict(data)
+
+
+def inspect_updates_state_file_auth_key_id(path: str | Path) -> str | None:
+    """Return the validated authorization binding without trusting its counters."""
+
+    return _load_persisted_updates_state_file(path).auth_key_id
+
+
+def load_updates_state_file(
+    path: str | Path,
+    *,
+    expected_auth_key_id: str | None = None,
+    allow_unbound_legacy: bool = False,
+) -> UpdatesState:
+    persisted = _load_persisted_updates_state_file(path)
     if expected_auth_key_id is not None:
         expected = expected_auth_key_id.casefold()
         unbound_legacy = persisted.version == 1 and persisted.auth_key_id is None

@@ -30,6 +30,11 @@ def test_repo_hygiene__blocks_runtime_secret_and_cache_paths() -> None:
         "apps/env.sh",
         "downloads/photo.jpg",
         "reports/live/prod/run/artifacts.json",
+        "src/telecraft/.DS_Store",
+        "src/telecraft/.env.production",
+        "src/telecraft/operator.env",
+        "src/telecraft/session.json",
+        "src/telecraft/prod.session",
         "tests/unit/fixtures/tl/live_capture.bin",
         "src/telecraft/__pycache__/client.pyc",
         ".pytest_cache/v/cache/nodeids",
@@ -61,3 +66,36 @@ def test_repo_hygiene__artifact_allow_list_is_fail_closed() -> None:
     assert mod._unexpected_artifact_member_reason(wheel, "tests/test_private.py")
     assert mod._unexpected_artifact_member_reason(sdist, ".github/workflows/publish.yml")
     assert mod._unexpected_artifact_member_reason(sdist, "apps/env.sh")
+
+
+def test_repo_hygiene__history_record_may_name_exact_purge_paths(tmp_path, monkeypatch) -> None:
+    mod = _load_hygiene_module()
+    record = tmp_path / "docs" / "20_history_cleanup_record.md"
+    record.parent.mkdir(parents=True)
+    manual_labs = "apps/" + "manual_labs"
+    streaming_bot = "apps/" + "streamingbot"
+    record.write_text(f"Removed {manual_labs} and {streaming_bot}.\n", encoding="utf-8")
+    monkeypatch.setattr(mod, "ROOT", tmp_path)
+
+    assert mod._check_references(["docs/20_history_cleanup_record.md"]) == []
+
+
+def test_repo_hygiene__history_paths_parse_reachable_objects(monkeypatch) -> None:
+    mod = _load_hygiene_module()
+
+    class Result:
+        stdout = (
+            "a" * 40 + "\n"
+            "b" * 40 + " reports/live/capture.json\n"
+            "c" * 40 + " src/telecraft/client/client.py\n"
+            "d" * 40 + " reports/live/capture.json\n"
+        )
+
+    monkeypatch.setattr(mod.subprocess, "run", lambda *args, **kwargs: Result())
+
+    assert mod._git_history_paths() == [
+        "reports/live/capture.json",
+        "src/telecraft/client/client.py",
+    ]
+    errors = mod._check_tracked_paths(mod._git_history_paths())
+    assert errors == ["reports/live/capture.json: forbidden tracked path under reports/"]

@@ -1,0 +1,10 @@
+{
+  "api_sha256": "bbddd9c4c3f5ff16fd4abbf39f2a864fdac7553e9f05b6bf9ead2aeb9c8eb566",
+  "api_url": "https://raw.githubusercontent.com/telegramdesktop/tdesktop/a1e89e1f64f08cb058caf1c61ff43f319f98a6ec/Telegram/SourceFiles/mtproto/scheme/api.tl",
+  "layer": 228,
+  "mtproto_sha256": "40c10255afb6cfcbcfc190a457a53b66ec9e410f6418cd97cc4c276709a739a9",
+  "mtproto_url": "https://raw.githubusercontent.com/telegramdesktop/tdesktop/a1e89e1f64f08cb058caf1c61ff43f319f98a6ec/Telegram/SourceFiles/mtproto/scheme/mtproto.tl",
+  "ref": "a1e89e1f64f08cb058caf1c61ff43f319f98a6ec",
+  "schema_version": 1,
+  "source": "tdesktop"
+}

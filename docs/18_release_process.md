@@ -46,12 +46,47 @@ Run the non-live gate:
 
 ```bash
 ./.venv/bin/python tools/check_repo_hygiene.py
+./.venv/bin/python tools/check_repo_hygiene.py --history
+./.venv/bin/python tools/check_secrets.py
+./.venv/bin/python tools/check_secrets.py --history
 ./.venv/bin/python -m ruff check src tests tools apps examples
+./.venv/bin/python -m ruff format --check src tests tools apps examples
 ./.venv/bin/python -m mypy src
+./.venv/bin/python -m pip_audit --strict .
 ./.venv/bin/python -m pytest tests/meta -q
-./.venv/bin/python -m pytest -m "not live" -q
+./.venv/bin/python -m pytest -m "not live" --cov=telecraft --cov-branch --cov-report=term-missing
 ./.venv/bin/python -m pytest tests/live --collect-only -q
 ```
+
+The configured coverage floor is 70%. CI must additionally prove that the package builds with
+exactly Hatchling `1.26.3` and that the non-live suite passes with exactly
+`cryptography==50.0.0`; a green latest-dependency matrix does not replace this floor check.
+The credential scanner's behavior and incident-response boundary are documented in
+[`19_credential_scanning.md`](19_credential_scanning.md).
+
+For a stable release, freeze every method being released as stable before live evidence. Make the
+reviewed code commit first, then generate one snapshot-only follow-up commit:
+
+```bash
+CODE_COMMIT="$(git rev-parse HEAD)"
+CODE_TREE="$(git rev-parse "$CODE_COMMIT^{tree}")"
+SNAPSHOT="tests/meta/stable_api_${VERSION//./_}.json"
+test ! -e "$SNAPSHOT"
+./.venv/bin/python tools/snapshot_stable_api.py \
+  --output "$SNAPSHOT" \
+  --release "$VERSION" \
+  --source-ref "release-candidate/$VERSION" \
+  --source-commit "$CODE_COMMIT" \
+  --source-tree "$CODE_TREE"
+git add "$SNAPSHOT"
+git commit -m "Freeze Telecraft $VERSION stable API"
+test "$(git diff --name-only "$CODE_COMMIT" HEAD)" = "$SNAPSHOT"
+```
+
+Run the full non-live gate again on the snapshot commit and include both commits in review. CI
+loads every `stable_api_*.json` baseline, so the newest stable methods become cumulative contract
+coverage for later patches. If the release is abandoned, remove its unreleased snapshot in a
+reviewed change; never edit a snapshot after its release.
 
 ## 2. Test the exact candidate commit
 
@@ -152,7 +187,7 @@ Pushing the tag starts `.github/workflows/publish.yml`. The workflow must:
 
 1. require exact tag/version equality and ancestry from `origin/main`;
 2. validate the filtered evidence and evidence-only commit relationship;
-3. rerun repository, type, meta, unit, and package gates;
+3. rerun repository, format, type, dependency-audit, coverage, meta, unit, and package gates;
 4. build one wheel and one source archive from the exact tag;
 5. validate and clean-install that wheel;
 6. retain those exact files as the `python-package-distributions` Actions artifact;
@@ -193,6 +228,18 @@ PyPI files and versions are immutable. Never rebuild or overwrite a released ver
 - **Credential or private-data exposure:** stop publishing, preserve minimum sanitized evidence,
   remove exposed files where possible, yank/delete affected public artifacts according to PyPI
   incident policy, rotate/revoke Telegram sessions and credentials, and publish a clean successor.
+
+Tag immutability has one explicit security-incident exception: removing credentials or private
+data from reachable Git history. This is not a normal release operation and requires a documented
+maintainer decision. Before rewriting, record the original published commit ID, release-tree ID,
+and artifact hashes without retaining the exposed payload. Delete the affected public tag/release,
+or give any clean-history replacement an unambiguous new name; never silently present a moved tag
+as the original attested source. Rewrite every affected ref, expire reflogs, prune unreachable
+objects, verify with both history gates and `git fsck`, and publish a clean successor version.
+GitHub caches, forks, clones, Actions artifacts, and immutable PyPI files are separate incident
+surfaces and require their own deletion/support/rotation steps.
+The metadata-only record for the current cleanup is
+[`20_history_cleanup_record.md`](20_history_cleanup_record.md).
 
 Branch and tag protection should require pull requests and CI on `main`, reject force pushes and
 deletions, protect `v*` tags, limit tag creation to maintainers, and require approval on the `pypi`

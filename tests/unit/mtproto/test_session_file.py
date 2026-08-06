@@ -5,6 +5,8 @@ import pytest
 from telecraft.mtproto.session.file import (
     MtprotoSession,
     SessionError,
+    SessionInUseError,
+    acquire_session_file_lock,
     load_session_file,
     save_session_file,
 )
@@ -20,6 +22,7 @@ def test_session_file_roundtrip(tmp_path) -> None:
         auth_key=b"\x11" * 256,
         server_salt=b"\x22" * 8,
         session_id=b"\x33" * 8,
+        updates_state_auth_key_id_alias="0123456789ABCDEF",
     )
 
     save_session_file(p, sess)
@@ -32,6 +35,7 @@ def test_session_file_roundtrip(tmp_path) -> None:
     assert loaded.auth_key == sess.auth_key
     assert loaded.server_salt == sess.server_salt
     assert loaded.session_id == sess.session_id
+    assert loaded.updates_state_auth_key_id_alias == "0123456789abcdef"
 
 
 def test_session_file_rejects_invalid_salt() -> None:
@@ -55,6 +59,20 @@ def test_session_file_accepts_256_byte_auth_key() -> None:
         auth_key=b"\x11" * 256,
         server_salt=b"\x22" * 8,
     ).validate()
+
+
+def test_session_file_lock_rejects_concurrent_owner_and_releases(tmp_path) -> None:
+    session_path = tmp_path / "prod.session.json"
+    first = acquire_session_file_lock(session_path)
+    try:
+        with pytest.raises(SessionInUseError, match="already in use"):
+            acquire_session_file_lock(session_path)
+    finally:
+        first.release()
+
+    second = acquire_session_file_lock(session_path)
+    second.release()
+    assert (tmp_path / "prod.session.json.lock").stat().st_mode & 0o077 == 0
 
 
 @pytest.mark.parametrize("auth_key", [b"\x11" * 255, b"\x11" * 257, b"\x11" * 31])

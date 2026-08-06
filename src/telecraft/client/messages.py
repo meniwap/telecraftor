@@ -33,6 +33,7 @@ def build_input_reply_to_message(msg_id: int) -> InputReplyToMessage:
         quote_offset=None,
         monoforum_peer_id=None,
         todo_item_id=None,
+        poll_option=None,
     )
 
 

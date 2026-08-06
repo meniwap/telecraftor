@@ -45,7 +45,7 @@ from telecraft.tl.generated.functions import (
     MessagesRequestSimpleWebView,
     MessagesSaveGif,
     MessagesSavePreparedInlineMessage,
-    MessagesSearchSentMedia,
+    MessagesSearch,
     MessagesSendInlineBotResult,
     MessagesSendMedia,
     MessagesSendMessage,
@@ -577,7 +577,7 @@ class MessagesEffectsAPI:
         silent: bool = False,
         timeout: float = 20.0,
     ) -> Any:
-        flags = 0
+        flags = 1 << 18
         if silent:
             flags |= 32
         return await self._raw.invoke_api(
@@ -604,6 +604,7 @@ class MessagesEffectsAPI:
                 effect=int(effect_id),
                 allow_paid_stars=None,
                 suggested_post=None,
+                rich_message=None,
             ),
             timeout=timeout,
         )
@@ -669,18 +670,29 @@ class MessagesSentMediaAPI:
         min_id: int = 0,
         timeout: float = 20.0,
     ) -> Any:
-        _ = (
-            await resolve_input_peer(self._raw, peer, timeout=timeout),
-            int(offset_id),
-            int(add_offset),
-            int(max_id),
-            int(min_id),
-        )
+        """Search a dialog using Telegram's message-search pagination and media filter.
+
+        With ``filter=None``, Telegram's empty filter returns all matching dialog messages.
+        Pass a concrete ``InputMessagesFilter*`` value to restrict results to media.
+        """
         return await self._raw.invoke_api(
-            MessagesSearchSentMedia(
+            MessagesSearch(
+                flags=0,
+                peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
                 q=str(q),
+                from_id=None,
+                saved_peer_id=None,
+                saved_reaction=None,
+                top_msg_id=None,
                 filter=filter if filter is not None else InputMessagesFilterEmpty(),
+                min_date=0,
+                max_date=0,
+                offset_id=int(offset_id),
+                add_offset=int(add_offset),
                 limit=int(limit),
+                max_id=int(max_id),
+                min_id=int(min_id),
+                hash=0,
             ),
             timeout=timeout,
         )

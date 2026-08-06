@@ -10,6 +10,9 @@ import pytest
 from telecraft.client import mtproto as mtproto_module
 from telecraft.client.mtproto import ClientInit, MtprotoClient, MtprotoClientError
 from telecraft.mtproto.rpc.sender import RpcSenderError
+from telecraft.mtproto.updates.storage import load_updates_state_file
+from telecraft.tl.generated.functions import UpdatesGetState
+from telecraft.tl.generated.types import UpdatesState as TlUpdatesState
 
 
 class _FakeTransport:
@@ -203,6 +206,30 @@ def test_legacy_updates_checkpoint_requires_explicit_migration_choice(
         lambda: "0123456789abcdef",
     )
     assert migrating_client._load_updates_state() is not None
+
+
+def test_corrupt_updates_checkpoint_fails_closed_by_default(tmp_path) -> None:
+    session_path = tmp_path / "corrupt.session.json"
+    (tmp_path / "corrupt.updates.json").write_text("not json", encoding="utf-8")
+    client = MtprotoClient(session_path=session_path)
+    client._state = SimpleNamespace(auth_key_id=1)  # type: ignore[assignment]
+
+    with pytest.raises(MtprotoClientError, match="invalid or unreadable"):
+        client._load_updates_state()
+    assert client.last_persistence_error is not None
+
+
+def test_corrupt_updates_checkpoint_can_only_be_reset_explicitly(tmp_path) -> None:
+    session_path = tmp_path / "corrupt.session.json"
+    (tmp_path / "corrupt.updates.json").write_text("not json", encoding="utf-8")
+    client = MtprotoClient(
+        session_path=session_path,
+        strict_update_persistence=False,
+    )
+    client._state = SimpleNamespace(auth_key_id=1)  # type: ignore[assignment]
+
+    assert client._load_updates_state() is None
+    assert client.last_persistence_error is not None
 
 
 def test_log_out_disconnects_and_removes_session_and_sidecars(
@@ -522,6 +549,37 @@ def test_concurrent_start_updates_publishes_only_one_consumer(
         assert BarrierEngine.instances == 1
         assert client._updates_task is not None
         assert client._updates_task.done() is False
+        await client.stop_updates()
+
+    asyncio.run(_run())
+
+
+def test_start_updates_persists_fresh_baseline_before_idle_wait(tmp_path) -> None:
+    async def _run() -> None:
+        client = MtprotoClient(
+            session_path=tmp_path / "baseline.session.json",
+            init=ClientInit(api_id=123, api_hash="hash"),
+        )
+        client._state = SimpleNamespace(auth_key_id=1)  # type: ignore[assignment]
+        client._incoming = asyncio.Queue()
+
+        async def invoke_api(req: object, *, timeout: float) -> object:
+            assert isinstance(req, UpdatesGetState)
+            assert timeout > 0
+            return TlUpdatesState(pts=10, qts=2, date=100, seq=3, unread_count=0)
+
+        client.invoke_api = invoke_api  # type: ignore[method-assign]
+
+        await client.start_updates()
+
+        persisted = load_updates_state_file(
+            tmp_path / "baseline.updates.json",
+            expected_auth_key_id="0100000000000000",
+        )
+        assert persisted.pts == 10
+        assert persisted.qts == 2
+        assert persisted.date == 100
+        assert persisted.seq == 3
         await client.stop_updates()
 
     asyncio.run(_run())

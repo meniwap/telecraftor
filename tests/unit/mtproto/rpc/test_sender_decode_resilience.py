@@ -18,6 +18,7 @@ from telecraft.mtproto.rpc.sender import (
     RpcDecodeError,
     RpcSenderError,
     TLCodecError,
+    UpdatesRecoveryRequired,
     _PendingCall,
     _validate_nested_message_lengths,
     extract_req_msg_ids_from_payload,
@@ -300,7 +301,7 @@ def test_sender__receiver_failure_propagates_to_pending_call_and_update_consumer
     asyncio.run(_run())
 
 
-def test_sender__incoming_queue_applies_backpressure_without_dropping_update() -> None:
+def test_sender__incoming_queue_overflow_requests_recovery_without_blocking_rpc() -> None:
     async def _run() -> None:
         existing = ReceivedMessage(msg_id=1, seqno=1, obj=object())
         incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated] = asyncio.Queue(maxsize=1)
@@ -313,18 +314,14 @@ def test_sender__incoming_queue_applies_backpressure_without_dropping_update() -
         )
         update = ReceivedMessage(msg_id=2, seqno=1, obj=object())
 
-        put_task = asyncio.create_task(sender._handle_message(update))
-        await asyncio.sleep(0)
-        assert put_task.done() is False
-        assert await incoming.get() is existing
-
-        await asyncio.wait_for(put_task, timeout=1.0)
-        assert await incoming.get() is update
+        await asyncio.wait_for(sender._handle_message(update), timeout=1.0)
+        signal = await incoming.get()
+        assert signal == UpdatesRecoveryRequired(reason="incoming_queue_overflow")
 
     asyncio.run(_run())
 
 
-def test_sender__terminal_signal_waits_behind_queued_updates_without_dropping_them() -> None:
+def test_sender__terminal_signal_replaces_full_queue_without_deadlocking_receiver() -> None:
     async def _run() -> None:
         queued = ReceivedMessage(msg_id=1, seqno=1, obj=object())
         incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated] = asyncio.Queue(maxsize=1)
@@ -338,9 +335,6 @@ def test_sender__terminal_signal_waits_behind_queued_updates_without_dropping_th
 
         recv_task = asyncio.create_task(sender._recv_loop())
         await asyncio.sleep(0)
-        assert recv_task.done() is False
-        assert await incoming.get() is queued
-
         await asyncio.wait_for(recv_task, timeout=1.0)
         terminal = await incoming.get()
         assert isinstance(terminal, ReceiverTerminated)

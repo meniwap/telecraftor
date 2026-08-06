@@ -47,7 +47,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Install release tools
-        run: python -m pip install -e ".[dev]" "hatchling>=1.25"
+        run: python -m pip install -e ".[dev]" "hatchling>=1.26.3"
 
       - name: Verify live release evidence is bound to the candidate
         env:
@@ -91,10 +91,15 @@ jobs:
       - name: Run release-quality gates
         run: |
           python tools/check_repo_hygiene.py
+          python tools/check_repo_hygiene.py --history
+          python tools/check_secrets.py
+          python tools/check_secrets.py --history
           python -m ruff check src tests tools apps examples
+          python -m ruff format --check src tests tools apps examples
           python -m mypy src
+          python -m pip_audit --strict .
           python -m pytest tests/meta -q
-          python -m pytest -m "not live"
+          python -m pytest -m "not live" --cov=telecraft --cov-branch --cov-report=term-missing
           python -m pytest tests/live --collect-only -q
 
       - name: Build and validate distributions
@@ -173,7 +178,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install "hatchling>=1.25"
+          python -m pip install "hatchling>=1.26.3"
           mkdir -p "$RUNNER_TEMP/testpypi-download"
           downloaded=0
           for attempt in 1 2 3 4 5 6; do

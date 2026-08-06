@@ -25,17 +25,20 @@ FORBIDDEN_TRACKED_DIRS = (
     "apps/streamingbot/",
 )
 FORBIDDEN_TRACKED_EXACT = {
-    ".DS_Store",
-    ".env",
-    "cachkl",
     "apps/env.sh",
     "apps/bot_config.json",
+}
+FORBIDDEN_BASENAMES = {
+    ".DS_Store",
+    "cachkl",
+    "session.json",
 }
 FORBIDDEN_SUFFIXES = (
     ".db",
     ".log",
     ".pyo",
     ".pyc",
+    ".session",
     ".session.json",
     ".sqlite",
     ".sqlite3",
@@ -65,6 +68,7 @@ BROKEN_REFERENCES = (
 )
 REFERENCE_SCAN_EXCLUDES = {
     ".gitignore",
+    "docs/20_history_cleanup_record.md",
     "tools/check_repo_hygiene.py",
 }
 
@@ -80,13 +84,43 @@ def _git_ls_files() -> list[str]:
     return [item for item in raw.split("\0") if item]
 
 
+def _git_history_paths() -> list[str]:
+    """Return every path reachable from any local Git ref."""
+
+    proc = subprocess.run(
+        ["git", "rev-list", "--objects", "--all"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    paths: set[str] = set()
+    for line in proc.stdout.splitlines():
+        _object_id, separator, path = line.partition(" ")
+        if separator and path:
+            paths.add(path)
+    return sorted(paths)
+
+
 def _has_pycache_part(path: str) -> bool:
     return "__pycache__" in PurePosixPath(path).parts
+
+
+def _forbidden_local_basename_reason(path: str) -> str | None:
+    parts = PurePosixPath(path).parts
+    if any(part in FORBIDDEN_BASENAMES for part in parts):
+        return "forbidden local/runtime basename"
+    if any(part == ".env" or part.startswith(".env.") or part.endswith(".env") for part in parts):
+        return "forbidden environment-file basename"
+    return None
 
 
 def _forbidden_tracked_reason(path: str) -> str | None:
     if path in FORBIDDEN_TRACKED_EXACT:
         return "forbidden tracked local/runtime file"
+    basename_reason = _forbidden_local_basename_reason(path)
+    if basename_reason:
+        return basename_reason
     if _has_pycache_part(path):
         return "forbidden tracked __pycache__ path"
     if path.endswith(FORBIDDEN_SUFFIXES):
@@ -100,6 +134,9 @@ def _forbidden_tracked_reason(path: str) -> str | None:
 def _forbidden_artifact_reason(path: str) -> str | None:
     if path in FORBIDDEN_TRACKED_EXACT:
         return "forbidden local/runtime file in package artifact"
+    basename_reason = _forbidden_local_basename_reason(path)
+    if basename_reason:
+        return f"{basename_reason} in package artifact"
     if _has_pycache_part(path):
         return "forbidden __pycache__ path in package artifact"
     if path.endswith(FORBIDDEN_SUFFIXES):
@@ -219,6 +256,11 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Check built package artifacts in dist/ or explicit artifact paths.",
     )
+    parser.add_argument(
+        "--history",
+        action="store_true",
+        help="Check all paths reachable from local branches and tags, not only the current tree.",
+    )
     parser.add_argument("paths", nargs="*", help="Artifact paths to check with --artifacts.")
     return parser.parse_args()
 
@@ -226,11 +268,15 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     errors: list[str] = []
-    if args.artifacts:
+    if args.artifacts and args.history:
+        errors.append("--artifacts and --history are mutually exclusive")
+    elif args.artifacts:
         artifact_paths = [Path(item) for item in args.paths] if args.paths else _default_artifacts()
         if not artifact_paths:
             errors.append("No package artifacts found to check.")
         errors.extend(_check_artifacts(artifact_paths))
+    elif args.history:
+        errors.extend(_check_tracked_paths(_git_history_paths()))
     else:
         paths = _git_ls_files()
         errors.extend(_check_tracked_paths(paths))

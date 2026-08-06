@@ -12,7 +12,75 @@ The format follows a simplified Keep a Changelog style:
 
 ## [Unreleased]
 
-## [0.2.1] - 2026-08-03
+## [0.2.2] - Unreleased
+
+Production hardening release under development. This version has not been tagged or published.
+
+### Added
+
+- Added CI gates for repository-history hygiene, the minimum supported runtime dependency and
+  build backend, dependency vulnerability auditing, Ruff formatting, and a 70% branch-coverage
+  floor.
+- Added dependency-free credential scanning for the worktree, index, and every reachable Git blob,
+  with redacted metadata-only findings and detection of Telecraft session auth keys even under
+  arbitrary filenames.
+- Added immutable Telegram Desktop schema provenance, deterministic regeneration checks, and
+  generated TL bindings for Layer 228.
+- Added cumulative stable-API signature snapshots, including the primary client constructors, so
+  removals, positional reordering, required additions, and silent default/type changes fail CI.
+- Added dynamic DC discovery and bounded handling for PHONE/NETWORK/USER/FILE migration responses.
+- Added configurable FloodWait retry policy, total RPC deadlines, strict update-checkpoint
+  persistence, cross-process session-file locking, and durable per-channel PTS checkpoints.
+
+### Changed
+
+- Raised the minimum supported `cryptography` version to `50.0.0` and the minimum supported
+  Hatchling build backend to `1.26.3`.
+- Corrected public version status: `0.2.0` remains the latest PyPI release, unpublished `0.2.1`
+  changes roll into `0.2.2`, and `0.2.2` remains unreleased until its release gates complete.
+- Clarified the package boundary: wheels/source archives contain the library, not runnable bots,
+  apps, examples, local operator configuration, or captures. The raw protocol method surface and
+  reusable `telecraft.bot` primitives remain experimental beyond their explicitly pinned stable
+  entry points.
+- New facade methods now enter the support matrix as experimental until an explicit stability and
+  test-tier review promotes them.
+
+### Fixed
+
+- Prevented a saturated updates queue from blocking the shared RPC receive loop; overflow now
+  schedules authoritative difference recovery instead of silently losing protocol continuity.
+- Prevented lifecycle-serialized `start_updates()` and `log_out()` calls from deadlocking when
+  Telegram requests a DC migration, and included time spent behind a concurrent migration in the
+  caller's total RPC deadline.
+- Made update-checkpoint corruption and persistence failures observable by default, with in-memory
+  protocol state rolled back when a checkpoint write fails.
+- Fixed stable facade parameters that were previously ignored: member-transfer `exclude_self`,
+  sent-media filters/peer/pagination, and targeted message search filters.
+- Made upload iteration fail explicitly on unsupported CDN redirects or invalid responses instead
+  of returning a silently truncated file.
+- Rejected unsupported wallpaper search controls and translate source-language overrides instead
+  of accepting no-op arguments.
+- Corrected WebView peer/user resolution and flags, global-search and message-effect flags, and all
+  Layer 228 constructor call sites, including poll codec compatibility.
+
+### Security
+
+- Excluded `cryptography` versions affected by CVE-2026-69247 / GHSA-g6cj-pr64-35w5 from the
+  supported dependency range, even though Telecraft is not known to exercise the affected PKCS#7
+  decryption path.
+- Removed credentials, 2FA/login codes, bot tokens, API hashes, and account phone numbers from
+  supported command-line argument paths. Interactive secrets use prompts where supported;
+  automation should inject environment variables through a secret manager or a protected ignored
+  file. This keeps values out of `argv`; inline shell assignments can still enter shell history and
+  must not contain real secrets.
+- Constrained the AES-ECB primitive used internally by Telegram-required IGE to exactly one block
+  and documented/query-scoped its CodeQL false-positive rationale; ECB is not exposed as an
+  application encryption mode.
+- Added the release incident procedure required to remove private captures and local artifacts from
+  all reachable history, while preserving the original published commit/tree provenance and
+  treating remote caches, forks, tags, and immutable PyPI files as separate cleanup surfaces.
+
+## [0.2.1] - 2026-08-03 (unpublished development milestone)
 
 Production hardening and public-package follow-up release.
 

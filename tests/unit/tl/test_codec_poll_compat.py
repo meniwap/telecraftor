@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from telecraft.tl.codec import TLWriter, loads
 from telecraft.tl.generated.types import (
+    MessageMediaEmpty,
     MessageMediaPoll,
     Poll,
     PollAnswer,
@@ -13,6 +14,68 @@ from telecraft.tl.generated.types import (
 
 def _sample_text(text: str) -> TextWithEntities:
     return TextWithEntities(text=text.encode("utf-8"), entities=[])
+
+
+def test_codec__poll_message__roundtrips_layer_228_fields() -> None:
+    media = MessageMediaPoll(
+        flags=0,
+        poll=Poll(
+            id=777,
+            flags=0,
+            closed=False,
+            public_voters=False,
+            multiple_choice=False,
+            quiz=False,
+            open_answers=True,
+            revoting_disabled=False,
+            shuffle_answers=True,
+            hide_results_until_close=False,
+            creator=True,
+            subscribers_only=False,
+            question=_sample_text("Layer 228 question"),
+            answers=[
+                PollAnswer(
+                    flags=0,
+                    text=_sample_text("Layer 228 answer"),
+                    option=b"A",
+                    media=None,
+                    added_by=None,
+                    date=None,
+                )
+            ],
+            close_period=None,
+            close_date=None,
+            countries_iso2=["IL"],
+            hash=123456,
+        ),
+        results=PollResults(
+            flags=0,
+            min=False,
+            has_unread_votes=True,
+            can_view_stats=True,
+            results=None,
+            total_voters=None,
+            recent_voters=None,
+            solution=None,
+            solution_entities=None,
+            solution_media=None,
+        ),
+        attached_media=MessageMediaEmpty(),
+    )
+    writer = TLWriter()
+    writer.write_object(media)
+
+    decoded = loads(writer.to_bytes())
+
+    assert decoded.flags == 1
+    assert decoded.poll.open_answers is True
+    assert decoded.poll.shuffle_answers is True
+    assert decoded.poll.creator is True
+    assert decoded.poll.countries_iso2 == [b"IL"]
+    assert decoded.poll.hash == 123456
+    assert decoded.results.has_unread_votes is True
+    assert decoded.results.can_view_stats is True
+    assert decoded.attached_media.TL_NAME == "messageMediaEmpty"
 
 
 def test_codec__poll_message__does_not_misconsume_poll_results_constructor() -> None:
@@ -28,8 +91,12 @@ def test_codec__poll_message__does_not_misconsume_poll_results_constructor() -> 
         "Vector<PollAnswer>",
         [
             PollAnswer(
+                flags=0,
                 text=_sample_text("Answer"),
                 option=b"A",
+                media=None,
+                added_by=None,
+                date=None,
             )
         ],
     )
@@ -39,11 +106,14 @@ def test_codec__poll_message__does_not_misconsume_poll_results_constructor() -> 
         PollResults(
             flags=0,
             min=False,
+            has_unread_votes=False,
+            can_view_stats=False,
             results=None,
             total_voters=None,
             recent_voters=None,
             solution=None,
             solution_entities=None,
+            solution_media=None,
         )
     )
 
@@ -69,10 +139,27 @@ def test_codec__poll_results__bare_fallback_when_boxed_fails() -> None:
             public_voters=False,
             multiple_choice=False,
             quiz=False,
+            open_answers=False,
+            revoting_disabled=False,
+            shuffle_answers=False,
+            hide_results_until_close=False,
+            creator=False,
+            subscribers_only=False,
             question=_sample_text("Synthetic question"),
-            answers=[PollAnswer(text=_sample_text("Synthetic answer"), option=b"A")],
+            answers=[
+                PollAnswer(
+                    flags=0,
+                    text=_sample_text("Synthetic answer"),
+                    option=b"A",
+                    media=None,
+                    added_by=None,
+                    date=None,
+                )
+            ],
             close_period=None,
             close_date=None,
+            countries_iso2=None,
+            hash=0,
         )
     )
     writer.write_int(6)  # results + total_voters; intentionally no PollResults.TL_ID
@@ -85,6 +172,7 @@ def test_codec__poll_results__bare_fallback_when_boxed_fails() -> None:
                 correct=False,
                 option=b"A",
                 voters=3,
+                recent_voters=[],
             )
         ],
     )

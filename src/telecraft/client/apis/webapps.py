@@ -4,13 +4,14 @@ import json
 from secrets import randbits
 from typing import TYPE_CHECKING, Any
 
-from telecraft.client.apis._utils import resolve_input_peer
+from telecraft.client.apis._utils import resolve_input_peer, resolve_input_user
 from telecraft.client.peers import PeerRef
 from telecraft.tl.generated.functions import (
     BotsInvokeWebViewCustomMethod,
     MessagesProlongWebView,
     MessagesRequestAppWebView,
     MessagesRequestSimpleWebView,
+    MessagesRequestWebView,
     MessagesSendWebViewData,
 )
 from telecraft.tl.generated.types import DataJson, InputBotAppShortName, InputReplyToMessage
@@ -44,14 +45,43 @@ class WebAppsAPI:
         theme_params: Any | None = None,
         timeout: float = 20.0,
     ) -> Any:
-        _ = peer
+        """Request a simple bot WebView or a peer-bound WebView when ``peer`` is supplied."""
+        input_bot = await resolve_input_user(self._raw, bot, timeout=timeout)
+
+        if peer is not None:
+            flags = 0
+            if url is not None:
+                flags |= 1 << 1
+            if start_param is not None:
+                flags |= 1 << 3
+            if theme_params is not None:
+                flags |= 1 << 2
+            return await self._raw.invoke_api(
+                MessagesRequestWebView(
+                    flags=flags,
+                    from_bot_menu=None,
+                    silent=None,
+                    compact=None,
+                    fullscreen=None,
+                    peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                    bot=input_bot,
+                    url=str(url) if url is not None else None,
+                    start_param=str(start_param) if start_param is not None else None,
+                    theme_params=_as_json(theme_params) if theme_params is not None else None,
+                    platform=str(platform),
+                    reply_to=None,
+                    send_as=None,
+                ),
+                timeout=timeout,
+            )
+
         flags = 0
         if url is not None:
-            flags |= 1
+            flags |= 1 << 3
         if start_param is not None:
-            flags |= 2
+            flags |= 1 << 4
         if theme_params is not None:
-            flags |= 4
+            flags |= 1
         return await self._raw.invoke_api(
             MessagesRequestSimpleWebView(
                 flags=flags,
@@ -59,7 +89,7 @@ class WebAppsAPI:
                 from_side_menu=None,
                 compact=None,
                 fullscreen=None,
-                bot=await resolve_input_peer(self._raw, bot, timeout=timeout),
+                bot=input_bot,
                 url=str(url) if url is not None else None,
                 start_param=str(start_param) if start_param is not None else None,
                 theme_params=_as_json(theme_params) if theme_params is not None else None,
@@ -82,7 +112,7 @@ class WebAppsAPI:
         app_obj = app
         if isinstance(app, str):
             app_obj = InputBotAppShortName(
-                bot_id=await resolve_input_peer(self._raw, peer, timeout=timeout),
+                bot_id=await resolve_input_user(self._raw, peer, timeout=timeout),
                 short_name=str(app),
             )
 
@@ -122,17 +152,17 @@ class WebAppsAPI:
     ) -> Any:
         flags = 0
         if silent:
-            flags |= 1
+            flags |= 1 << 5
         if reply_to_msg_id is not None:
-            flags |= 2
+            flags |= 1
         if send_as is not None:
-            flags |= 4
+            flags |= 1 << 13
         return await self._raw.invoke_api(
             MessagesProlongWebView(
                 flags=flags,
                 silent=True if silent else None,
                 peer=await resolve_input_peer(self._raw, peer, timeout=timeout),
-                bot=await resolve_input_peer(self._raw, bot, timeout=timeout),
+                bot=await resolve_input_user(self._raw, bot, timeout=timeout),
                 query_id=int(query_id),
                 reply_to=(
                     InputReplyToMessage(
@@ -145,6 +175,7 @@ class WebAppsAPI:
                         quote_offset=None,
                         monoforum_peer_id=None,
                         todo_item_id=None,
+                        poll_option=None,
                     )
                     if reply_to_msg_id is not None
                     else None
@@ -169,7 +200,7 @@ class WebAppsAPI:
         payload = data.encode("utf-8") if isinstance(data, str) else bytes(data)
         return await self._raw.invoke_api(
             MessagesSendWebViewData(
-                bot=await resolve_input_peer(self._raw, bot, timeout=timeout),
+                bot=await resolve_input_user(self._raw, bot, timeout=timeout),
                 random_id=randbits(63),
                 button_text=str(button_text),
                 data=payload,
@@ -187,7 +218,7 @@ class WebAppsAPI:
     ) -> Any:
         return await self._raw.invoke_api(
             BotsInvokeWebViewCustomMethod(
-                bot=await resolve_input_peer(self._raw, bot, timeout=timeout),
+                bot=await resolve_input_user(self._raw, bot, timeout=timeout),
                 custom_method=str(method),
                 params=_as_json(params),
             ),

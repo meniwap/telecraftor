@@ -8,14 +8,25 @@
 
 Telecraft is an async, MTProto-first Telegram client library for Python.
 
+The distribution is library-only: wheels and source distributions include `src/telecraft` plus
+package metadata, but do not ship `apps/`, `examples/`, operator configuration, or runnable bot
+deployments. Reusable routing and bot-session primitives remain part of the library API.
+For `0.2.2`, the stable compatibility contract covers the Client facade and primary client
+constructors. The `telecraft.bot` routing/groupbot primitives are retained as experimental library
+components, and the raw `MtprotoClient` method surface remains protocol-level experimental beyond
+its versioned constructor contract. Runnable bots remain outside release artifacts.
+
 It supports:
 
 - user sessions for userbot workflows
 - bot sessions through MTProto login with `auth.importBotAuthorization`
 - high-level client namespaces for messages, dialogs, media, bots, admin helpers, and more
-- an event stack for MTProto update routing with `Router` and `Dispatcher`
+- an experimental reusable event stack for MTProto update routing with `Router` and `Dispatcher`
 
-Current stable version: `0.2.1`.
+Current development version: `0.2.2` (unreleased).
+
+The latest version published to PyPI is `0.2.0`. Development version `0.2.1` was never tagged or
+published; its changes are included in the upcoming `0.2.2` release.
 
 Telecraft does **not** implement the HTTP Telegram Bot API. Bot accounts are supported
 through MTProto, so you still need Telegram API credentials plus a bot token from BotFather.
@@ -45,11 +56,14 @@ python -m pip install -U pip
 python -m pip install telecraft
 ```
 
-From GitHub at the matching stable tag:
+From GitHub at the latest published stable tag:
 
 ```bash
-python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.1"
+python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.0"
 ```
+
+The unreleased `0.2.2` source should be evaluated from a local clone until its immutable release
+tag exists.
 
 For local development from a clone:
 
@@ -61,24 +75,27 @@ python3 -m venv .venv
 
 ## Credentials
 
-Create an API app at Telegram and export your credentials:
+Create an API app at Telegram. Load credentials from a protected file that is already ignored by
+Git, or inject them with your secret manager:
 
 ```bash
-export TELEGRAM_API_ID="12345"
-export TELEGRAM_API_HASH="your_api_hash"
+cp apps/env.example.sh apps/env.sh
+chmod 600 apps/env.sh
+# Edit apps/env.sh locally, then load it without placing secret values in the command itself.
+source apps/env.sh
 ```
 
-For bot sessions, also export:
-
-```bash
-export TELEGRAM_BOT_TOKEN="123456:ABC..."
-```
+For bot sessions, either populate `TELEGRAM_BOT_TOKEN` through that protected mechanism or leave it
+unset and let `telecraft login-bot` prompt for it without echo. Environment variables keep secrets
+out of `argv`, but may still be readable by same-user processes; never type real tokens or hashes
+as inline shell assignments.
 
 Local sessions contain Telegram auth keys. Treat `.sessions/` like passwords and never commit it.
 
 ## Login
 
-The `telecraft` command included in `0.2.1` handles login and session operations.
+The `telecraft` command in the unreleased `0.2.2` source handles login and session operations. It
+is not included in the currently published `0.2.0` wheel.
 Production access is intentionally double-gated:
 
 ```bash
@@ -196,3 +213,5 @@ Live tests are opt-in, production-gated, and documented in `docs/11_live_runbook
 - Group bot guide: `docs/16_group_bot_guide.md`
 - Support policy: `docs/17_support_policy.md`
 - Release process: `docs/18_release_process.md`
+- Credential scanning: `docs/19_credential_scanning.md`
+- History cleanup provenance: `docs/20_history_cleanup_record.md`

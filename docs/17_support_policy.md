@@ -2,6 +2,11 @@
 
 This document defines Telecraft's public API, runtime, and release support contract.
 
+Release artifacts are library-only. Runnable bots, operator applications, examples, local
+sessions, captures, and deployment configuration are outside the package boundary. Reusable
+MTProto bot-session and routing primitives under `telecraft` are library components, not deployed
+bot products.
+
 ## Release lines
 
 - `0.1.x`: internal line with no public support commitment
@@ -50,6 +55,21 @@ operating-system versions that their upstream vendors no longer secure.
 - `experimental`: best-effort, breaking changes may happen between releases
 
 Stability is tracked per method in `tests/meta/v2_method_matrix.yaml`.
+Released stable signatures are recorded in versioned snapshots under `tests/meta/`; CI compares the
+current facade with those immutable baselines instead of trusting a matrix edited in the same
+change.
+
+For the `0.2.2` line, this stable signature contract covers the Client facade plus `Client`,
+`ClientInit`, and the raw `MtprotoClient` constructor. The exported `telecraft.bot` surface,
+including `Router`, `Dispatcher`, filters, schedulers, and retained groupbot primitives, is
+experimental and is not yet covered by the stable compatibility snapshot. It remains tested
+library code, but may change between `0.x` releases. Runnable bot applications are never part of
+the package.
+
+The raw `telecraft.client.mtproto.MtprotoClient` constructor is compatibility-pinned because it is
+the supported injection/configuration boundary. Its individual protocol methods are experimental
+unless they are also exposed and marked stable through the Client facade matrix. Consumers that
+need the stable contract should prefer `Client` namespaces over direct raw calls.
 
 ## Support tiers
 

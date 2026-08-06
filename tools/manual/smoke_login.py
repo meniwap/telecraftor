@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import getpass
 import logging
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ from telecraft.tl.generated.types import (
     AuthAuthorizationSignUpRequired,
     AuthSentCode,
 )
+from telecraft.version import __version__
 
 
 def _env_int(name: str) -> int | None:
@@ -59,8 +61,6 @@ async def _login_flow(
     session_path: Path,
     init: ClientInit,
     phone_number: str,
-    phone_code: str | None,
-    args_password: str | None,
     first_name: str | None,
     last_name: str | None,
 ) -> int:
@@ -80,8 +80,9 @@ async def _login_flow(
         print({"sent_code": repr(sent)})
 
         phone_code_hash = cast(bytes, sent.phone_code_hash)
-        if phone_code is None:
-            phone_code = input("Enter the code you received: ").strip()
+        phone_code = (
+            os.environ.get("TELEGRAM_CODE") or input("Enter the code you received: ").strip()
+        )
 
         try:
             auth = await client.sign_in(
@@ -92,9 +93,9 @@ async def _login_flow(
             )
         except RpcErrorException as e:
             if e.message == "SESSION_PASSWORD_NEEDED":
-                pw = os.environ.get("TELEGRAM_PASSWORD") if args_password is None else args_password
+                pw = os.environ.get("TELEGRAM_PASSWORD")
                 if not pw:
-                    pw = input("2FA password: ").strip()
+                    pw = getpass.getpass("2FA password: ")
                 authz = await client.check_password(pw, timeout=timeout)
                 print({"authorization": repr(authz)})
                 return 0
@@ -130,16 +131,13 @@ async def _run(args: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
     api_id = args.api_id if args.api_id is not None else _env_int("TELEGRAM_API_ID")
-    api_hash = args.api_hash if args.api_hash is not None else _env_str("TELEGRAM_API_HASH")
+    api_hash = _env_str("TELEGRAM_API_HASH")
     if api_id is None or api_hash is None:
-        print(
-            "Missing API credentials. Provide --api-id/--api-hash "
-            "or env TELEGRAM_API_ID/TELEGRAM_API_HASH."
-        )
+        print("Missing API credentials. Set TELEGRAM_API_ID and TELEGRAM_API_HASH.")
         return 2
 
     phone_number = (
-        args.phone if args.phone is not None else input("Phone number (international): ").strip()
+        os.environ.get("TELEGRAM_PHONE") or input("Phone number (international): ").strip()
     )
 
     session_path = (
@@ -177,8 +175,6 @@ async def _run(args: argparse.Namespace) -> int:
                 session_path=session_path,
                 init=init,
                 phone_number=phone_number,
-                phone_code=args.code,
-                args_password=args.password,
                 first_name=args.first_name,
                 last_name=args.last_name,
             )
@@ -208,27 +204,11 @@ def main() -> int:
         "--api-id", type=int, default=None, help="Telegram API ID (or env TELEGRAM_API_ID)"
     )
     p.add_argument(
-        "--api-hash",
-        type=str,
-        default=None,
-        help="Telegram API hash (or env TELEGRAM_API_HASH)",
-    )
-
-    p.add_argument(
         "--session",
         type=str,
         default=None,
         help="Session JSON path (defaults under .sessions/)",
     )
-    p.add_argument("--phone", type=str, default=None, help="Phone number in international format")
-    p.add_argument("--code", type=str, default=None, help="Code you received (otherwise prompt)")
-    p.add_argument(
-        "--password",
-        type=str,
-        default=None,
-        help="2FA password (or env TELEGRAM_PASSWORD; otherwise prompt)",
-    )
-
     p.add_argument("--first-name", type=str, default=None, help="First name (if sign-up required)")
     p.add_argument("--last-name", type=str, default=None, help="Last name (if sign-up required)")
 
@@ -238,7 +218,9 @@ def main() -> int:
     p.add_argument(
         "--system-version", type=str, default="telecraft", help="initConnection.system_version"
     )
-    p.add_argument("--app-version", type=str, default="0.0", help="initConnection.app_version")
+    p.add_argument(
+        "--app-version", type=str, default=__version__, help="initConnection.app_version"
+    )
     p.add_argument(
         "--system-lang-code", type=str, default="en", help="initConnection.system_lang_code"
     )

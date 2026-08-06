@@ -49,6 +49,7 @@ from telecraft.client.apis import (
     WebAppsAPI,
 )
 from telecraft.client.mtproto import ClientInit, MtprotoClient
+from telecraft.mtproto.rpc.sender import FloodWaitConfig
 
 
 class Client:
@@ -69,6 +70,9 @@ class Client:
         session_path: str | Path | None = None,
         init: ClientInit | None = None,
         trust_legacy_updates_state: bool = False,
+        strict_update_persistence: bool = True,
+        flood_wait_config: FloodWaitConfig | None = None,
+        lock_session: bool = True,
         raw: MtprotoClient | None = None,
     ) -> None:
         self.raw = (
@@ -83,6 +87,9 @@ class Client:
                 session_path=session_path,
                 init=init,
                 trust_legacy_updates_state=trust_legacy_updates_state,
+                strict_update_persistence=strict_update_persistence,
+                flood_wait_config=flood_wait_config,
+                lock_session=lock_session,
             )
         )
         self.peers = PeersAPI(self.raw)

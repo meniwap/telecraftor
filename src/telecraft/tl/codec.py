@@ -16,8 +16,8 @@ VECTOR_CONSTRUCTOR_ID = 0x1CB5C415
 _RPC_RESULT_CONSTRUCTOR_ID = -212046591  # 0xF35C6D01
 _MSG_CONTAINER_CONSTRUCTOR_ID = 1945237724  # 0x73F1F8DC
 _GZIP_PACKED_CONSTRUCTOR_ID = 812830625  # 0x3072CFA1
-_POLL_CONSTRUCTOR_ID = 1484026161  # 0x58747131
-_POLL_RESULTS_CONSTRUCTOR_ID = 2061444128  # 0x7ADF2420
+_POLL_CONSTRUCTOR_ID = -1771164225  # 0x9662A35F (layer 228)
+_POLL_RESULTS_CONSTRUCTOR_ID = -1166298786  # 0xBA2C595E (layer 228)
 _ACCOUNT_THEMES_CONSTRUCTOR_ID = -1707242387  # 0x9A3D8C8D
 _THEME_CONSTRUCTOR_ID = -1609668650  # 0xA00E67D6
 
@@ -331,6 +331,12 @@ class TLReader:
         public_voters = bool(flags & (1 << 1))
         multiple_choice = bool(flags & (1 << 2))
         quiz = bool(flags & (1 << 3))
+        open_answers = bool(flags & (1 << 6))
+        revoting_disabled = bool(flags & (1 << 7))
+        shuffle_answers = bool(flags & (1 << 8))
+        hide_results_until_close = bool(flags & (1 << 9))
+        creator = bool(flags & (1 << 10))
+        subscribers_only = bool(flags & (1 << 11))
         question = self.read_value("TextWithEntities", path=f"{path}.question")
         answers = self.read_value("Vector<PollAnswer>", path=f"{path}.answers")
 
@@ -339,13 +345,23 @@ class TLReader:
             close_period = self.read_int()
 
         close_date: int | None = None
+        jumped_to_results = False
         if flags & (1 << 5):
             if self._remaining() >= 4 and self._peek_int() == _POLL_RESULTS_CONSTRUCTOR_ID:
                 # Compatibility: some payloads advertise close_date but jump
-                # directly to pollResults.
+                # directly to pollResults. Such legacy payloads also predate the
+                # layer-228 countries/hash tail, so leave the cursor untouched.
                 flags &= ~(1 << 5)
+                jumped_to_results = True
             else:
                 close_date = self.read_int()
+
+        countries_iso2 = None
+        hash_value = 0
+        if not jumped_to_results:
+            if flags & (1 << 12):
+                countries_iso2 = self.read_value("Vector<string>", path=f"{path}.countries_iso2")
+            hash_value = self.read_long()
 
         return Poll(
             id=poll_id,
@@ -354,10 +370,18 @@ class TLReader:
             public_voters=public_voters,
             multiple_choice=multiple_choice,
             quiz=quiz,
+            open_answers=open_answers,
+            revoting_disabled=revoting_disabled,
+            shuffle_answers=shuffle_answers,
+            hide_results_until_close=hide_results_until_close,
+            creator=creator,
+            subscribers_only=subscribers_only,
             question=question,
             answers=answers,
             close_period=close_period,
             close_date=close_date,
+            countries_iso2=countries_iso2,
+            hash=hash_value,
         )
 
     def _read_poll_results_bare(self, *, path: str) -> Any:
@@ -366,11 +390,13 @@ class TLReader:
         flags = self.read_int()
         if flags < 0:
             raise TLCodecError(f"Invalid pollResults flags: {flags}")
-        known_flags_mask = (1 << 5) - 1
+        known_flags_mask = (1 << 8) - 1
         if flags & ~known_flags_mask:
             raise TLCodecError(f"Unsupported pollResults flags: {flags}")
 
         min_value = bool(flags & (1 << 0))
+        has_unread_votes = bool(flags & (1 << 6))
+        can_view_stats = bool(flags & (1 << 7))
         results = (
             self.read_value("Vector<PollAnswerVoters>", path=f"{path}.results")
             if flags & (1 << 1)
@@ -388,15 +414,23 @@ class TLReader:
             if flags & (1 << 4)
             else None
         )
+        solution_media = (
+            self.read_value("MessageMedia", path=f"{path}.solution_media")
+            if flags & (1 << 5)
+            else None
+        )
 
         return PollResults(
             flags=flags,
             min=min_value,
+            has_unread_votes=has_unread_votes,
+            can_view_stats=can_view_stats,
             results=results,
             total_voters=total_voters,
             recent_voters=recent_voters,
             solution=solution,
             solution_entities=solution_entities,
+            solution_media=solution_media,
         )
 
     def _read_poll_results_for_message_media_poll(self, *, path: str) -> Any:
@@ -414,9 +448,21 @@ class TLReader:
     def _read_message_media_poll(self, *, path: str) -> Any:
         from telecraft.tl.generated.types import MessageMediaPoll
 
+        # Layer 228 added flags and optional attached media. Preserve support for
+        # the older captured payload shape, where the Poll constructor followed
+        # messageMediaPoll immediately.
+        flags = 0 if self._peek_int() == _POLL_CONSTRUCTOR_ID else self.read_int()
         poll = self._read_poll_for_message_media_poll(path=f"{path}.poll")
         results = self._read_poll_results_for_message_media_poll(path=f"{path}.results")
-        return MessageMediaPoll(poll=poll, results=results)
+        attached_media = (
+            self.read_value("MessageMedia", path=f"{path}.attached_media") if flags & 1 else None
+        )
+        return MessageMediaPoll(
+            flags=flags,
+            poll=poll,
+            results=results,
+            attached_media=attached_media,
+        )
 
     def _find_next_theme_resync_pos(self, *, start: int) -> int | None:
         marker = struct.pack("<i", _THEME_CONSTRUCTOR_ID)

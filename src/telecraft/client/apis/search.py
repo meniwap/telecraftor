@@ -42,13 +42,13 @@ class SearchAPI:
     ) -> Any:
         flags = 0
         if broadcasts_only:
-            flags |= 1
+            flags |= 1 << 1
         if groups_only:
-            flags |= 2
+            flags |= 1 << 2
         if users_only:
-            flags |= 4
+            flags |= 1 << 3
         if folder_id is not None:
-            flags |= 8
+            flags |= 1
 
         if offset_peer is None:
             input_offset_peer: Any = InputPeerEmpty()
@@ -66,6 +66,7 @@ class SearchAPI:
                 groups_only=True if groups_only else None,
                 users_only=True if users_only else None,
                 folder_id=int(folder_id) if folder_id is not None else None,
+                community=None,
                 q=str(q),
                 filter=filter if filter is not None else InputMessagesFilterEmpty(),
                 min_date=int(min_date),
@@ -125,11 +126,16 @@ class SearchAPI:
         limit: int = 100,
         timeout: float = 20.0,
     ) -> list[Any]:
+        """Search one dialog, optionally restricting results to a Telegram media filter.
+
+        With ``filter=None``, Telegram's empty filter returns all matching dialog messages.
+        Pass a concrete ``InputMessagesFilter*`` value to restrict results to media.
+        """
         # searchSentMedia is global; for dialog-targeted UX we reuse search_messages.
-        _ = filter
         return await self._raw.search_messages(
             peer,
             query=str(q),
+            filter=filter,
             offset_id=int(offset_id),
             limit=int(limit),
             timeout=timeout,

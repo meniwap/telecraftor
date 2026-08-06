@@ -284,7 +284,12 @@ class AccountWallpapersAPI:
         intensity: int | None = None,
         timeout: float = 20.0,
     ) -> Any:
-        _ = (color, intensity)
+        """Resolve a wallpaper slug; unsupported visual-search options fail explicitly."""
+        if color is not None or intensity is not None:
+            raise ValueError(
+                "account.wallpapers.search does not support color or intensity; "
+                "Telegram account.getWallPaper only accepts a wallpaper slug or ID"
+            )
         return await self._raw.invoke_api(
             AccountGetWallPaper(wallpaper=build_input_wallpaper(WallpaperRef.slug(str(q)))),
             timeout=timeout,
@@ -636,6 +641,7 @@ class AccountPersonalChannelAPI:
                 by_location=None,
                 check_limit=None,
                 for_personal=True,
+                for_community_peer=None,
             ),
             timeout=timeout,
         )

@@ -12,11 +12,21 @@
 Run the normal non-live gate with:
 
 ```bash
+./.venv/bin/python tools/check_repo_hygiene.py
+./.venv/bin/python tools/check_repo_hygiene.py --history
 ./.venv/bin/python -m ruff check src tests tools apps examples
+./.venv/bin/python -m ruff format --check src tests tools apps examples
 ./.venv/bin/python -m mypy src
+./.venv/bin/python -m pip_audit --strict .
 ./.venv/bin/python -m pytest tests/meta -q
-./.venv/bin/python -m pytest -m "not live" -q
+./.venv/bin/python -m pytest -m "not live" --cov=telecraft --cov-branch --cov-report=term-missing
 ```
+
+The history gate requires a full clone and rejects forbidden artifact paths across all refs. The
+coverage configuration enforces a 70% branch-coverage floor. CI also builds with exactly
+Hatchling `1.26.3` and runs the non-live suite with exactly `cryptography==50.0.0` on the oldest
+supported Python version. This minimum-dependency lane complements the normal matrix, which tests
+the dependency versions selected by the current resolver.
 
 ## Live Smoke Layer
 

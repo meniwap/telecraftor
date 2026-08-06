@@ -24,6 +24,7 @@ class TestSendMessageReplyTo:
             quote_offset=None,
             monoforum_peer_id=None,
             todo_item_id=None,
+            poll_option=None,
         )
         assert reply_to.reply_to_msg_id == 12345
 

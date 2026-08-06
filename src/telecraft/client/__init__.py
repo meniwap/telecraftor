@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from telecraft.mtproto.rpc.sender import FloodWaitConfig
+
 from .account import AuthorizationRef, ThemeRef, WallpaperRef, WebAuthorizationRef
 from .admin import ADMIN_RIGHTS_BASIC, banned_rights_full_ban, make_admin_rights, make_banned_rights
 from .auth import AuthSessionRef, LoginTokenRef
@@ -61,6 +63,7 @@ __all__ = [
     "ReportReasonBuilder",
     "resolve_current_session_path",
     "FolderAssignment",
+    "FloodWaitConfig",
     "StickerSetRef",
     "StarsAmountRef",
     "SponsoredMessageRef",

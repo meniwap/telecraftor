@@ -70,3 +70,15 @@ sha1(data) + data + random_padding
 This restores live compatibility with Telegram for the current `p_q_inner_data` handshake.
 The RSA-PAD helper remains available in code, but should only become the active path together with
 the dc-aware `p_q_inner_data_dc` handshake shape.
+
+## Implementation note: AES-IGE block primitive
+
+[MTProto 2.0 requires AES-256-IGE](https://core.telegram.org/mtproto/description), but the
+`cryptography` package does not expose IGE as a built-in mode. Telecraft implements the IGE
+recurrence itself and uses an ECB cipher object only to obtain the raw AES encrypt/decrypt transform
+for one 16-byte block at a time. The private helpers reject any other input length; application data
+is never encrypted directly in ECB mode.
+
+IGE is not a general-purpose authenticated-encryption API. Telecraft uses it only inside MTProto,
+where the protocol derives and verifies `msg_key` separately. Applications should not reuse the
+private block helpers or treat IGE as a replacement for an AEAD construction.

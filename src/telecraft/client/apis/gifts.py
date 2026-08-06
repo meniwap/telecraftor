@@ -247,6 +247,8 @@ class GiftsResaleAPI:
                 flags=flags,
                 sort_by_price=True if sort_by_price else None,
                 sort_by_num=True if sort_by_num else None,
+                for_craft=None,
+                stars_only=None,
                 attributes_hash=attributes_hash,
                 gift_id=int(gift_id),
                 attributes=list(attributes) if attributes is not None else None,

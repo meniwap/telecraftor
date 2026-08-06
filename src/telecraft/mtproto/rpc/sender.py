@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import re
 import struct
 import time
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Pattern to extract wait time from FLOOD_WAIT_X, SLOWMODE_WAIT_X, etc.
 _WAIT_PATTERN = re.compile(r"(?:FLOOD_WAIT|SLOWMODE_WAIT|FLOOD_PREMIUM_WAIT)_(\d+)")
+_MIGRATE_PATTERN = re.compile(r"^(PHONE|NETWORK|USER|FILE)_MIGRATE_(\d+)$")
 _RPC_RESULT_CONSTRUCTOR_ID = -212046591  # 0xF35C6D01
 _MSG_CONTAINER_CONSTRUCTOR_ID = 1945237724  # 0x73F1F8DC
 _GZIP_PACKED_CONSTRUCTOR_ID = 812830625  # 0x3072CFA1
@@ -58,6 +60,15 @@ class RpcErrorException(RpcSenderError):
         super().__init__(f"RPC_ERROR {code}: {message}")
         self.code = code
         self.message = message
+
+
+class DcMigrateError(RpcErrorException):
+    """Telegram rejected an RPC because it must be repeated on another DC."""
+
+    def __init__(self, *, code: int, message: str, kind: str, dc_id: int) -> None:
+        super().__init__(code=code, message=message)
+        self.kind = kind
+        self.dc_id = dc_id
 
 
 class RpcDecodeError(RpcSenderError):
@@ -260,6 +271,12 @@ class FloodWaitConfig:
     max_wait_seconds: int = 60  # Don't auto-wait more than this
     max_retries: int = 3  # Max number of flood wait retries per call
 
+    def __post_init__(self) -> None:
+        if self.max_wait_seconds < 0:
+            raise ValueError("max_wait_seconds must be >= 0")
+        if self.max_retries < 0:
+            raise ValueError("max_retries must be >= 0")
+
 
 class MtprotoEncryptedSender:
     """
@@ -300,6 +317,54 @@ class MtprotoEncryptedSender:
         # MTProto requires a bounded cache of recently accepted server msg_ids
         # to reject duplicates and messages older than the retained receive window.
         self._received_msg_ids: set[int] = set()
+
+    def _forward_incoming(
+        self,
+        item: ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired,
+    ) -> None:
+        """Forward an update-side event without ever blocking the RPC receiver.
+
+        A full queue means the exact update stream can no longer be preserved in
+        memory.  Clearing it and inserting a recovery marker is safe because the
+        updates engine will resume from its last persisted pts/qts checkpoint via
+        ``updates.getDifference``.  Keeping this operation non-blocking is
+        essential: RPC results share the same MTProto receive loop.
+        """
+
+        queue = self._incoming_queue
+        if queue is None:
+            return
+        try:
+            queue.put_nowait(item)
+            return
+        except asyncio.QueueFull:
+            pass
+
+        dropped = 0
+        while True:
+            try:
+                queue.get_nowait()
+                dropped += 1
+            except asyncio.QueueEmpty:
+                break
+
+        if isinstance(item, ReceiverTerminated):
+            replacement: ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired = item
+        else:
+            replacement = UpdatesRecoveryRequired(reason="incoming_queue_overflow")
+        queue.put_nowait(replacement)
+        if isinstance(replacement, ReceiverTerminated):
+            logger.error(
+                "MTProto incoming queue overflowed; discarded %d buffered events to expose "
+                "the terminal receiver error",
+                dropped,
+            )
+        else:
+            logger.error(
+                "MTProto incoming update queue overflowed; discarded %d buffered events and "
+                "scheduled updates.getDifference recovery",
+                dropped,
+            )
 
     @property
     def is_healthy(self) -> bool:
@@ -358,13 +423,32 @@ class MtprotoEncryptedSender:
 
         from telecraft.tl.codec import dumps
 
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("timeout must be a positive finite number")
+
         self._ensure_recv_task()
 
         fw_config = flood_wait_config or self._flood_wait_config
         flood_retries = 0
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
 
         while True:
-            result = await self._invoke_tl_once(req_obj, dumps_fn=dumps, timeout=timeout)
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                raise RpcSenderError(f"Timed out waiting for response (total deadline={timeout}s)")
+            try:
+                # Cover serialization/send-lock/transport.send as well as the
+                # response wait.  The timeout is a total call deadline, not a
+                # fresh allowance for every FloodWait retry.
+                result = await asyncio.wait_for(
+                    self._invoke_tl_once(req_obj, dumps_fn=dumps, timeout=remaining),
+                    timeout=remaining,
+                )
+            except asyncio.TimeoutError as exc:
+                raise RpcSenderError(
+                    f"Timed out waiting for response (total deadline={timeout}s)"
+                ) from exc
 
             # Check if this is a FloodWaitError that we should auto-handle
             if isinstance(result, FloodWaitError):
@@ -385,6 +469,16 @@ class MtprotoEncryptedSender:
                         "FloodWait: wait time (%ds) exceeds max (%ds); raising error",
                         wait_secs,
                         fw_config.max_wait_seconds,
+                    )
+                    raise result
+
+                remaining = deadline - loop.time()
+                if wait_secs >= remaining:
+                    logger.warning(
+                        "FloodWait: wait time (%ds) exceeds remaining call deadline (%.3fs); "
+                        "raising error",
+                        wait_secs,
+                        max(0.0, remaining),
                     )
                     raise result
 
@@ -770,6 +864,15 @@ class MtprotoEncryptedSender:
                     call.future.set_exception(
                         FloodWaitError(code=code, message=message, wait_seconds=wait_seconds)
                     )
+                elif migrate_match := _MIGRATE_PATTERN.fullmatch(message):
+                    call.future.set_exception(
+                        DcMigrateError(
+                            code=code,
+                            message=message,
+                            kind=migrate_match.group(1),
+                            dc_id=int(migrate_match.group(2)),
+                        )
+                    )
                 else:
                     call.future.set_exception(RpcErrorException(code=code, message=message))
             else:
@@ -783,9 +886,7 @@ class MtprotoEncryptedSender:
                 "NewSessionCreated received; updated server_salt and requesting updates recovery"
             )
             if self._incoming_queue is not None:
-                await self._incoming_queue.put(
-                    UpdatesRecoveryRequired(reason="new_session_created")
-                )
+                self._forward_incoming(UpdatesRecoveryRequired(reason="new_session_created"))
             return
 
         if isinstance(obj, BadServerSalt):
@@ -867,9 +968,7 @@ class MtprotoEncryptedSender:
         if self._is_ignorable(obj):
             return
         if self._incoming_queue is not None:
-            # Updates are stateful: dropping one can permanently desynchronize pts/qts.
-            # Awaiting here applies bounded backpressure to the network receiver instead.
-            await self._incoming_queue.put(msg)
+            self._forward_incoming(msg)
         else:
             logger.debug("Unhandled message: %s", getattr(obj, "TL_NAME", type(obj).__name__))
 
@@ -925,9 +1024,7 @@ class MtprotoEncryptedSender:
                         # cannot be deserialized. The raw payload may be an RPC
                         # result, an update, or a container containing both, so a
                         # recovery request is the only safe classification here.
-                        await self._incoming_queue.put(
-                            UpdatesRecoveryRequired(reason="tl_decode_failure")
-                        )
+                        self._forward_incoming(UpdatesRecoveryRequired(reason="tl_decode_failure"))
                     await self._send_ack([outer_msg_id])
                     continue
 
@@ -987,7 +1084,7 @@ class MtprotoEncryptedSender:
             self._terminal_error = error
             self._fail_all_pending(error)
             if self._incoming_queue is not None:
-                await self._incoming_queue.put(ReceiverTerminated(error=error))
+                self._forward_incoming(ReceiverTerminated(error=error))
 
     def _is_ignorable(self, obj: Any) -> bool:
         name = getattr(obj, "TL_NAME", None)

@@ -1,6 +1,12 @@
 # Group Bot Guide (MTProto, plugin-based)
 
+The runnable group bot is an example/operator application and is not shipped in Telecraft release
+artifacts. Its reusable `telecraft.bot` and `telecraft.bot.groupbot` primitives are retained as
+experimental library components in `0.2.2`; they are tested but are outside the stable Client API
+compatibility guarantee.
+
 This guide describes the production-gated group bot operator entrypoint:
+
 - `apps/group_bot.py`
 - plugins under `apps/bot_plugins/`
 - placeholder config template `apps/bot_config.example.json`

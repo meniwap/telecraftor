@@ -56,12 +56,13 @@ class ChatMembersAPI:
         on_error: str = "skip",
         timeout: float = 20.0,
     ) -> dict[str, Any]:
-        _ = exclude_self
+        """Transfer members while honoring every caller-supplied exclusion policy."""
         return await self._raw.transfer_members(
             from_group=from_group,
             to_group=to_group,
             limit=limit,
             exclude_bots=exclude_bots,
+            exclude_self=exclude_self,
             exclude_admins=False,
             on_error=on_error,
             timeout=timeout,

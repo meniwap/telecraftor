@@ -19,9 +19,9 @@ def _env_int(name: str) -> int | None:
 
 async def _run(args: argparse.Namespace) -> int:
     api_id = args.api_id if args.api_id is not None else _env_int("TELEGRAM_API_ID")
-    api_hash = args.api_hash if args.api_hash is not None else os.environ.get("TELEGRAM_API_HASH")
+    api_hash = os.environ.get("TELEGRAM_API_HASH")
     if api_id is None or api_hash is None:
-        print("Need TELEGRAM_API_ID/TELEGRAM_API_HASH (or --api-id/--api-hash).")
+        print("Need TELEGRAM_API_ID and TELEGRAM_API_HASH in the environment.")
         return 2
 
     client = MtprotoClient(
@@ -53,7 +53,6 @@ def main() -> int:
     p.add_argument("--timeout", type=float, default=20.0)
     p.add_argument("--session", type=str, default=".sessions/prod_dc2.session.json")
     p.add_argument("--api-id", type=int, default=None)
-    p.add_argument("--api-hash", type=str, default=None)
     args = p.parse_args()
     try:
         return asyncio.run(_run(args))

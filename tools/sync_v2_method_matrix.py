@@ -88,14 +88,20 @@ def main() -> int:
     parser.add_argument(
         "--introduced-in",
         type=str,
-        default="v4.next",
-        help="Default introduced_in value for newly generated rows.",
+        required=True,
+        help=(
+            "Reviewed facade-wave or package-release identifier for newly generated rows; "
+            "there is intentionally no implicit version."
+        ),
     )
     parser.add_argument(
         "--stability",
         choices=("stable", "experimental"),
-        default="stable",
-        help="Default stability for newly generated rows.",
+        default="experimental",
+        help=(
+            "Default stability for newly generated rows. New APIs require explicit review before "
+            "promotion to stable."
+        ),
     )
     parser.add_argument(
         "--tier",
@@ -105,7 +111,7 @@ def main() -> int:
             "external_manual",
             "unsupported_or_experimental",
         ),
-        default="unit",
+        default="unsupported_or_experimental",
         help="Default test tier for newly generated rows.",
     )
     parser.add_argument(

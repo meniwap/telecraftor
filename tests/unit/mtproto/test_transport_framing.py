@@ -89,6 +89,46 @@ class _ChunkReader:
         return b"x" * 8
 
 
+class _FailingWriter:
+    def __init__(self) -> None:
+        self.closed = False
+        self.written: list[bytes] = []
+
+    def write(self, payload: bytes) -> None:
+        self.written.append(payload)
+
+    async def drain(self) -> None:
+        raise TimeoutError("socket stayed blocked")
+
+    def close(self) -> None:
+        self.closed = True
+
+    async def wait_closed(self) -> None:
+        return None
+
+
+class _SlowClosingWriter:
+    def __init__(self) -> None:
+        self.drain_started = asyncio.Event()
+        self.wait_closed_started = asyncio.Event()
+        self.release_close = asyncio.Event()
+        self.closed = False
+
+    def write(self, _payload: bytes) -> None:
+        return None
+
+    async def drain(self) -> None:
+        self.drain_started.set()
+        await asyncio.Future()
+
+    def close(self) -> None:
+        self.closed = True
+
+    async def wait_closed(self) -> None:
+        self.wait_closed_started.set()
+        await self.release_close.wait()
+
+
 def test_tcp_transport_bounds_buffer_for_custom_framing(monkeypatch) -> None:
     from telecraft.mtproto.transport import tcp
 
@@ -101,3 +141,55 @@ def test_tcp_transport_bounds_buffer_for_custom_framing(monkeypatch) -> None:
 
     with pytest.raises(TransportError, match="Receive buffer exceeded"):
         asyncio.run(transport.recv())
+
+
+def test_tcp_transport_closes_after_failed_frame_write() -> None:
+    transport = TcpTransport(
+        endpoint=Endpoint("127.0.0.1", 443),
+        framing=IntermediateFraming(),
+    )
+    writer = _FailingWriter()
+    transport._writer = writer  # type: ignore[assignment]
+
+    with pytest.raises(TransportError, match="writing MTProto frame"):
+        asyncio.run(transport.send(b"\x00" * 4))
+
+    assert writer.closed is True
+    assert transport._writer is None
+
+
+def test_tcp_transport_send_cancellation_detaches_writer_before_wait_closed() -> None:
+    async def run() -> None:
+        transport = TcpTransport(
+            endpoint=Endpoint("127.0.0.1", 443),
+            framing=IntermediateFraming(),
+            close_timeout=0.02,
+        )
+        writer = _SlowClosingWriter()
+        transport._writer = writer  # type: ignore[assignment]
+        transport._reader = object()  # type: ignore[assignment]
+        transport._rx_buf.extend(b"buffered")
+
+        send_task = asyncio.create_task(transport.send(b"\x00" * 4))
+        await asyncio.wait_for(writer.drain_started.wait(), timeout=0.1)
+        send_task.cancel()
+        try:
+            await asyncio.wait_for(writer.wait_closed_started.wait(), timeout=0.1)
+            await asyncio.sleep(0.05)
+
+            assert writer.closed is True
+            assert transport._writer is None
+            assert transport._reader is None
+            assert transport._rx_buf == bytearray()
+            assert send_task.done() is True
+            assert len(transport._close_wait_tasks) == 1
+            with pytest.raises(asyncio.CancelledError):
+                await send_task
+        finally:
+            writer.release_close.set()
+            await asyncio.wait_for(
+                asyncio.gather(*transport._close_wait_tasks),
+                timeout=0.1,
+            )
+
+    asyncio.run(run())

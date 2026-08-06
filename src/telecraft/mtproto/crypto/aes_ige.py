@@ -12,12 +12,20 @@ class AesIgeError(Exception):
 
 
 def _aes_ecb_encrypt_block(key: bytes, block16: bytes) -> bytes:
+    if len(block16) != 16:
+        raise AesIgeError("AES block primitive requires exactly 16 bytes")
+    # ECB supplies only the one-block AES transform used by the IGE recurrence below.
+    # codeql[py/weak-cryptographic-algorithm]
     cipher = Cipher(algorithms.AES(key), modes.ECB())
     enc = cipher.encryptor()
     return enc.update(block16) + enc.finalize()
 
 
 def _aes_ecb_decrypt_block(key: bytes, block16: bytes) -> bytes:
+    if len(block16) != 16:
+        raise AesIgeError("AES block primitive requires exactly 16 bytes")
+    # ECB supplies only the one-block AES transform used by the IGE recurrence below.
+    # codeql[py/weak-cryptographic-algorithm]
     cipher = Cipher(algorithms.AES(key), modes.ECB())
     dec = cipher.decryptor()
     return dec.update(block16) + dec.finalize()
@@ -31,6 +39,10 @@ class AesIge:
     - key: 32 bytes
     - iv: 32 bytes (two 16-byte IV parts)
     - data length must be multiple of 16
+
+    ``cryptography`` does not expose IGE mode, so this implementation constructs
+    the IGE chaining recurrence from raw, single-block AES transforms. ECB is used
+    only to obtain that primitive; application data is never encrypted in ECB mode.
     """
 
     key: bytes

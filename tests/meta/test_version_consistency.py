@@ -6,6 +6,13 @@ from pathlib import Path
 import telecraft
 
 PYPROJECT_PATH = Path("pyproject.toml")
+README_PATH = Path("README.md")
+CHANGELOG_PATH = Path("CHANGELOG.md")
+RELEASE_WORKFLOW_PATHS = (
+    Path(".github/workflows/ci.yml"),
+    Path(".github/workflows/publish.yml"),
+    Path(".github/workflows/testpypi.yml"),
+)
 PROJECT_VERSION_RE = re.compile(r'(?m)^version\s*=\s*"([^"]+)"$')
 
 
@@ -19,3 +26,37 @@ def _project_version() -> str:
 
 def test_project_version_matches_package_version() -> None:
     assert _project_version() == telecraft.__version__
+
+
+def test_release_dependency_floors_are_pinned_in_project_metadata() -> None:
+    raw = PYPROJECT_PATH.read_text(encoding="utf-8")
+
+    assert 'requires = ["hatchling>=1.26.3"]' in raw
+    assert '"cryptography>=50.0.0"' in raw
+    assert '"pip-audit>=2.10"' in raw
+    assert "fail_under = 70" in raw
+
+
+def test_release_workflows_enforce_quality_gates() -> None:
+    workflows = {path: path.read_text(encoding="utf-8") for path in RELEASE_WORKFLOW_PATHS}
+
+    for path, raw in workflows.items():
+        assert "python tools/check_repo_hygiene.py --history" in raw, path
+        assert "python -m ruff format --check" in raw, path
+        assert "python -m pip_audit --strict ." in raw, path
+        assert "--cov=telecraft" in raw, path
+
+    ci = workflows[Path(".github/workflows/ci.yml")]
+    assert '"hatchling==1.26.3"' in ci
+    assert '"cryptography==50.0.0"' in ci
+
+
+def test_unreleased_development_version_is_explicit() -> None:
+    version = _project_version()
+    readme = README_PATH.read_text(encoding="utf-8")
+    changelog = CHANGELOG_PATH.read_text(encoding="utf-8")
+
+    assert f"Current development version: `{version}` (unreleased)." in readme
+    assert f"Current stable version: `{version}`" not in readme
+    assert f"@v{version}" not in readme
+    assert f"## [{version}] - Unreleased" in changelog

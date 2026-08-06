@@ -28,3 +28,15 @@ def test_public_cli__apps_wrapper__preserves_legacy_command() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "login" in result.stdout
+
+
+def test_public_cli__login_help__does_not_accept_secrets_on_command_line() -> None:
+    login = _run_help("-m", "telecraft.cli", "login")
+    login_bot = _run_help("-m", "telecraft.cli", "login-bot")
+
+    assert login.returncode == 0, login.stderr
+    assert login_bot.returncode == 0, login_bot.stderr
+    assert "--code" not in login.stdout
+    assert "--password" not in login.stdout
+    assert "--phone" not in login.stdout
+    assert "--bot-token" not in login_bot.stdout

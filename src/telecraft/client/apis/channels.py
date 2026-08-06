@@ -296,8 +296,11 @@ class ChannelSettingsAPI:
     ) -> Any:
         return await self._raw.invoke_api(
             ChannelsToggleJoinRequest(
+                flags=0,
+                apply_to_invites=None,
                 channel=await resolve_input_channel(self._raw, channel, timeout=timeout),
                 enabled=bool(enabled),
+                guard_bot=None,
             ),
             timeout=timeout,
         )

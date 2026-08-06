@@ -535,6 +535,7 @@ class StoriesAPI:
                 fwd_from_id=fwd_from_input,
                 fwd_from_story=int(fwd_from_story) if fwd_from_story is not None else None,
                 albums=[int(x) for x in albums] if albums is not None else None,
+                music=None,
             ),
             timeout=timeout,
         )
@@ -570,6 +571,7 @@ class StoriesAPI:
                 caption=caption,
                 entities=list(entities) if entities is not None else None,
                 privacy_rules=list(privacy_rules) if privacy_rules is not None else None,
+                music=None,
             ),
             timeout=timeout,
         )

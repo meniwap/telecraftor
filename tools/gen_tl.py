@@ -43,9 +43,7 @@ def main() -> int:
     api_path = SOURCES / "api.tl"
     mtproto_path = SOURCES / "mtproto.tl"
     if not api_path.exists() or not mtproto_path.exists():
-        raise SystemExit(
-            "Schema not found. Run: python tools/fetch_schema.py --source tdesktop --ref dev"
-        )
+        raise SystemExit("Schema not found. Run: python tools/fetch_schema.py --source tdesktop")
 
     api = parse_tl(_read(api_path), strict=True)
     mtp = parse_tl(_read(mtproto_path), strict=True)

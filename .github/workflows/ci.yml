@@ -43,6 +43,9 @@ jobs:
       - name: Ruff
         run: python -m ruff check src tests tools apps examples
 
+      - name: Ruff format
+        run: python -m ruff format --check src tests tools apps examples
+
       - name: Mypy
         run: python -m mypy src
 
@@ -63,6 +66,100 @@ jobs:
 
       - name: Live collect-only
         run: python -m pytest tests/live --collect-only -q
+
+  minimum-dependencies:
+    name: Minimum dependencies (Python 3.10)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependency and build-backend floors
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            "build>=1.2" \
+            "hatchling==1.26.3" \
+            "cryptography==50.0.0" \
+            "pytest>=8" \
+            "pip-audit>=2.10"
+
+      - name: Audit the minimum dependency environment
+        run: python -m pip_audit --strict --local
+
+      - name: Build with the minimum backend
+        run: python -m build --no-isolation
+
+      - name: Install the wheel without resolving newer dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find dist -maxdepth 1 -name '*.whl' -print -quit)"
+          test -n "$wheel"
+          python -m pip install --no-deps "$wheel"
+          python -m pip check
+
+      - name: Pytest non-live with minimum runtime dependency
+        run: python -m pytest -m "not live"
+
+  dependency-audit:
+    name: Audit runtime dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install pip-audit
+        run: python -m pip install "pip-audit>=2.10"
+
+      - name: Audit project runtime dependencies
+        run: python -m pip_audit --strict .
+
+  repository-history:
+    name: Repository history hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out complete repository history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Check repository history hygiene
+        run: python tools/check_repo_hygiene.py --history
+
+      - name: Check current tree for credentials
+        run: python tools/check_secrets.py
+
+      - name: Check complete repository history for credentials
+        run: python tools/check_secrets.py --history
 
   packaging:
     name: Build and inspect distributions

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 
 # 1) Copy this file to apps/env.sh
-# 2) Put your values below
-# 3) Run: source apps/env.sh
+# 2) Run: chmod 600 apps/env.sh
+# 3) Put your values below without typing them in a shell command
+# 4) Run: source apps/env.sh
+# apps/env.sh is Git-ignored. Environment variables stay out of argv but can still be read by
+# same-user processes, so prefer secret-manager injection where available.
 
 export TELEGRAM_API_ID="PUT_YOUR_API_ID_HERE"
 export TELEGRAM_API_HASH="PUT_YOUR_API_HASH_HERE"

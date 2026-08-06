@@ -29,7 +29,11 @@ source apps/env.sh
 Required env vars:
 - `TELEGRAM_API_ID`
 - `TELEGRAM_API_HASH`
-- `TELEGRAM_BOT_TOKEN`
+
+Set `TELEGRAM_BOT_TOKEN` through a secret manager or the protected, Git-ignored `apps/env.sh` file.
+Alternatively, leave it unset and the login command prompts without echo. Keep `apps/env.sh` mode
+`0600`; environment variables avoid `argv` exposure but may still be readable by same-user
+processes.
 
 ## Login bot session
 
@@ -37,11 +41,8 @@ Required env vars:
 TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod --dc 2
 ```
 
-You can also pass the token directly:
-
-```bash
-TELECRAFT_ALLOW_PROD=1 ./.venv/bin/python apps/run.py login-bot --runtime prod --allow-prod --bot-token "123456:ABC..."
-```
+Do not place a real bot token in an inline shell assignment: the command can be retained in shell
+history. The login prompt or secret-manager injection is the preferred path.
 
 ## Session isolation for bots
 

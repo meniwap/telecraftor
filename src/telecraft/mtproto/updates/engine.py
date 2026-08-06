@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, cast
 
 from telecraft.mtproto.rpc.sender import RpcErrorException
@@ -72,28 +72,6 @@ class AppliedUpdates:
         self.chats.extend(other.chats)
 
 
-@dataclass(slots=True, eq=False)
-class _UpdatesCheckpoint(UpdatesState):
-    """Runtime checkpoint including the non-persisted channel cursors."""
-
-    channel_pts: dict[int, int] = field(default_factory=dict, repr=False)
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, UpdatesState):
-            return NotImplemented
-        return (
-            self.pts,
-            self.qts,
-            self.date,
-            self.seq,
-        ) == (
-            other.pts,
-            other.qts,
-            other.date,
-            other.seq,
-        )
-
-
 @dataclass(slots=True)
 class _MessageBoxPreview:
     pts: int
@@ -113,10 +91,9 @@ class UpdatesEngine:
     - Fills gaps using updates.getDifference (handles slice/tooLong)
     - Tracks per-channel pts and recovers updateChannelTooLong/channel gaps independently
 
-    Channel pts are intentionally not represented by ``UpdatesState`` yet. The in-memory
-    channel cursor is therefore only an optimization within one process; a restarted
-    client always uses ``force=True`` and asks Telegram for an authoritative channel
-    difference instead of claiming that the cursor is durable.
+    Per-channel pts cursors are included in versioned, authorization-bound checkpoints.
+    A restarted client can therefore continue a channel difference from the last
+    durably committed cursor instead of forcing a potentially expensive full recovery.
     """
 
     def __init__(
@@ -130,8 +107,6 @@ class UpdatesEngine:
         self._resolve_input_channel = resolve_input_channel
         self._pts_total_limit = pts_total_limit
         self.state: UpdatesState | None = None
-        # TODO(channel-pts-persistence): persist this in a separately versioned,
-        # private state file before treating channel cursors as durable.
         self._channel_pts: dict[int, int] = {}
         self._initial_catch_up: tuple[UpdatesState, AppliedUpdates] | None = None
 
@@ -151,12 +126,14 @@ class UpdatesEngine:
         self._initial_catch_up = None
         if initial_state is not None:
             self.state = self._copy_state(initial_state)
+            self._channel_pts = dict(initial_state.channel_pts)
             checkpoint = self.checkpoint()
             applied = await self._fetch_difference()
             self._initial_catch_up = (checkpoint, applied)
             return self.state
         res = await self._invoke_api(UpdatesGetState())
         self.state = UpdatesState.from_tl(res)
+        self._channel_pts.clear()
         return self.state
 
     def take_initial_catch_up(self) -> tuple[UpdatesState, AppliedUpdates] | None:
@@ -169,7 +146,7 @@ class UpdatesEngine:
         """Take a copy suitable for rolling back an undelivered output batch."""
         if self.state is None:
             raise UpdatesEngineError("No state")
-        return _UpdatesCheckpoint(
+        return UpdatesState(
             pts=int(self.state.pts),
             qts=int(self.state.qts),
             date=int(self.state.date),
@@ -180,13 +157,7 @@ class UpdatesEngine:
     def restore(self, checkpoint: UpdatesState) -> None:
         """Restore a checkpoint after delivery was cancelled or failed."""
         self.state = self._copy_state(checkpoint)
-        if isinstance(checkpoint, _UpdatesCheckpoint):
-            self._channel_pts = dict(checkpoint.channel_pts)
-        else:
-            # A persisted/global-only checkpoint cannot prove any channel cursor.
-            # Forgetting the optimization is safer than retaining an acknowledged
-            # cursor that might belong to a later, undelivered batch.
-            self._channel_pts.clear()
+        self._channel_pts = dict(checkpoint.channel_pts)
 
     @staticmethod
     def _copy_state(state: UpdatesState) -> UpdatesState:
@@ -195,6 +166,7 @@ class UpdatesEngine:
             qts=int(state.qts),
             date=int(state.date),
             seq=int(state.seq),
+            channel_pts=dict(state.channel_pts),
         )
 
     async def apply(self, obj: Any) -> AppliedUpdates:

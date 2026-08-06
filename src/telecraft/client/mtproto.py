@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
 import types
-from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from collections.abc import AsyncIterator, Coroutine
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, cast
 
@@ -30,13 +32,23 @@ from telecraft.mtproto.auth.srp import SrpError, make_input_check_password_srp
 from telecraft.mtproto.core.msg_id import MsgIdGenerator
 from telecraft.mtproto.core.state import MtprotoState
 from telecraft.mtproto.rpc.sender import (
+    DcMigrateError,
+    FloodWaitConfig,
     MtprotoEncryptedSender,
     ReceivedMessage,
     ReceiverTerminated,
     RpcErrorException,
+    RpcSenderError,
     UpdatesRecoveryRequired,
 )
-from telecraft.mtproto.session import MtprotoSession, load_session_file, save_session_file
+from telecraft.mtproto.session import (
+    MtprotoSession,
+    SessionFileLock,
+    SessionInUseError,
+    acquire_session_file_lock,
+    load_session_file,
+    save_session_file,
+)
 from telecraft.mtproto.transport.abridged import AbridgedFraming
 from telecraft.mtproto.transport.base import Endpoint, Framing
 from telecraft.mtproto.transport.intermediate import IntermediateFraming
@@ -116,6 +128,7 @@ from telecraft.tl.generated.types import (
     ContactsResolvedPeer,
     InputUser,
     InputUserSelf,
+    UpdateConfig,
 )
 from telecraft.version import __version__
 
@@ -201,17 +214,29 @@ class MtprotoClient:
         session_path: str | Path | None = None,
         init: ClientInit | None = None,
         trust_legacy_updates_state: bool = False,
+        strict_update_persistence: bool = True,
+        flood_wait_config: FloodWaitConfig | None = None,
+        lock_session: bool = True,
     ) -> None:
         if network not in {"test", "prod"}:
             raise MtprotoClientError("network must be 'test' or 'prod'")
         self._network = network
         self._dc_id = dc_id
         self._host = host
+        self._host_is_explicit = host is not None
         self._port = port
         self._framing_name = framing
         self._session_path = Path(session_path) if session_path is not None else None
         self._init = init
         self._trust_legacy_updates_state = bool(trust_legacy_updates_state)
+        self._strict_update_persistence = bool(strict_update_persistence)
+        self._flood_wait_config = flood_wait_config or FloodWaitConfig()
+        self._lock_session = bool(lock_session)
+        self._session_file_lock: SessionFileLock | None = None
+        self._updates_state_auth_key_id_alias: str | None = None
+        self._dc_endpoints: dict[int, tuple[str, int]] = {}
+        if host is not None:
+            self._dc_endpoints[int(dc_id)] = (str(host), int(port))
 
         self._transport: TcpTransport | None = None
         self._sender: MtprotoEncryptedSender | None = None
@@ -227,6 +252,7 @@ class MtprotoClient:
         self._updates_terminal: asyncio.Future[BaseException] | None = None
         self._updates_state_last_save: float = 0.0
         self._entities_last_save: float = 0.0
+        self.last_persistence_error: BaseException | None = None
         # Best-effort "me" identity (used by higher-level layers
         # to classify self-authored messages).
         self.self_user_id: int | None = None
@@ -239,7 +265,16 @@ class MtprotoClient:
         self._prime_lock = asyncio.Lock()
         self._prime_last_attempt: float = 0.0
         self._lifecycle_lock = asyncio.Lock()
+        self._lifecycle_owner: asyncio.Task[Any] | None = None
+        self._lifecycle_depth = 0
         self._updates_lock = asyncio.Lock()
+        self._migration_lock = asyncio.Lock()
+        self._invoke_condition = asyncio.Condition()
+        self._active_invocations = 0
+        self._migration_in_progress = False
+        self._deferred_cleanup_tasks: set[asyncio.Task[Any]] = set()
+        self._deferred_cleanup_resources: list[Any] = []
+        self._deferred_cleanup_task_resources: dict[asyncio.Task[Any], Any] = {}
 
     @property
     def is_connected(self) -> bool:
@@ -248,17 +283,197 @@ class MtprotoClient:
             return False
         return bool(getattr(sender, "is_healthy", True))
 
+    @asynccontextmanager
+    async def _lifecycle_serialized(
+        self,
+        *,
+        timeout: float | None = None,
+    ) -> AsyncIterator[None]:
+        """Serialize lifecycle mutation while allowing same-task migration.
+
+        ``asyncio.Lock`` is not re-entrant.  Lifecycle operations such as
+        ``start_updates`` and ``log_out`` may legitimately receive a DC migrate
+        response and continue into ``_perform_primary_dc_migration`` in the same
+        task.  Tracking the owner makes that nested mutation safe without
+        releasing lifecycle exclusivity to competing connect/close operations.
+        """
+
+        task = asyncio.current_task()
+        if task is None:
+            raise RuntimeError("Lifecycle serialization requires an asyncio task")
+        if self._lifecycle_owner is task:
+            self._lifecycle_depth += 1
+            try:
+                yield
+            finally:
+                self._lifecycle_depth -= 1
+            return
+
+        if timeout is None:
+            await self._lifecycle_lock.acquire()
+        else:
+            if not math.isfinite(timeout) or timeout <= 0:
+                raise asyncio.TimeoutError
+            await asyncio.wait_for(self._lifecycle_lock.acquire(), timeout=timeout)
+        self._lifecycle_owner = task
+        self._lifecycle_depth = 1
+        try:
+            yield
+        finally:
+            if self._lifecycle_owner is not task or self._lifecycle_depth != 1:
+                raise RuntimeError("Lifecycle serialization ownership was corrupted")
+            self._lifecycle_depth = 0
+            self._lifecycle_owner = None
+            self._lifecycle_lock.release()
+
+    def _retain_deferred_cleanup_resource(self, resource: Any) -> None:
+        if all(existing is not resource for existing in self._deferred_cleanup_resources):
+            self._deferred_cleanup_resources.append(resource)
+
+    def _release_deferred_cleanup_resource(self, resource: Any) -> None:
+        self._deferred_cleanup_resources = [
+            existing for existing in self._deferred_cleanup_resources if existing is not resource
+        ]
+
+    def _track_background_task(
+        self,
+        coroutine: Coroutine[Any, Any, Any],
+        *,
+        label: str,
+    ) -> asyncio.Task[Any]:
+        """Own a task until completion and always consume its terminal exception."""
+
+        task = asyncio.create_task(coroutine, name=f"telecraft:{label}")
+        self._deferred_cleanup_tasks.add(task)
+
+        def completed(done: asyncio.Task[Any]) -> None:
+            self._deferred_cleanup_tasks.discard(done)
+            self._deferred_cleanup_task_resources.pop(done, None)
+            if done.cancelled():
+                return
+            # Retrieve the exception even when the deadline-owning caller has
+            # already returned, avoiding "Task exception was never retrieved".
+            _ = done.exception()
+
+        task.add_done_callback(completed)
+        return task
+
+    async def _await_task_hard_bounded(
+        self,
+        task: asyncio.Task[Any],
+        *,
+        timeout: float,
+    ) -> Any:
+        """Wait at most ``timeout`` without waiting for cancellation acknowledgement."""
+
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise asyncio.TimeoutError
+        done, _pending = await asyncio.wait({task}, timeout=timeout)
+        if task not in done:
+            # Do not cancel here. A coroutine may suppress cancellation, and
+            # wait_for would then violate the caller's hard deadline. The task
+            # remains explicitly owned by _deferred_cleanup_tasks.
+            raise asyncio.TimeoutError
+        return task.result()
+
+    def _spawn_resource_cleanup(self, resource: Any, *, label: str) -> asyncio.Task[Any]:
+        # Retain the resource before publishing the task.  This keeps ownership
+        # explicit even if task creation itself raises, and allows a failed close
+        # to be retried by a later teardown/diagnostic path.
+        self._retain_deferred_cleanup_resource(resource)
+
+        async def close_owned_resource() -> None:
+            try:
+                await resource.close()
+            except BaseException:
+                self._retain_deferred_cleanup_resource(resource)
+                raise
+            else:
+                self._release_deferred_cleanup_resource(resource)
+
+        task = self._track_background_task(
+            close_owned_resource(),
+            label=label,
+        )
+        self._deferred_cleanup_task_resources[task] = resource
+        return task
+
+    async def _retry_deferred_cleanup_resources(
+        self,
+        *,
+        errors: list[BaseException],
+    ) -> None:
+        """Retry failed cleanup without racing a still-active cleanup owner."""
+
+        for task in list(self._deferred_cleanup_task_resources):
+            if task.done():
+                self._deferred_cleanup_task_resources.pop(task, None)
+        for resource in list(self._deferred_cleanup_resources):
+            if any(
+                not task.done() and active is resource
+                for task, active in self._deferred_cleanup_task_resources.items()
+            ):
+                continue
+            try:
+                await resource.close()
+            except BaseException as exc:
+                errors.append(exc)
+            else:
+                self._release_deferred_cleanup_resource(resource)
+
     def _endpoint(self) -> tuple[str, int]:
-        if self._host is not None:
+        return self._endpoint_for_dc(self._dc_id)
+
+    def _endpoint_for_dc(self, dc_id: int) -> tuple[str, int]:
+        dc_id = int(dc_id)
+        if dc_id == int(self._dc_id) and self._host is not None:
             return self._host, self._port
+        cached = self._dc_endpoints.get(dc_id)
+        if cached is not None:
+            return cached
         mapping = TEST_DCS if self._network == "test" else PROD_DCS
-        host, port = mapping.get(self._dc_id, ("", 0))
+        host, port = mapping.get(dc_id, ("", 0))
         if not host:
-            raise MtprotoClientError(f"Unknown DC: {self._dc_id} (network={self._network})")
+            raise MtprotoClientError(f"Unknown DC: {dc_id} (network={self._network})")
         return host, port
 
+    def _ingest_dc_config(self, config: Any) -> None:
+        """Cache ordinary IPv4 TCP endpoints advertised by ``help.getConfig``."""
+
+        options = getattr(config, "dc_options", None)
+        if not isinstance(options, list):
+            return
+        discovered: dict[int, tuple[str, int]] = {}
+        for option in options:
+            # This transport does not implement IPv6, CDN authorization, or
+            # MTProxy/obfuscated secrets.  Never select such an endpoint merely
+            # because it appeared first in the server response.
+            if any(
+                bool(getattr(option, field, False))
+                for field in ("ipv6", "media_only", "cdn", "tcpo_only")
+            ):
+                continue
+            secret = getattr(option, "secret", None)
+            if isinstance(secret, (bytes, bytearray)) and secret:
+                continue
+            try:
+                option_dc = int(getattr(option, "id"))
+                option_host = str(getattr(option, "ip_address"))
+                option_port = int(getattr(option, "port"))
+            except (AttributeError, TypeError, ValueError):
+                continue
+            if option_dc <= 0 or not option_host or not (0 < option_port < 65536):
+                continue
+            discovered.setdefault(option_dc, (option_host, option_port))
+
+        if not discovered:
+            return
+        self._dc_endpoints.update(discovered)
+        if not self._host_is_explicit and int(self._dc_id) in discovered:
+            self._host, self._port = discovered[int(self._dc_id)]
+
     async def connect(self, *, timeout: float = 30.0) -> None:
-        async with self._lifecycle_lock:
+        async with self._lifecycle_serialized():
             if self.is_connected:
                 return
             if any(
@@ -272,18 +487,39 @@ class MtprotoClient:
             ):
                 await self._teardown_locked(persist=False, raise_errors=False)
 
-            # If we have a session file, treat it as authoritative for endpoint/framing.
-            # This avoids common "session mismatch" errors when a previous login migrated DCs.
-            sess: MtprotoSession | None = None
-            if self._session_path is not None and self._session_path.exists():
-                sess = load_session_file(self._session_path)
-                self._dc_id = int(sess.dc_id)
-                self._host = str(sess.host)
-                self._port = int(sess.port)
-                self._framing_name = str(sess.framing)
+            if (
+                self._session_path is not None
+                and self._lock_session
+                and self._session_file_lock is None
+            ):
+                try:
+                    self._session_file_lock = acquire_session_file_lock(self._session_path)
+                except SessionInUseError as exc:
+                    raise MtprotoClientError(str(exc)) from exc
 
-            host, port = self._endpoint()
-            framing = _make_framing(self._framing_name)
+            try:
+                # If we have a session file, treat it as authoritative for endpoint/framing.
+                # This avoids common "session mismatch" errors when a previous login migrated DCs.
+                sess: MtprotoSession | None = None
+                if self._session_path is not None and self._session_path.exists():
+                    sess = load_session_file(self._session_path)
+                    self._dc_id = int(sess.dc_id)
+                    self._host = str(sess.host)
+                    self._port = int(sess.port)
+                    self._framing_name = str(sess.framing)
+                    self._updates_state_auth_key_id_alias = sess.updates_state_auth_key_id_alias
+                    self._dc_endpoints[self._dc_id] = (self._host, self._port)
+                else:
+                    self._updates_state_auth_key_id_alias = None
+
+                host, port = self._endpoint()
+                framing = _make_framing(self._framing_name)
+            except BaseException:
+                session_file_lock = self._session_file_lock
+                self._session_file_lock = None
+                if session_file_lock is not None:
+                    session_file_lock.release()
+                raise
             transport = TcpTransport(endpoint=Endpoint(host=host, port=port), framing=framing)
             # Publish the transport early so every failure path can use the same teardown.
             # is_connected remains false until sender and state are healthy as well.
@@ -325,6 +561,7 @@ class MtprotoClient:
                     state=state,
                     msg_id_gen=msg_id_gen,
                     incoming_queue=incoming,
+                    flood_wait_config=self._flood_wait_config,
                 )
 
                 self._sender = sender
@@ -347,6 +584,7 @@ class MtprotoClient:
                 # Bootstrap as a "real" API client.
                 if self._init is not None:
                     self.config = await self.invoke_with_layer(HelpGetConfig(), timeout=timeout)
+                    self._ingest_dc_config(self.config)
                     self._did_init_connection = True
 
                 await self._persist_session()
@@ -355,11 +593,11 @@ class MtprotoClient:
                 raise
 
     async def close(self) -> None:
-        async with self._lifecycle_lock:
+        async with self._lifecycle_serialized():
             await self._teardown_locked(persist=True, raise_errors=True)
 
     async def _teardown_locked(self, *, persist: bool, raise_errors: bool) -> None:
-        """Close every runtime resource; caller must hold _lifecycle_lock."""
+        """Close every runtime resource; caller must hold lifecycle serialization."""
 
         errors: list[BaseException] = []
         if persist:
@@ -397,6 +635,8 @@ class MtprotoClient:
                 await client.close()
             except BaseException as exc:
                 errors.append(exc)
+            else:
+                self._release_deferred_cleanup_resource(client)
 
         sender = self._sender
         if sender is not None:
@@ -404,6 +644,8 @@ class MtprotoClient:
                 await sender.close()
             except BaseException as exc:
                 errors.append(exc)
+            else:
+                self._release_deferred_cleanup_resource(sender)
 
         transport = self._transport
         if transport is not None:
@@ -411,6 +653,14 @@ class MtprotoClient:
                 await transport.close()
             except BaseException as exc:
                 errors.append(exc)
+            else:
+                self._release_deferred_cleanup_resource(transport)
+
+        # A timed-out migration may have left an old sender, transport, child,
+        # or unsuccessful candidate in a tracked cleanup task.  Never double-
+        # close an actively owned resource; retry those whose prior close task
+        # has already failed and completed.
+        await self._retry_deferred_cleanup_resources(errors=errors)
 
         self._sender = None
         self._transport = None
@@ -423,6 +673,14 @@ class MtprotoClient:
         self._updates_terminal = None
         self._did_init_connection = False
         self.config = None
+
+        session_file_lock = self._session_file_lock
+        self._session_file_lock = None
+        if session_file_lock is not None:
+            try:
+                session_file_lock.release()
+            except BaseException as exc:
+                errors.append(exc)
 
         if errors and raise_errors:
             raise errors[0]
@@ -439,10 +697,77 @@ class MtprotoClient:
     ) -> None:
         await self.close()
 
-    async def invoke(self, req: Any, *, timeout: float = 20.0) -> Any:
-        if self._sender is None:
-            raise MtprotoClientError("Not connected")
-        return await self._sender.invoke_tl(req, timeout=timeout)
+    async def invoke(
+        self,
+        req: Any,
+        *,
+        timeout: float = 20.0,
+        flood_wait_config: FloodWaitConfig | None = None,
+    ) -> Any:
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("timeout must be a positive finite number")
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+
+        def remaining() -> float:
+            value = deadline - loop.time()
+            if value <= 0:
+                raise RpcSenderError(f"Timed out waiting for response (total deadline={timeout}s)")
+            return value
+
+        try:
+            await asyncio.wait_for(
+                self._invoke_condition.acquire(),
+                timeout=remaining(),
+            )
+        except asyncio.TimeoutError as exc:
+            raise RpcSenderError(
+                f"Timed out waiting for response (total deadline={timeout}s)"
+            ) from exc
+        try:
+            while self._migration_in_progress:
+                try:
+                    await asyncio.wait_for(
+                        self._invoke_condition.wait(),
+                        timeout=remaining(),
+                    )
+                except asyncio.TimeoutError as exc:
+                    raise RpcSenderError(
+                        f"Timed out waiting for response (total deadline={timeout}s)"
+                    ) from exc
+            sender = self._sender
+            if sender is None:
+                raise MtprotoClientError("Not connected")
+            sender_timeout = remaining()
+            self._active_invocations += 1
+        finally:
+            self._invoke_condition.release()
+
+        async def invoke_owned() -> Any:
+            try:
+                return await sender.invoke_tl(
+                    req,
+                    timeout=sender_timeout,
+                    flood_wait_config=flood_wait_config,
+                )
+            finally:
+                async with self._invoke_condition:
+                    self._active_invocations -= 1
+                    self._invoke_condition.notify_all()
+
+        invoke_task = self._track_background_task(
+            invoke_owned(),
+            label="invoke",
+        )
+        try:
+            return await self._await_task_hard_bounded(
+                invoke_task,
+                timeout=remaining(),
+            )
+        except asyncio.TimeoutError as exc:
+            raise RpcSenderError(
+                f"Timed out waiting for response (total deadline={timeout}s)"
+            ) from exc
 
     async def invoke_with_layer(self, req: Any, *, timeout: float = 20.0) -> Any:
         if self._init is None:
@@ -453,12 +778,65 @@ class MtprotoClient:
     async def invoke_api(self, req: Any, *, timeout: float = 20.0) -> Any:
         """
         Invoke a regular API method after we've performed initConnection/invokeWithLayer once.
+
+        ``timeout`` is a total deadline, including one Telegram-requested DC
+        migration and FloodWait sleeps.  Migration errors are rejection
+        responses, so retrying the rejected RPC once on the instructed DC cannot
+        duplicate a successfully executed non-idempotent request.
         """
-        if self._init is not None and not self._did_init_connection:
-            # Perform one bootstrap call to "register" the client.
-            self.config = await self.invoke_with_layer(HelpGetConfig(), timeout=timeout)
-            self._did_init_connection = True
-        return await self.invoke(req, timeout=timeout)
+        if timeout <= 0:
+            raise ValueError("timeout must be positive")
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+
+        def remaining() -> float:
+            value = deadline - loop.time()
+            if value <= 0:
+                raise MtprotoClientError(
+                    f"Timed out invoking API request (total deadline={timeout}s)"
+                )
+            return value
+
+        for attempt in range(2):
+            try:
+                if self._init is not None and not self._did_init_connection:
+                    # Perform one bootstrap call to "register" the client.
+                    self.config = await self.invoke_with_layer(HelpGetConfig(), timeout=remaining())
+                    self._ingest_dc_config(self.config)
+                    self._did_init_connection = True
+                result = await self.invoke(req, timeout=remaining())
+                if isinstance(req, HelpGetConfig):
+                    self.config = result
+                    self._ingest_dc_config(result)
+                return result
+            except DcMigrateError as exc:
+                if attempt > 0:
+                    raise
+                if exc.kind == "FILE":
+                    route_timeout = remaining()
+                    try:
+                        target = await self._client_for_dc(
+                            exc.dc_id,
+                            timeout=route_timeout,
+                        )
+                    except asyncio.TimeoutError as timeout_exc:
+                        raise MtprotoClientError(
+                            f"Timed out routing FILE request to DC {exc.dc_id}"
+                        ) from timeout_exc
+                    return await target.invoke_api(req, timeout=remaining())
+                migration_timeout = remaining()
+                try:
+                    await self._migrate_primary_dc(
+                        exc.dc_id,
+                        kind=exc.kind,
+                        timeout=migration_timeout,
+                    )
+                except asyncio.TimeoutError as timeout_exc:
+                    raise MtprotoClientError(
+                        f"Timed out migrating {exc.kind} request to DC {exc.dc_id}"
+                    ) from timeout_exc
+
+        raise AssertionError("unreachable")
 
     async def ping(self, *, timeout: float = 20.0) -> Any:
         # ping doesn't need initConnection/invokeWithLayer.
@@ -470,7 +848,7 @@ class MtprotoClient:
     async def log_out(self, *, timeout: float = 20.0) -> Any:
         """Log out remotely, disconnect, and remove the now-invalid local authorization."""
 
-        async with self._lifecycle_lock:
+        async with self._lifecycle_serialized():
             result = await self.invoke_api(AuthLogOut(), timeout=timeout)
             await self._teardown_locked(persist=False, raise_errors=False)
             # Keep invalid-session deletion and identity reset in the same
@@ -490,7 +868,7 @@ class MtprotoClient:
         # Lock order is always lifecycle -> updates. This prevents two consumers
         # from being published concurrently and prevents close from tearing down
         # the sender while initialization is awaiting updates.getDifference.
-        async with self._lifecycle_lock:
+        async with self._lifecycle_serialized():
             async with self._updates_lock:
                 await self._start_updates_locked(timeout=timeout)
 
@@ -518,9 +896,24 @@ class MtprotoClient:
         self._updates_out = updates_out
         self._updates_terminal = updates_terminal
         self._updates_engine = updates_engine
-        self._updates_task = asyncio.create_task(
-            self._updates_loop(initial_catch_up=initial_catch_up)
-        )
+        try:
+            if initial_state is None:
+                # A fresh getState baseline has no catch-up batch to drive the
+                # normal dispatch checkpoint.  Persist it before returning from
+                # start_updates so a crash during an otherwise idle session
+                # cannot restart from a newer getState and skip that interval.
+                self._persist_updates_state(force=True)
+            self._updates_task = asyncio.create_task(
+                self._updates_loop(
+                    initial_catch_up=initial_catch_up,
+                    config_refresh_timeout=timeout,
+                )
+            )
+        except BaseException:
+            self._updates_out = None
+            self._updates_terminal = None
+            self._updates_engine = None
+            raise
 
     async def stop_updates(self) -> None:
         async with self._updates_lock:
@@ -543,6 +936,17 @@ class MtprotoClient:
         self._finish_updates(MtprotoClientError("Updates stopped"))
 
     async def recv_update(self) -> Any:
+        """Return the next accepted update.
+
+        Delivery is checkpoint-on-enqueue: the persisted pts/qts cursor advances
+        only after the complete batch has entered the in-memory output queue.  A
+        process crash after that checkpoint but before application processing can
+        therefore lose an application-level delivery.  Consumers requiring a
+        durable business acknowledgement must persist/idempotently deduplicate
+        their own work; Telecraft guarantees protocol recovery, not exactly-once
+        application processing.
+        """
+
         updates_out = self._updates_out
         terminal = self._updates_terminal
         if updates_out is None or terminal is None:
@@ -591,11 +995,11 @@ class MtprotoClient:
         self,
         *,
         initial_catch_up: tuple[UpdatesState, AppliedUpdates] | None = None,
+        config_refresh_timeout: float = 20.0,
     ) -> None:
         assert self._incoming is not None
         assert self._updates_out is not None
         assert self._updates_engine is not None
-        incoming = self._incoming
         updates_out = self._updates_out
         updates_engine = self._updates_engine
 
@@ -605,6 +1009,27 @@ class MtprotoClient:
             applied: AppliedUpdates,
         ) -> None:
             try:
+                if any(isinstance(update, UpdateConfig) for update in applied.updates):
+                    try:
+                        await self.invoke_api(
+                            HelpGetConfig(),
+                            timeout=config_refresh_timeout,
+                        )
+                        # Keep the refreshed primary endpoint durable for a
+                        # restart even if the process exits before normal close.
+                        await self._persist_session()
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception:
+                        # Endpoint refresh is operational metadata.  A transient
+                        # failure must not discard or permanently stall the
+                        # otherwise valid update stream; the next updateConfig or
+                        # reconnect will retry it.
+                        logger.warning(
+                            "Failed to refresh Telegram DC config after updateConfig",
+                            exc_info=True,
+                        )
+
                 self.entities.ingest_users(applied.users)
                 self.entities.ingest_chats(applied.chats)
                 self._persist_entities_cache()
@@ -614,10 +1039,10 @@ class MtprotoClient:
                 for updates in (applied.new_messages, applied.updates):
                     for update in updates:
                         await updates_out.put(update)
+                self._persist_updates_state()
             except BaseException:
                 updates_engine.restore(checkpoint)
                 raise
-            self._persist_updates_state()
 
         try:
             if initial_catch_up is not None:
@@ -626,6 +1051,9 @@ class MtprotoClient:
 
             while True:
                 try:
+                    incoming = self._incoming
+                    if incoming is None:
+                        raise MtprotoClientError("MTProto receiver is not connected")
                     msg = await asyncio.wait_for(
                         incoming.get(),
                         timeout=_UPDATES_IDLE_RECOVERY_SECONDS,
@@ -718,6 +1146,7 @@ class MtprotoClient:
         try:
             from telecraft.mtproto.updates.storage import (
                 LegacyUpdatesStateMigrationRequired,
+                UpdatesStateStorageError,
                 load_updates_state_file,
             )
 
@@ -737,6 +1166,22 @@ class MtprotoClient:
                     "or explicitly pass trust_legacy_updates_state=True once to preserve "
                     "offline update continuity."
                 ) from exc
+            except UpdatesStateStorageError as current_auth_error:
+                alias = self._updates_state_auth_key_id_alias
+                if alias is None or alias == auth_key_id:
+                    raise
+                try:
+                    state = load_updates_state_file(
+                        p,
+                        expected_auth_key_id=alias,
+                        allow_unbound_legacy=self._trust_legacy_updates_state,
+                    )
+                except UpdatesStateStorageError:
+                    raise current_auth_error
+                logger.warning(
+                    "Loading updates checkpoint through the previous-DC authorization alias: %s",
+                    p,
+                )
             if self._trust_legacy_updates_state:
                 logger.warning(
                     "Trusting a legacy unbound updates checkpoint for one-time migration: %s",
@@ -745,8 +1190,18 @@ class MtprotoClient:
             return state
         except MtprotoClientError:
             raise
-        except Exception:
-            # Best-effort: if storage is corrupted/missing fields, start from server getState.
+        except Exception as exc:
+            self.last_persistence_error = exc
+            if self._strict_update_persistence:
+                raise MtprotoClientError(
+                    f"Updates checkpoint is invalid or unreadable: {p}. "
+                    "Move/delete it explicitly to reset from the server's current state."
+                ) from exc
+            logger.warning(
+                "Ignoring invalid updates checkpoint because strict_update_persistence=False: %s",
+                p,
+                exc_info=True,
+            )
             return None
 
     def _persist_updates_state(self, *, force: bool = False) -> None:
@@ -767,12 +1222,19 @@ class MtprotoClient:
                 return
             save_updates_state_file(
                 p,
-                self._updates_engine.state,
+                self._updates_engine.checkpoint(),
                 auth_key_id=auth_key_id,
             )
-        except Exception:
-            # Best-effort persistence; never break the running client.
-            return
+            # The checkpoint is now bound to the current DC's auth key.  A
+            # previous-DC alias retained in the session is no longer needed and
+            # will be removed on the next session-file write.
+            self._updates_state_auth_key_id_alias = None
+            self.last_persistence_error = None
+        except Exception as exc:
+            self.last_persistence_error = exc
+            logger.error("Failed to persist updates checkpoint: %s", p, exc_info=True)
+            if self._strict_update_persistence:
+                raise MtprotoClientError(f"Failed to persist updates checkpoint: {p}") from exc
 
     def _entities_path(self) -> Path | None:
         if self._session_path is None:
@@ -797,8 +1259,8 @@ class MtprotoClient:
                 return
             self.entities = loaded
         except Exception:
-            # Best-effort; corrupted cache should not break connect.
-            return
+            # Entity lookup is an optimization, unlike an updates checkpoint.
+            logger.warning("Ignoring invalid entity cache: %s", p, exc_info=True)
 
     def _persist_entities_cache(self, *, force: bool = False) -> None:
         p = self._entities_path()
@@ -815,8 +1277,8 @@ class MtprotoClient:
             self.entities.auth_key_id = auth_key_id
             save_entity_cache_file(p, self.entities)
         except Exception:
-            # Best-effort persistence; never break the running client.
-            return
+            # Entity lookup is an optimization, unlike an updates checkpoint.
+            logger.warning("Failed to persist entity cache: %s", p, exc_info=True)
 
     async def get_me(self, *, timeout: float = 20.0) -> Any:
         """
@@ -1116,6 +1578,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         # Build flags
@@ -1151,6 +1614,7 @@ class MtprotoClient:
                 effect=None,
                 allow_paid_stars=None,
                 suggested_post=None,
+                rich_message=None,
             ),
             timeout=timeout,
         )
@@ -1303,9 +1767,11 @@ class MtprotoClient:
             media = InputMediaUploadedPhoto(
                 flags=0,
                 spoiler=False,
+                live_photo=False,
                 file=input_file,
                 stickers=None,
                 ttl_seconds=None,
+                video=None,
             )
         else:
             mime = guess_mime_type(p)
@@ -1337,6 +1803,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         if is_self_peer_ref(peer):
@@ -1454,9 +1921,11 @@ class MtprotoClient:
                 media = InputMediaUploadedPhoto(
                     flags=0,
                     spoiler=False,
+                    live_photo=False,
                     file=input_file,
                     stickers=None,
                     ttl_seconds=None,
+                    video=None,
                 )
             else:
                 mime = guess_mime_type(fp)
@@ -1498,6 +1967,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         msg_flags = 0
@@ -1710,6 +2180,7 @@ class MtprotoClient:
                 schedule_date=None,
                 schedule_repeat_period=None,
                 quick_reply_shortcut_id=None,
+                rich_message=None,
             ),
             timeout=timeout,
         )
@@ -1822,6 +2293,7 @@ class MtprotoClient:
         *,
         limit: int = 100,
         from_user: PeerRef | None = None,
+        filter: Any | None = None,
         offset_id: int = 0,
         min_date: int = 0,
         max_date: int = 0,
@@ -1835,6 +2307,7 @@ class MtprotoClient:
             query: Search query string (empty string returns all messages)
             limit: Maximum number of messages to return
             from_user: Filter by sender (optional)
+            filter: Raw InputMessagesFilter TL object (defaults to no filtering)
             offset_id: Offset message ID for pagination
             min_date: Minimum message date (Unix timestamp)
             max_date: Maximum message date (Unix timestamp)
@@ -1869,14 +2342,14 @@ class MtprotoClient:
 
         res = await self.invoke_api(
             MessagesSearch(
-                flags=0,
+                flags=1 if from_input_peer is not None else 0,
                 peer=input_peer,
                 q=query,
                 from_id=from_input_peer,
                 saved_peer_id=None,
                 saved_reaction=None,
                 top_msg_id=None,
-                filter=InputMessagesFilterEmpty(),
+                filter=filter if filter is not None else InputMessagesFilterEmpty(),
                 min_date=int(min_date),
                 max_date=int(max_date),
                 offset_id=int(offset_id),
@@ -1907,6 +2380,7 @@ class MtprotoClient:
         limit: int | None = None,
         filter_type: str = "recent",
         timeout: float = 20.0,
+        _return_users: bool = False,
     ) -> AsyncIterator[Any]:
         """
         Async generator that iterates over channel/supergroup participants.
@@ -1990,6 +2464,11 @@ class MtprotoClient:
             chats = cast(list[Any], getattr(res, "chats", []))
             self.entities.ingest_users(list(users))
             self.entities.ingest_chats(list(chats))
+            users_by_id = {
+                int(user_id): user
+                for user in users
+                if (user_id := getattr(user, "id", None)) is not None
+            }
 
             participants = cast(list[Any], getattr(res, "participants", []))
             if not participants:
@@ -1998,7 +2477,20 @@ class MtprotoClient:
             for p in participants:
                 if limit is not None and total_yielded >= limit:
                     return
-                yield p
+                if _return_users:
+                    participant_user_id = getattr(p, "user_id", None)
+                    if participant_user_id is None:
+                        continue
+                    user = users_by_id.get(int(participant_user_id))
+                    if user is None:
+                        logger.warning(
+                            "Telegram omitted User for channel participant user_id=%s",
+                            participant_user_id,
+                        )
+                        continue
+                    yield user
+                else:
+                    yield p
                 total_yielded += 1
 
             offset += len(participants)
@@ -2406,10 +2898,11 @@ class MtprotoClient:
 
         res = await self.invoke_api(
             ChannelsEditAdmin(
+                flags=1 if rank else 0,
                 channel=input_channel,
                 user_id=input_user,
                 admin_rights=admin_rights,
-                rank=rank or "",
+                rank=rank or None,
             ),
             timeout=timeout,
         )
@@ -3643,6 +4136,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         import random
@@ -3766,6 +4260,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         import random
@@ -3850,6 +4345,7 @@ class MtprotoClient:
                 schedule_date=None,
                 schedule_repeat_period=None,
                 quick_reply_shortcut_id=None,
+                rich_message=None,
             ),
             timeout=timeout,
         )
@@ -3919,6 +4415,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         import random
@@ -4053,6 +4550,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         import random
@@ -4158,6 +4656,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         import random
@@ -4364,6 +4863,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         p2 = await self.resolve_peer(peer, timeout=timeout)
@@ -4499,6 +4999,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         p2 = await self.resolve_peer(peer, timeout=timeout)
@@ -4597,8 +5098,12 @@ class MtprotoClient:
         for i, opt in enumerate(options):
             answers.append(
                 PollAnswer(
+                    flags=0,
                     text=TextWithEntities(text=opt, entities=[]),
                     option=bytes([i]),  # option identifier
+                    media=None,
+                    added_by=None,
+                    date=None,
                 )
             )
 
@@ -4622,18 +5127,28 @@ class MtprotoClient:
             public_voters=public_voters if public_voters else None,
             multiple_choice=multiple_choice if multiple_choice else None,
             quiz=None,
+            open_answers=None,
+            revoting_disabled=None,
+            shuffle_answers=None,
+            hide_results_until_close=None,
+            creator=None,
+            subscribers_only=None,
             question=TextWithEntities(text=question, entities=[]),
             answers=answers,
             close_period=close_period,
             close_date=close_date,
+            countries_iso2=None,
+            hash=0,
         )
 
         media = InputMediaPoll(
             flags=0,
             poll=poll,
             correct_answers=None,
+            attached_media=None,
             solution=None,
             solution_entities=None,
+            solution_media=None,
         )
 
         # Build message flags
@@ -4657,6 +5172,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         res = await self.invoke_api(
@@ -4749,8 +5265,12 @@ class MtprotoClient:
         for i, opt in enumerate(options):
             answers.append(
                 PollAnswer(
+                    flags=0,
                     text=TextWithEntities(text=opt, entities=[]),
                     option=bytes([i]),
+                    media=None,
+                    added_by=None,
+                    date=None,
                 )
             )
 
@@ -4770,10 +5290,18 @@ class MtprotoClient:
             public_voters=public_voters if public_voters else None,
             multiple_choice=None,
             quiz=True,
+            open_answers=None,
+            revoting_disabled=None,
+            shuffle_answers=None,
+            hide_results_until_close=None,
+            creator=None,
+            subscribers_only=None,
             question=TextWithEntities(text=question, entities=[]),
             answers=answers,
             close_period=close_period,
             close_date=None,
+            countries_iso2=None,
+            hash=0,
         )
 
         # Build media flags
@@ -4784,9 +5312,11 @@ class MtprotoClient:
         media = InputMediaPoll(
             flags=media_flags,
             poll=poll,
-            correct_answers=[bytes([correct_option])],
+            correct_answers=[int(correct_option)],
+            attached_media=None,
             solution=explanation,
             solution_entities=[] if explanation else None,
+            solution_media=None,
         )
 
         # Build message flags
@@ -4810,6 +5340,7 @@ class MtprotoClient:
                 quote_offset=None,
                 monoforum_peer_id=None,
                 todo_item_id=None,
+                poll_option=None,
             )
 
         res = await self.invoke_api(
@@ -4900,9 +5431,17 @@ class MtprotoClient:
         Returns:
             Updates object
         """
-        # To close a poll, we edit the message with closed=True
-        # This requires getting the current poll first, then editing it
-        from telecraft.tl.generated.types import InputMediaPoll
+        from telecraft.tl.generated.functions import (
+            ChannelsGetMessages,
+            MessagesEditMessage,
+            MessagesGetMessages,
+        )
+        from telecraft.tl.generated.types import (
+            InputMediaPoll,
+            InputMessageId,
+            MessageMediaPoll,
+            Poll,
+        )
 
         p = await self.resolve_peer(peer, timeout=timeout)
 
@@ -4912,11 +5451,46 @@ class MtprotoClient:
             await self._prime_entities_for_reply(want=p, timeout=timeout)
             input_peer = self.entities.input_peer(p)
 
-        from telecraft.tl.generated.functions import MessagesEditMessage
+        message_ref = InputMessageId(id=int(msg_id))
+        if p.peer_type == "channel":
+            try:
+                input_channel = self.entities.input_channel(int(p.peer_id))
+            except EntityCacheError:
+                await self._prime_entities_for_reply(want=p, timeout=timeout)
+                input_channel = self.entities.input_channel(int(p.peer_id))
+            current = await self.invoke_api(
+                ChannelsGetMessages(channel=input_channel, id=[message_ref]),
+                timeout=timeout,
+            )
+        else:
+            current = await self.invoke_api(MessagesGetMessages(id=[message_ref]), timeout=timeout)
 
-        # Edit the message with a closed poll media
-        # We need to get the original poll first
-        # For simplicity, we'll use the edit approach with minimal poll
+        self._ingest_from_updates_result(current)
+        messages = getattr(current, "messages", None)
+        message = (
+            next(
+                (
+                    candidate
+                    for candidate in messages
+                    if int(getattr(candidate, "id", -1)) == int(msg_id)
+                ),
+                None,
+            )
+            if isinstance(messages, list)
+            else None
+        )
+        media = getattr(message, "media", None)
+        if not isinstance(media, MessageMediaPoll):
+            raise MtprotoClientError(
+                f"close_poll: message {msg_id} does not contain an editable poll"
+            )
+        poll = cast(Poll, media.poll)
+        closed_poll = replace(
+            poll,
+            flags=int(cast(int, poll.flags)) | 1,
+            closed=True,
+        )
+
         res = await self.invoke_api(
             MessagesEditMessage(
                 flags=16384,  # flags.14 = media
@@ -4927,16 +5501,19 @@ class MtprotoClient:
                 message=None,
                 media=InputMediaPoll(
                     flags=0,
-                    poll=None,  # Will close the existing poll
+                    poll=closed_poll,
                     correct_answers=None,
+                    attached_media=None,
                     solution=None,
                     solution_entities=None,
+                    solution_media=None,
                 ),
                 reply_markup=None,
                 entities=None,
                 schedule_date=None,
                 schedule_repeat_period=None,
                 quick_reply_shortcut_id=None,
+                rich_message=None,
             ),
             timeout=timeout,
         )
@@ -4971,7 +5548,7 @@ class MtprotoClient:
             input_peer = self.entities.input_peer(p)
 
         return await self.invoke_api(
-            MessagesGetPollResults(peer=input_peer, msg_id=msg_id),
+            MessagesGetPollResults(peer=input_peer, msg_id=msg_id, poll_hash=0),
             timeout=timeout,
         )
 
@@ -5160,7 +5737,12 @@ class MtprotoClient:
             List of User objects
         """
         members: list[Any] = []
-        async for member in self.iter_participants(group, limit=limit, timeout=timeout):
+        async for member in self.iter_participants(
+            group,
+            limit=limit,
+            timeout=timeout,
+            _return_users=True,
+        ):
             members.append(member)
         return members
 
@@ -5172,6 +5754,7 @@ class MtprotoClient:
         limit: int | None = None,
         exclude_bots: bool = True,
         exclude_admins: bool = False,
+        exclude_self: bool = True,
         timeout: float = 20.0,
         on_error: str = "skip",
     ) -> dict[str, Any]:
@@ -5188,6 +5771,7 @@ class MtprotoClient:
             limit: Maximum number of members to transfer
             exclude_bots: Skip bots (default True)
             exclude_admins: Skip admins (default False)
+            exclude_self: Skip the current account (default True)
             timeout: RPC timeout per operation
             on_error: How to handle errors ("skip", "raise", "collect")
 
@@ -5196,6 +5780,17 @@ class MtprotoClient:
         """
         # Get members from source group
         members = await self.get_group_members(from_group, limit=limit, timeout=timeout)
+
+        admin_ids: set[int] = set()
+        if exclude_admins:
+            async for participant in self.iter_participants(
+                from_group,
+                filter_type="admins",
+                timeout=timeout,
+            ):
+                admin_id = getattr(participant, "user_id", None)
+                if admin_id is not None:
+                    admin_ids.add(int(admin_id))
 
         # Filter members
         users_to_add: list[tuple[str, int]] = []
@@ -5212,8 +5807,12 @@ class MtprotoClient:
                 skipped.append((user_id, "bot"))
                 continue
 
+            if exclude_admins and int(user_id) in admin_ids:
+                skipped.append((int(user_id), "admin"))
+                continue
+
             # Check if self
-            if user_id == self.self_user_id:
+            if exclude_self and user_id == self.self_user_id:
                 skipped.append((user_id, "self"))
                 continue
 
@@ -5356,17 +5955,432 @@ class MtprotoClient:
                         await self.prime_entities(limit=300, folder_id=1, timeout=timeout)
             return
 
+    async def _migrate_primary_dc(
+        self,
+        dc_id: int,
+        *,
+        kind: str,
+        timeout: float,
+    ) -> None:
+        """Move this client's primary MTProto connection to a server-directed DC."""
+
+        target_dc = int(dc_id)
+        if target_dc <= 0:
+            raise MtprotoClientError(f"Invalid migration DC: {dc_id!r}")
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise MtprotoClientError(f"Timed out migrating {kind} request to DC {target_dc}")
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+
+        def remaining() -> float:
+            value = deadline - loop.time()
+            if value <= 0:
+                raise asyncio.TimeoutError
+            return value
+
+        try:
+            # The global order for connection mutation is lifecycle ->
+            # migration -> invoke condition.  Lifecycle callers such as
+            # start_updates/log_out re-enter this serializer in the same task.
+            async with self._lifecycle_serialized(timeout=remaining()):
+                await asyncio.wait_for(
+                    self._migration_lock.acquire(),
+                    timeout=remaining(),
+                )
+                migration_announced = False
+                try:
+                    if target_dc == int(self._dc_id):
+                        return
+
+                    async with self._invoke_condition:
+                        self._migration_in_progress = True
+                        migration_announced = True
+                    try:
+                        async with self._invoke_condition:
+                            while self._active_invocations:
+                                await asyncio.wait_for(
+                                    self._invoke_condition.wait(),
+                                    timeout=remaining(),
+                                )
+                        await self._perform_primary_dc_migration(
+                            target_dc,
+                            kind=kind,
+                            timeout=remaining(),
+                        )
+                    finally:
+                        if migration_announced:
+                            async with self._invoke_condition:
+                                self._migration_in_progress = False
+                                self._invoke_condition.notify_all()
+                finally:
+                    self._migration_lock.release()
+        except asyncio.TimeoutError as exc:
+            raise MtprotoClientError(
+                f"Timed out migrating {kind} request to DC {target_dc}"
+            ) from exc
+
+    async def _perform_primary_dc_migration(
+        self,
+        target_dc: int,
+        *,
+        kind: str,
+        timeout: float,
+    ) -> None:
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+
+        def remaining() -> float:
+            value = deadline - loop.time()
+            if value <= 0:
+                raise asyncio.TimeoutError
+            return value
+
+        async with self._lifecycle_serialized(timeout=remaining()):
+            old_sender = self._sender
+            old_transport = self._transport
+            old_incoming = self._incoming
+            if old_sender is None or old_transport is None or self._state is None:
+                raise MtprotoClientError("Cannot migrate a disconnected client")
+            if self._init is None:
+                raise MtprotoClientError(
+                    "ClientInit(api_id=...) is required for automatic DC migration"
+                )
+            old_auth_key_id = self._auth_key_id_hex()
+            old_updates_auth_alias = self._updates_state_auth_key_id_alias
+
+            target_host, target_port = self._endpoint_for_dc(target_dc)
+            candidate = MtprotoClient(
+                network=self._network,
+                dc_id=target_dc,
+                host=target_host,
+                port=target_port,
+                framing=self._framing_name,
+                session_path=None,
+                init=self._init,
+                trust_legacy_updates_state=self._trust_legacy_updates_state,
+                strict_update_persistence=self._strict_update_persistence,
+                flood_wait_config=self._flood_wait_config,
+                lock_session=False,
+            )
+            adopted = False
+            failure: BaseException | None = None
+            candidate_operation_tasks: set[asyncio.Task[Any]] = set()
+            try:
+                connect_task = self._track_background_task(
+                    candidate.connect(timeout=remaining()),
+                    label=f"migration-candidate-connect-dc{target_dc}",
+                )
+                candidate_operation_tasks.add(connect_task)
+                await self._await_task_hard_bounded(
+                    connect_task,
+                    timeout=remaining(),
+                )
+
+                exported: Any | None = None
+                try:
+                    export_task = self._track_background_task(
+                        old_sender.invoke_tl(
+                            AuthExportAuthorization(dc_id=target_dc),
+                            timeout=remaining(),
+                            flood_wait_config=self._flood_wait_config,
+                        ),
+                        label=f"migration-export-authorization-dc{target_dc}",
+                    )
+                    exported = await self._await_task_hard_bounded(
+                        export_task,
+                        timeout=remaining(),
+                    )
+                except RpcErrorException as exc:
+                    # PHONE/NETWORK migrations can happen before a user or bot
+                    # has authorized this fresh auth key.  USER_MIGRATE, on the
+                    # other hand, promises an existing authorization and must not
+                    # silently downgrade to an unauthenticated connection.
+                    unauthenticated_errors = {
+                        "AUTH_KEY_UNREGISTERED",
+                        "SESSION_REVOKED",
+                        "USER_DEACTIVATED",
+                        "USER_DEACTIVATED_BAN",
+                    }
+                    if exc.message not in unauthenticated_errors or kind == "USER":
+                        raise
+
+                if exported is not None:
+                    exp_id = getattr(exported, "id", None)
+                    exp_bytes = getattr(exported, "bytes", None)
+                    if not isinstance(exp_id, int) or not isinstance(exp_bytes, (bytes, bytearray)):
+                        raise MtprotoClientError(
+                            "Telegram returned an invalid auth.exportAuthorization payload"
+                        )
+                    import_task = self._track_background_task(
+                        candidate.invoke_api(
+                            AuthImportAuthorization(id=exp_id, bytes=bytes(exp_bytes)),
+                            timeout=remaining(),
+                        ),
+                        label=f"migration-candidate-import-dc{target_dc}",
+                    )
+                    candidate_operation_tasks.add(import_task)
+                    await self._await_task_hard_bounded(
+                        import_task,
+                        timeout=remaining(),
+                    )
+
+                new_transport = candidate._transport
+                new_sender = candidate._sender
+                new_state = candidate._state
+                new_msg_id_gen = candidate._msg_id_gen
+                new_incoming = candidate._incoming
+                if (
+                    new_transport is None
+                    or new_sender is None
+                    or new_state is None
+                    or new_msg_id_gen is None
+                    or new_incoming is None
+                ):
+                    raise MtprotoClientError(
+                        "DC migration candidate did not establish a complete connection"
+                    )
+                new_auth_key_id = (
+                    int(new_state.auth_key_id)
+                    .to_bytes(
+                        8,
+                        "little",
+                        signed=False,
+                    )
+                    .hex()
+                )
+                new_framing_name = candidate._framing_name
+                new_config = candidate.config
+                new_did_init_connection = candidate._did_init_connection
+                candidate_dc_endpoints = dict(candidate._dc_endpoints)
+
+                # Inspect the durable checkpoint before adoption.  Everything
+                # from the first self-assignment through spawning cleanup owners
+                # below is deliberately synchronous: cancellation cannot leave
+                # an old resource detached and unowned.
+                migration_persistence_error: BaseException | None = None
+                checkpoint_path = self._updates_state_path()
+                checkpoint_auth_key_id: str | None = None
+                if checkpoint_path is not None and checkpoint_path.exists():
+                    try:
+                        from telecraft.mtproto.updates.storage import (
+                            inspect_updates_state_file_auth_key_id,
+                        )
+
+                        checkpoint_auth_key_id = inspect_updates_state_file_auth_key_id(
+                            checkpoint_path
+                        )
+                        allowed_bindings = {
+                            value
+                            for value in (old_auth_key_id, old_updates_auth_alias)
+                            if value is not None
+                        }
+                        if (
+                            checkpoint_auth_key_id is not None
+                            and checkpoint_auth_key_id not in allowed_bindings
+                        ):
+                            raise MtprotoClientError(
+                                "Updates checkpoint authorization changed during DC migration"
+                            )
+                    except Exception as exc:  # noqa: BLE001
+                        if self._strict_update_persistence:
+                            migration_persistence_error = MtprotoClientError(
+                                f"Cannot safely migrate updates checkpoint: {checkpoint_path}"
+                            )
+                            migration_persistence_error.__cause__ = exc
+                        else:
+                            logger.warning(
+                                "Ignoring invalid updates checkpoint during DC migration because "
+                                "strict_update_persistence=False: %s",
+                                checkpoint_path,
+                                exc_info=True,
+                            )
+                            checkpoint_auth_key_id = None
+
+                new_updates_auth_alias = (
+                    (old_updates_auth_alias or old_auth_key_id)
+                    if migration_persistence_error is not None
+                    else (
+                        checkpoint_auth_key_id
+                        if checkpoint_auth_key_id is not None
+                        and checkpoint_auth_key_id != new_auth_key_id
+                        else None
+                    )
+                )
+
+                # Wake an update loop currently blocked on the old queue.  Its
+                # next recovery invocation uses the newly adopted sender.
+                if old_incoming is not None:
+                    old_sender._forward_incoming(  # noqa: SLF001 - same protocol layer
+                        UpdatesRecoveryRequired(reason="dc_migration")
+                    )
+
+                stale_children = list(self._media_clients.values())
+                cleanup_resources = [*stale_children, old_sender, old_transport]
+                # Prepare non-resource state before the connection ownership
+                # hand-off so the commit below contains only non-awaiting plain
+                # assignments.
+                self._dc_endpoints.update(candidate_dc_endpoints)
+                self.entities.auth_key_id = new_auth_key_id
+                for cleanup_resource in cleanup_resources:
+                    self._retain_deferred_cleanup_resource(cleanup_resource)
+
+                self._transport = new_transport
+                self._sender = new_sender
+                self._state = new_state
+                self._msg_id_gen = new_msg_id_gen
+                self._incoming = new_incoming
+                self._dc_id = target_dc
+                self._host = target_host
+                self._port = target_port
+                self._host_is_explicit = False
+                self._framing_name = new_framing_name
+                self.config = new_config
+                self._did_init_connection = new_did_init_connection
+                self._updates_state_auth_key_id_alias = new_updates_auth_alias
+
+                # Transfer ownership before candidate cleanup can close the new
+                # connection.
+                candidate._transport = None
+                candidate._sender = None
+                candidate._state = None
+                candidate._msg_id_gen = None
+                candidate._incoming = None
+                candidate.config = None
+                adopted = True
+
+                cleanup_tasks = {
+                    self._spawn_resource_cleanup(
+                        child,
+                        label=f"migration-stale-child-dc{target_dc}-{index}",
+                    )
+                    for index, child in enumerate(stale_children)
+                }
+                cleanup_tasks.add(
+                    self._spawn_resource_cleanup(
+                        old_sender,
+                        label=f"migration-old-sender-dc{target_dc}",
+                    )
+                )
+                cleanup_tasks.add(
+                    self._spawn_resource_cleanup(
+                        old_transport,
+                        label=f"migration-old-transport-dc{target_dc}",
+                    )
+                )
+                self._media_clients.clear()
+
+                persist_task: asyncio.Task[Any] | None = None
+                if migration_persistence_error is None:
+                    persist_task = self._track_background_task(
+                        self._persist_session(),
+                        label=f"migration-persist-session-dc{target_dc}",
+                    )
+
+                if persist_task is not None:
+                    try:
+                        await self._await_task_hard_bounded(
+                            persist_task,
+                            timeout=remaining(),
+                        )
+                    except asyncio.TimeoutError:
+                        raise
+                    except Exception as exc:  # cancellation must propagate
+                        migration_persistence_error = exc
+
+                done, pending = await asyncio.wait(
+                    cleanup_tasks,
+                    timeout=remaining(),
+                )
+                for cleanup_task in done:
+                    try:
+                        cleanup_task.result()
+                    except BaseException:
+                        logger.warning(
+                            "Failed deferred migration cleanup task %s",
+                            cleanup_task.get_name(),
+                            exc_info=True,
+                        )
+                if pending:
+                    raise asyncio.TimeoutError
+                if migration_persistence_error is not None:
+                    raise migration_persistence_error
+                logger.info("Migrated primary MTProto connection to DC %d (%s)", target_dc, kind)
+            except BaseException as exc:
+                failure = exc
+                raise
+            finally:
+                if not adopted:
+                    self._retain_deferred_cleanup_resource(candidate)
+
+                    async def close_unsuccessful_candidate() -> None:
+                        try:
+                            if candidate_operation_tasks:
+                                await asyncio.gather(
+                                    *candidate_operation_tasks,
+                                    return_exceptions=True,
+                                )
+                            await candidate.close()
+                        except BaseException:
+                            raise
+                        else:
+                            self._release_deferred_cleanup_resource(candidate)
+
+                    candidate_cleanup_task = self._track_background_task(
+                        close_unsuccessful_candidate(),
+                        label=f"migration-unsuccessful-candidate-dc{target_dc}",
+                    )
+                    self._deferred_cleanup_task_resources[candidate_cleanup_task] = candidate
+                    if not isinstance(failure, asyncio.CancelledError):
+                        try:
+                            await self._await_task_hard_bounded(
+                                candidate_cleanup_task,
+                                timeout=remaining(),
+                            )
+                        except asyncio.TimeoutError:
+                            pass
+                        except BaseException:
+                            logger.warning(
+                                "Failed to close unsuccessful DC migration candidate",
+                                exc_info=True,
+                            )
+
     async def _client_for_dc(self, dc_id: int, *, timeout: float = 20.0) -> MtprotoClient:
         """
         Best-effort cross-DC helper for media downloads:
         - connect to dc_id
         - import authorization using auth.exportAuthorization/auth.importAuthorization
         """
+        if timeout <= 0:
+            raise ValueError("timeout must be positive")
         if int(dc_id) == int(self._dc_id):
             return self
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+
+        def remaining() -> float:
+            value = deadline - loop.time()
+            if value <= 0:
+                raise MtprotoClientError(f"Timed out creating cross-DC client for DC {int(dc_id)}")
+            return value
+
         # Share the lifecycle lock with close(): this both deduplicates concurrent
         # creators and prevents a newly connected child from escaping teardown.
-        async with self._lifecycle_lock:
+        lifecycle_task = asyncio.current_task()
+        if lifecycle_task is None:
+            raise RuntimeError("Cross-DC client creation requires an asyncio task")
+        lifecycle_reentrant = self._lifecycle_owner is lifecycle_task
+        if lifecycle_reentrant:
+            self._lifecycle_depth += 1
+        else:
+            try:
+                await asyncio.wait_for(self._lifecycle_lock.acquire(), timeout=remaining())
+            except asyncio.TimeoutError as exc:
+                raise MtprotoClientError(
+                    f"Timed out creating cross-DC client for DC {int(dc_id)}"
+                ) from exc
+            self._lifecycle_owner = lifecycle_task
+            self._lifecycle_depth = 1
+        try:
             existing = self._media_clients.get(int(dc_id))
             if existing is not None and existing.is_connected:
                 return existing
@@ -5376,9 +6390,14 @@ class MtprotoClient:
                 # overwritten without releasing those resources.
                 self._media_clients.pop(int(dc_id), None)
                 try:
-                    await existing.close()
+                    await asyncio.wait_for(existing.close(), timeout=remaining())
                 except asyncio.CancelledError:
                     raise
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Timed out closing unhealthy cross-DC client dc_id=%s",
+                        dc_id,
+                    )
                 except BaseException:
                     logger.warning(
                         "Failed to close unhealthy cross-DC client dc_id=%s",
@@ -5392,14 +6411,36 @@ class MtprotoClient:
                 raise MtprotoClientError(
                     "ClientInit(api_id=...) is required for cross-DC operations"
                 )
+            sender = self._sender
+            if sender is None:
+                raise MtprotoClientError("Not connected")
 
+            host, port = self._endpoint_for_dc(int(dc_id))
             c = MtprotoClient(
-                network=self._network, dc_id=int(dc_id), init=self._init, session_path=None
+                network=self._network,
+                dc_id=int(dc_id),
+                host=host,
+                port=port,
+                framing=self._framing_name,
+                init=self._init,
+                session_path=None,
+                strict_update_persistence=self._strict_update_persistence,
+                flood_wait_config=self._flood_wait_config,
+                lock_session=False,
             )
             try:
-                await c.connect(timeout=timeout)
-                exported = await self.invoke_api(
-                    AuthExportAuthorization(dc_id=int(dc_id)), timeout=timeout
+                connect_timeout = remaining()
+                await asyncio.wait_for(
+                    c.connect(timeout=connect_timeout),
+                    timeout=connect_timeout,
+                )
+                # Use the sender directly while holding lifecycle serialization. Calling
+                # self.invoke_api here could react to USER_MIGRATE by trying to
+                # acquire this same lock and deadlock the file-transfer path.
+                exported = await sender.invoke_tl(
+                    AuthExportAuthorization(dc_id=int(dc_id)),
+                    timeout=remaining(),
+                    flood_wait_config=self._flood_wait_config,
                 )
                 exp_id = getattr(exported, "id", None)
                 exp_bytes = getattr(exported, "bytes", None)
@@ -5407,9 +6448,13 @@ class MtprotoClient:
                     raise MtprotoClientError(
                         f"Unexpected auth.exportAuthorization result: {type(exported).__name__}"
                     )
-                await c.invoke_api(
-                    AuthImportAuthorization(id=int(exp_id), bytes=bytes(exp_bytes)),
-                    timeout=timeout,
+                import_timeout = remaining()
+                await asyncio.wait_for(
+                    c.invoke_api(
+                        AuthImportAuthorization(id=int(exp_id), bytes=bytes(exp_bytes)),
+                        timeout=import_timeout,
+                    ),
+                    timeout=import_timeout,
                 )
             except BaseException:
                 try:
@@ -5420,6 +6465,19 @@ class MtprotoClient:
 
             self._media_clients[int(dc_id)] = c
             return c
+        except asyncio.TimeoutError as exc:
+            raise MtprotoClientError(
+                f"Timed out creating cross-DC client for DC {int(dc_id)}"
+            ) from exc
+        finally:
+            if lifecycle_reentrant:
+                self._lifecycle_depth -= 1
+            else:
+                if self._lifecycle_owner is not lifecycle_task or self._lifecycle_depth != 1:
+                    raise RuntimeError("Lifecycle serialization ownership was corrupted")
+                self._lifecycle_depth = 0
+                self._lifecycle_owner = None
+                self._lifecycle_lock.release()
 
     async def download_media(
         self,
@@ -5930,5 +6988,6 @@ class MtprotoClient:
             auth_key=self._state.auth_key,
             server_salt=self._state.server_salt,
             session_id=None,
+            updates_state_auth_key_id_alias=self._updates_state_auth_key_id_alias,
         )
         save_session_file(self._session_path, sess)

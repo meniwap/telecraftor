@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from telecraft.client.apis._utils import resolve_input_peer
 from telecraft.client.peers import PeerRef
 from telecraft.tl.generated.functions import MessagesTranslateText
-from telecraft.tl.generated.types import InputPeerEmpty
+from telecraft.tl.generated.types import InputPeerEmpty, TextWithEntities
 
 if TYPE_CHECKING:
     from telecraft.client.mtproto import MtprotoClient
@@ -25,8 +25,13 @@ class TranslateAPI:
         peer: PeerRef | None = None,
         timeout: float = 20.0,
     ) -> Any:
-        _ = from_lang
-        flags = 0
+        """Translate text using Telegram's automatic source-language detection."""
+        if from_lang is not None:
+            raise ValueError(
+                "translate.text does not support from_lang; Telegram automatically detects "
+                "the source language"
+            )
+        flags = 1 << 1
         input_peer: Any = InputPeerEmpty()
         if peer is not None:
             flags |= 1
@@ -36,8 +41,9 @@ class TranslateAPI:
                 flags=flags,
                 peer=input_peer if peer is not None else None,
                 id=None,
-                text=[str(text)],
+                text=[TextWithEntities(text=str(text), entities=[])],
                 to_lang=str(to_lang),
+                tone=None,
             ),
             timeout=timeout,
         )
@@ -57,6 +63,7 @@ class TranslateAPI:
                 id=[int(x) for x in msg_ids],
                 text=None,
                 to_lang=str(to_lang),
+                tone=None,
             ),
             timeout=timeout,
         )

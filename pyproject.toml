@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.25"]
+requires = ["hatchling>=1.26.3"]
 build-backend = "hatchling.build"
 
 [project]
 name = "telecraft"
-version = "0.2.1"
+version = "0.2.2"
 description = "Async MTProto-first Telegram client library for user and bot sessions."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -37,7 +37,7 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  "cryptography>=48.0.1",
+  "cryptography>=50.0.0",
 ]
 
 [project.scripts]
@@ -57,6 +57,7 @@ dev = [
   "ruff>=0.5",
   "mypy>=1.10",
   "twine>=6",
+  "pip-audit>=2.10",
 ]
 
 [tool.pytest.ini_options]
@@ -74,6 +75,8 @@ omit = ["*/telecraft/tl/generated/*"]
 
 [tool.coverage.report]
 show_missing = true
+precision = 2
+fail_under = 70
 
 [tool.ruff]
 line-length = 100

@@ -29,6 +29,23 @@ from telecraft.tl.generated.types import (
 )
 
 
+class _ExportingSender:
+    is_healthy = True
+
+    def __init__(self, client: MtprotoClient) -> None:
+        self._client = client
+
+    async def invoke_tl(
+        self,
+        req: Any,
+        *,
+        timeout: float,
+        flood_wait_config: Any,
+    ) -> Any:
+        _ = flood_wait_config
+        return await self._client.invoke_api(req, timeout=timeout)
+
+
 def test_cross_dc_client_failure_closes_uncached_child(monkeypatch: pytest.MonkeyPatch) -> None:
     class Child:
         is_connected = False
@@ -47,9 +64,10 @@ def test_cross_dc_client_failure_closes_uncached_child(monkeypatch: pytest.Monke
 
     async def _run() -> None:
         parent = MtprotoClient(init=SimpleNamespace(api_id=1, api_hash="x"))
+        parent._dc_endpoints[4] = ("149.154.167.91", 443)
         parent._transport = object()  # type: ignore[assignment]
         parent._state = object()  # type: ignore[assignment]
-        parent._sender = SimpleNamespace(is_healthy=True)  # type: ignore[assignment]
+        parent._sender = _ExportingSender(parent)  # type: ignore[assignment]
         children: list[Child] = []
 
         def make_child(**kwargs: Any) -> Child:
@@ -96,9 +114,10 @@ def test_cross_dc_client_creation_is_deduplicated(monkeypatch: pytest.MonkeyPatc
 
     async def _run() -> None:
         parent = MtprotoClient(init=SimpleNamespace(api_id=1, api_hash="x"))
+        parent._dc_endpoints[4] = ("149.154.167.91", 443)
         parent._transport = object()  # type: ignore[assignment]
         parent._state = object()  # type: ignore[assignment]
-        parent._sender = SimpleNamespace(is_healthy=True)  # type: ignore[assignment]
+        parent._sender = _ExportingSender(parent)  # type: ignore[assignment]
         children: list[Child] = []
 
         def make_child(**kwargs: Any) -> Child:
@@ -148,9 +167,10 @@ def test_cross_dc_unhealthy_cached_child_is_closed_before_replacement(
 
     async def _run() -> None:
         parent = MtprotoClient(init=SimpleNamespace(api_id=1, api_hash="x"))
+        parent._dc_endpoints[4] = ("149.154.167.91", 443)
         parent._transport = object()  # type: ignore[assignment]
         parent._state = object()  # type: ignore[assignment]
-        parent._sender = SimpleNamespace(is_healthy=True)  # type: ignore[assignment]
+        parent._sender = _ExportingSender(parent)  # type: ignore[assignment]
         stale = Child()
         parent._media_clients[4] = stale  # type: ignore[assignment]
         children: list[Child] = []

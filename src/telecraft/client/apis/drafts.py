@@ -68,6 +68,7 @@ class DraftsAPI:
                 media=media,
                 effect=None,
                 suggested_post=None,
+                rich_message=None,
             ),
             timeout=timeout,
         )

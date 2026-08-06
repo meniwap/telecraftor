@@ -589,23 +589,27 @@ class InputMediaEmpty(TLObject):
     pass
 @dataclass(slots=True)
 class InputMediaUploadedPhoto(TLObject):
-    TL_ID: ClassVar[int] = 505969924
+    TL_ID: ClassVar[int] = 2105767386
     TL_NAME: ClassVar[str] = "inputMediaUploadedPhoto"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('spoiler', 'flags.2?true'), ('file', 'InputFile'), ('stickers', 'flags.0?Vector<InputDocument>'), ('ttl_seconds', 'flags.1?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('spoiler', 'flags.2?true'), ('live_photo', 'flags.3?true'), ('file', 'InputFile'), ('stickers', 'flags.0?Vector<InputDocument>'), ('ttl_seconds', 'flags.1?int'), ('video', 'flags.3?InputDocument'))
     flags: object
     spoiler: object
+    live_photo: object
     file: object
     stickers: object
     ttl_seconds: object
+    video: object
 @dataclass(slots=True)
 class InputMediaPhoto(TLObject):
-    TL_ID: ClassVar[int] = -1279654347
+    TL_ID: ClassVar[int] = -475053004
     TL_NAME: ClassVar[str] = "inputMediaPhoto"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('spoiler', 'flags.1?true'), ('id', 'InputPhoto'), ('ttl_seconds', 'flags.0?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('spoiler', 'flags.1?true'), ('live_photo', 'flags.2?true'), ('id', 'InputPhoto'), ('ttl_seconds', 'flags.0?int'), ('video', 'flags.2?InputDocument'))
     flags: object
     spoiler: object
+    live_photo: object
     id: object
     ttl_seconds: object
+    video: object
 @dataclass(slots=True)
 class InputMediaGeoPoint(TLObject):
     TL_ID: ClassVar[int] = -104578748
@@ -715,14 +719,16 @@ class InputMediaGeoLive(TLObject):
     proximity_notification_radius: object
 @dataclass(slots=True)
 class InputMediaPoll(TLObject):
-    TL_ID: ClassVar[int] = 261416433
+    TL_ID: ClassVar[int] = -2009448184
     TL_NAME: ClassVar[str] = "inputMediaPoll"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('poll', 'Poll'), ('correct_answers', 'flags.0?Vector<bytes>'), ('solution', 'flags.1?string'), ('solution_entities', 'flags.1?Vector<MessageEntity>'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('poll', 'Poll'), ('correct_answers', 'flags.0?Vector<int>'), ('attached_media', 'flags.3?InputMedia'), ('solution', 'flags.1?string'), ('solution_entities', 'flags.1?Vector<MessageEntity>'), ('solution_media', 'flags.2?InputMedia'))
     flags: object
     poll: object
     correct_answers: object
+    attached_media: object
     solution: object
     solution_entities: object
+    solution_media: object
 @dataclass(slots=True)
 class InputMediaDice(TLObject):
     TL_ID: ClassVar[int] = -428884101
@@ -761,6 +767,14 @@ class InputMediaTodo(TLObject):
     TL_NAME: ClassVar[str] = "inputMediaTodo"
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('todo', 'TodoList'),)
     todo: object
+@dataclass(slots=True)
+class InputMediaStakeDice(TLObject):
+    TL_ID: ClassVar[int] = -207018934
+    TL_NAME: ClassVar[str] = "inputMediaStakeDice"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('game_hash', 'string'), ('ton_amount', 'long'), ('client_seed', 'bytes'))
+    game_hash: object
+    ton_amount: object
+    client_seed: object
 @dataclass(slots=True)
 class InputChatPhotoEmpty(TLObject):
     TL_ID: ClassVar[int] = 480546647
@@ -983,9 +997,9 @@ class UserEmpty(TLObject):
     id: object
 @dataclass(slots=True)
 class User(TLObject):
-    TL_ID: ClassVar[int] = 829899656
+    TL_ID: ClassVar[int] = -1313289085
     TL_NAME: ClassVar[str] = "user"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('self', 'flags.10?true'), ('contact', 'flags.11?true'), ('mutual_contact', 'flags.12?true'), ('deleted', 'flags.13?true'), ('bot', 'flags.14?true'), ('bot_chat_history', 'flags.15?true'), ('bot_nochats', 'flags.16?true'), ('verified', 'flags.17?true'), ('restricted', 'flags.18?true'), ('min', 'flags.20?true'), ('bot_inline_geo', 'flags.21?true'), ('support', 'flags.23?true'), ('scam', 'flags.24?true'), ('apply_min_photo', 'flags.25?true'), ('fake', 'flags.26?true'), ('bot_attach_menu', 'flags.27?true'), ('premium', 'flags.28?true'), ('attach_menu_enabled', 'flags.29?true'), ('flags2', '#'), ('bot_can_edit', 'flags2.1?true'), ('close_friend', 'flags2.2?true'), ('stories_hidden', 'flags2.3?true'), ('stories_unavailable', 'flags2.4?true'), ('contact_require_premium', 'flags2.10?true'), ('bot_business', 'flags2.11?true'), ('bot_has_main_app', 'flags2.13?true'), ('bot_forum_view', 'flags2.16?true'), ('id', 'long'), ('access_hash', 'flags.0?long'), ('first_name', 'flags.1?string'), ('last_name', 'flags.2?string'), ('username', 'flags.3?string'), ('phone', 'flags.4?string'), ('photo', 'flags.5?UserProfilePhoto'), ('status', 'flags.6?UserStatus'), ('bot_info_version', 'flags.14?int'), ('restriction_reason', 'flags.18?Vector<RestrictionReason>'), ('bot_inline_placeholder', 'flags.19?string'), ('lang_code', 'flags.22?string'), ('emoji_status', 'flags.30?EmojiStatus'), ('usernames', 'flags2.0?Vector<Username>'), ('stories_max_id', 'flags2.5?RecentStory'), ('color', 'flags2.8?PeerColor'), ('profile_color', 'flags2.9?PeerColor'), ('bot_active_users', 'flags2.12?int'), ('bot_verification_icon', 'flags2.14?long'), ('send_paid_messages_stars', 'flags2.15?long'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('self', 'flags.10?true'), ('contact', 'flags.11?true'), ('mutual_contact', 'flags.12?true'), ('deleted', 'flags.13?true'), ('bot', 'flags.14?true'), ('bot_chat_history', 'flags.15?true'), ('bot_nochats', 'flags.16?true'), ('verified', 'flags.17?true'), ('restricted', 'flags.18?true'), ('min', 'flags.20?true'), ('bot_inline_geo', 'flags.21?true'), ('support', 'flags.23?true'), ('scam', 'flags.24?true'), ('apply_min_photo', 'flags.25?true'), ('fake', 'flags.26?true'), ('bot_attach_menu', 'flags.27?true'), ('premium', 'flags.28?true'), ('attach_menu_enabled', 'flags.29?true'), ('flags2', '#'), ('bot_can_edit', 'flags2.1?true'), ('close_friend', 'flags2.2?true'), ('stories_hidden', 'flags2.3?true'), ('stories_unavailable', 'flags2.4?true'), ('contact_require_premium', 'flags2.10?true'), ('bot_business', 'flags2.11?true'), ('bot_has_main_app', 'flags2.13?true'), ('bot_forum_view', 'flags2.16?true'), ('bot_forum_can_manage_topics', 'flags2.17?true'), ('bot_can_manage_bots', 'flags2.18?true'), ('bot_guestchat', 'flags2.19?true'), ('bot_guard', 'flags2.20?true'), ('id', 'long'), ('access_hash', 'flags.0?long'), ('first_name', 'flags.1?string'), ('last_name', 'flags.2?string'), ('username', 'flags.3?string'), ('phone', 'flags.4?string'), ('photo', 'flags.5?UserProfilePhoto'), ('status', 'flags.6?UserStatus'), ('bot_info_version', 'flags.14?int'), ('restriction_reason', 'flags.18?Vector<RestrictionReason>'), ('bot_inline_placeholder', 'flags.19?string'), ('lang_code', 'flags.22?string'), ('emoji_status', 'flags.30?EmojiStatus'), ('usernames', 'flags2.0?Vector<Username>'), ('stories_max_id', 'flags2.5?RecentStory'), ('color', 'flags2.8?PeerColor'), ('profile_color', 'flags2.9?PeerColor'), ('bot_active_users', 'flags2.12?int'), ('bot_verification_icon', 'flags2.14?long'), ('send_paid_messages_stars', 'flags2.15?long'), ('linked_community_id', 'flags2.21?long'))
     flags: object
     self: object
     contact: object
@@ -1014,6 +1028,10 @@ class User(TLObject):
     bot_business: object
     bot_has_main_app: object
     bot_forum_view: object
+    bot_forum_can_manage_topics: object
+    bot_can_manage_bots: object
+    bot_guestchat: object
+    bot_guard: object
     id: object
     access_hash: object
     first_name: object
@@ -1034,6 +1052,7 @@ class User(TLObject):
     bot_active_users: object
     bot_verification_icon: object
     send_paid_messages_stars: object
+    linked_community_id: object
 @dataclass(slots=True)
 class UserProfilePhotoEmpty(TLObject):
     TL_ID: ClassVar[int] = 1326562017
@@ -1126,9 +1145,9 @@ class ChatForbidden(TLObject):
     title: object
 @dataclass(slots=True)
 class Channel(TLObject):
-    TL_ID: ClassVar[int] = 473084188
+    TL_ID: ClassVar[int] = -727763770
     TL_NAME: ClassVar[str] = "channel"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('creator', 'flags.0?true'), ('left', 'flags.2?true'), ('broadcast', 'flags.5?true'), ('verified', 'flags.7?true'), ('megagroup', 'flags.8?true'), ('restricted', 'flags.9?true'), ('signatures', 'flags.11?true'), ('min', 'flags.12?true'), ('scam', 'flags.19?true'), ('has_link', 'flags.20?true'), ('has_geo', 'flags.21?true'), ('slowmode_enabled', 'flags.22?true'), ('call_active', 'flags.23?true'), ('call_not_empty', 'flags.24?true'), ('fake', 'flags.25?true'), ('gigagroup', 'flags.26?true'), ('noforwards', 'flags.27?true'), ('join_to_send', 'flags.28?true'), ('join_request', 'flags.29?true'), ('forum', 'flags.30?true'), ('flags2', '#'), ('stories_hidden', 'flags2.1?true'), ('stories_hidden_min', 'flags2.2?true'), ('stories_unavailable', 'flags2.3?true'), ('signature_profiles', 'flags2.12?true'), ('autotranslation', 'flags2.15?true'), ('broadcast_messages_allowed', 'flags2.16?true'), ('monoforum', 'flags2.17?true'), ('forum_tabs', 'flags2.19?true'), ('id', 'long'), ('access_hash', 'flags.13?long'), ('title', 'string'), ('username', 'flags.6?string'), ('photo', 'ChatPhoto'), ('date', 'int'), ('restriction_reason', 'flags.9?Vector<RestrictionReason>'), ('admin_rights', 'flags.14?ChatAdminRights'), ('banned_rights', 'flags.15?ChatBannedRights'), ('default_banned_rights', 'flags.18?ChatBannedRights'), ('participants_count', 'flags.17?int'), ('usernames', 'flags2.0?Vector<Username>'), ('stories_max_id', 'flags2.4?RecentStory'), ('color', 'flags2.7?PeerColor'), ('profile_color', 'flags2.8?PeerColor'), ('emoji_status', 'flags2.9?EmojiStatus'), ('level', 'flags2.10?int'), ('subscription_until_date', 'flags2.11?int'), ('bot_verification_icon', 'flags2.13?long'), ('send_paid_messages_stars', 'flags2.14?long'), ('linked_monoforum_id', 'flags2.18?long'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('creator', 'flags.0?true'), ('left', 'flags.2?true'), ('broadcast', 'flags.5?true'), ('verified', 'flags.7?true'), ('megagroup', 'flags.8?true'), ('restricted', 'flags.9?true'), ('signatures', 'flags.11?true'), ('min', 'flags.12?true'), ('scam', 'flags.19?true'), ('has_link', 'flags.20?true'), ('has_geo', 'flags.21?true'), ('slowmode_enabled', 'flags.22?true'), ('call_active', 'flags.23?true'), ('call_not_empty', 'flags.24?true'), ('fake', 'flags.25?true'), ('gigagroup', 'flags.26?true'), ('noforwards', 'flags.27?true'), ('join_to_send', 'flags.28?true'), ('join_request', 'flags.29?true'), ('forum', 'flags.30?true'), ('flags2', '#'), ('stories_hidden', 'flags2.1?true'), ('stories_hidden_min', 'flags2.2?true'), ('stories_unavailable', 'flags2.3?true'), ('signature_profiles', 'flags2.12?true'), ('autotranslation', 'flags2.15?true'), ('broadcast_messages_allowed', 'flags2.16?true'), ('monoforum', 'flags2.17?true'), ('forum_tabs', 'flags2.19?true'), ('id', 'long'), ('access_hash', 'flags.13?long'), ('title', 'string'), ('username', 'flags.6?string'), ('photo', 'ChatPhoto'), ('date', 'int'), ('restriction_reason', 'flags.9?Vector<RestrictionReason>'), ('admin_rights', 'flags.14?ChatAdminRights'), ('banned_rights', 'flags.15?ChatBannedRights'), ('default_banned_rights', 'flags.18?ChatBannedRights'), ('participants_count', 'flags.17?int'), ('usernames', 'flags2.0?Vector<Username>'), ('stories_max_id', 'flags2.4?RecentStory'), ('color', 'flags2.7?PeerColor'), ('profile_color', 'flags2.8?PeerColor'), ('emoji_status', 'flags2.9?EmojiStatus'), ('level', 'flags2.10?int'), ('subscription_until_date', 'flags2.11?int'), ('bot_verification_icon', 'flags2.13?long'), ('send_paid_messages_stars', 'flags2.14?long'), ('linked_monoforum_id', 'flags2.18?long'), ('linked_community_id', 'flags2.20?long'))
     flags: object
     creator: object
     left: object
@@ -1180,18 +1199,47 @@ class Channel(TLObject):
     bot_verification_icon: object
     send_paid_messages_stars: object
     linked_monoforum_id: object
+    linked_community_id: object
 @dataclass(slots=True)
 class ChannelForbidden(TLObject):
     TL_ID: ClassVar[int] = 399807445
     TL_NAME: ClassVar[str] = "channelForbidden"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('broadcast', 'flags.5?true'), ('megagroup', 'flags.8?true'), ('id', 'long'), ('access_hash', 'long'), ('title', 'string'), ('until_date', 'flags.16?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('broadcast', 'flags.5?true'), ('megagroup', 'flags.8?true'), ('monoforum', 'flags.10?true'), ('id', 'long'), ('access_hash', 'long'), ('title', 'string'), ('until_date', 'flags.16?int'))
     flags: object
     broadcast: object
     megagroup: object
+    monoforum: object
     id: object
     access_hash: object
     title: object
     until_date: object
+@dataclass(slots=True)
+class CommunityForbidden(TLObject):
+    TL_ID: ClassVar[int] = -46343496
+    TL_NAME: ClassVar[str] = "communityForbidden"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('id', 'long'), ('access_hash', 'flags.13?long'), ('title', 'string'))
+    flags: object
+    id: object
+    access_hash: object
+    title: object
+@dataclass(slots=True)
+class Community(TLObject):
+    TL_ID: ClassVar[int] = 1710221652
+    TL_NAME: ClassVar[str] = "community"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('creator', 'flags.0?true'), ('left', 'flags.2?true'), ('min', 'flags.12?true'), ('flags2', '#'), ('collapsed_in_dialogs', 'flags2.20?true'), ('id', 'long'), ('access_hash', 'flags.13?long'), ('title', 'string'), ('photo', 'ChatPhoto'), ('date', 'int'), ('admin_rights', 'flags.14?ChatAdminRights'), ('default_banned_rights', 'flags.18?ChatBannedRights'))
+    flags: object
+    creator: object
+    left: object
+    min: object
+    flags2: object
+    collapsed_in_dialogs: object
+    id: object
+    access_hash: object
+    title: object
+    photo: object
+    date: object
+    admin_rights: object
+    default_banned_rights: object
 @dataclass(slots=True)
 class ChatFull(TLObject):
     TL_ID: ClassVar[int] = 640893467
@@ -1220,9 +1268,9 @@ class ChatFull(TLObject):
     reactions_limit: object
 @dataclass(slots=True)
 class ChannelFull(TLObject):
-    TL_ID: ClassVar[int] = -455036259
+    TL_ID: ClassVar[int] = -1605464774
     TL_NAME: ClassVar[str] = "channelFull"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('can_view_participants', 'flags.3?true'), ('can_set_username', 'flags.6?true'), ('can_set_stickers', 'flags.7?true'), ('hidden_prehistory', 'flags.10?true'), ('can_set_location', 'flags.16?true'), ('has_scheduled', 'flags.19?true'), ('can_view_stats', 'flags.20?true'), ('blocked', 'flags.22?true'), ('flags2', '#'), ('can_delete_channel', 'flags2.0?true'), ('antispam', 'flags2.1?true'), ('participants_hidden', 'flags2.2?true'), ('translations_disabled', 'flags2.3?true'), ('stories_pinned_available', 'flags2.5?true'), ('view_forum_as_messages', 'flags2.6?true'), ('restricted_sponsored', 'flags2.11?true'), ('can_view_revenue', 'flags2.12?true'), ('paid_media_allowed', 'flags2.14?true'), ('can_view_stars_revenue', 'flags2.15?true'), ('paid_reactions_available', 'flags2.16?true'), ('stargifts_available', 'flags2.19?true'), ('paid_messages_available', 'flags2.20?true'), ('id', 'long'), ('about', 'string'), ('participants_count', 'flags.0?int'), ('admins_count', 'flags.1?int'), ('kicked_count', 'flags.2?int'), ('banned_count', 'flags.2?int'), ('online_count', 'flags.13?int'), ('read_inbox_max_id', 'int'), ('read_outbox_max_id', 'int'), ('unread_count', 'int'), ('chat_photo', 'Photo'), ('notify_settings', 'PeerNotifySettings'), ('exported_invite', 'flags.23?ExportedChatInvite'), ('bot_info', 'Vector<BotInfo>'), ('migrated_from_chat_id', 'flags.4?long'), ('migrated_from_max_id', 'flags.4?int'), ('pinned_msg_id', 'flags.5?int'), ('stickerset', 'flags.8?StickerSet'), ('available_min_id', 'flags.9?int'), ('folder_id', 'flags.11?int'), ('linked_chat_id', 'flags.14?long'), ('location', 'flags.15?ChannelLocation'), ('slowmode_seconds', 'flags.17?int'), ('slowmode_next_send_date', 'flags.18?int'), ('stats_dc', 'flags.12?int'), ('pts', 'int'), ('call', 'flags.21?InputGroupCall'), ('ttl_period', 'flags.24?int'), ('pending_suggestions', 'flags.25?Vector<string>'), ('groupcall_default_join_as', 'flags.26?Peer'), ('theme_emoticon', 'flags.27?string'), ('requests_pending', 'flags.28?int'), ('recent_requesters', 'flags.28?Vector<long>'), ('default_send_as', 'flags.29?Peer'), ('available_reactions', 'flags.30?ChatReactions'), ('reactions_limit', 'flags2.13?int'), ('stories', 'flags2.4?PeerStories'), ('wallpaper', 'flags2.7?WallPaper'), ('boosts_applied', 'flags2.8?int'), ('boosts_unrestrict', 'flags2.9?int'), ('emojiset', 'flags2.10?StickerSet'), ('bot_verification', 'flags2.17?BotVerification'), ('stargifts_count', 'flags2.18?int'), ('send_paid_messages_stars', 'flags2.21?long'), ('main_tab', 'flags2.22?ProfileTab'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('can_view_participants', 'flags.3?true'), ('can_set_username', 'flags.6?true'), ('can_set_stickers', 'flags.7?true'), ('hidden_prehistory', 'flags.10?true'), ('can_set_location', 'flags.16?true'), ('has_scheduled', 'flags.19?true'), ('can_view_stats', 'flags.20?true'), ('blocked', 'flags.22?true'), ('flags2', '#'), ('can_delete_channel', 'flags2.0?true'), ('antispam', 'flags2.1?true'), ('participants_hidden', 'flags2.2?true'), ('translations_disabled', 'flags2.3?true'), ('stories_pinned_available', 'flags2.5?true'), ('view_forum_as_messages', 'flags2.6?true'), ('restricted_sponsored', 'flags2.11?true'), ('can_view_revenue', 'flags2.12?true'), ('paid_media_allowed', 'flags2.14?true'), ('can_view_stars_revenue', 'flags2.15?true'), ('paid_reactions_available', 'flags2.16?true'), ('stargifts_available', 'flags2.19?true'), ('paid_messages_available', 'flags2.20?true'), ('id', 'long'), ('about', 'string'), ('participants_count', 'flags.0?int'), ('admins_count', 'flags.1?int'), ('kicked_count', 'flags.2?int'), ('banned_count', 'flags.2?int'), ('online_count', 'flags.13?int'), ('read_inbox_max_id', 'int'), ('read_outbox_max_id', 'int'), ('unread_count', 'int'), ('chat_photo', 'Photo'), ('notify_settings', 'PeerNotifySettings'), ('exported_invite', 'flags.23?ExportedChatInvite'), ('bot_info', 'Vector<BotInfo>'), ('migrated_from_chat_id', 'flags.4?long'), ('migrated_from_max_id', 'flags.4?int'), ('pinned_msg_id', 'flags.5?int'), ('stickerset', 'flags.8?StickerSet'), ('available_min_id', 'flags.9?int'), ('folder_id', 'flags.11?int'), ('linked_chat_id', 'flags.14?long'), ('location', 'flags.15?ChannelLocation'), ('slowmode_seconds', 'flags.17?int'), ('slowmode_next_send_date', 'flags.18?int'), ('stats_dc', 'flags.12?int'), ('pts', 'int'), ('call', 'flags.21?InputGroupCall'), ('ttl_period', 'flags.24?int'), ('pending_suggestions', 'flags.25?Vector<string>'), ('groupcall_default_join_as', 'flags.26?Peer'), ('theme_emoticon', 'flags.27?string'), ('requests_pending', 'flags.28?int'), ('recent_requesters', 'flags.28?Vector<long>'), ('default_send_as', 'flags.29?Peer'), ('available_reactions', 'flags.30?ChatReactions'), ('reactions_limit', 'flags2.13?int'), ('stories', 'flags2.4?PeerStories'), ('wallpaper', 'flags2.7?WallPaper'), ('boosts_applied', 'flags2.8?int'), ('boosts_unrestrict', 'flags2.9?int'), ('emojiset', 'flags2.10?StickerSet'), ('bot_verification', 'flags2.17?BotVerification'), ('stargifts_count', 'flags2.18?int'), ('send_paid_messages_stars', 'flags2.21?long'), ('main_tab', 'flags2.22?ProfileTab'), ('guard_bot_id', 'flags2.23?long'))
     flags: object
     can_view_participants: object
     can_set_username: object
@@ -1291,28 +1339,48 @@ class ChannelFull(TLObject):
     stargifts_count: object
     send_paid_messages_stars: object
     main_tab: object
+    guard_bot_id: object
+@dataclass(slots=True)
+class CommunityFull(TLObject):
+    TL_ID: ClassVar[int] = -877157113
+    TL_NAME: ClassVar[str] = "communityFull"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('id', 'long'), ('about', 'string'), ('chat_photo', 'Photo'), ('linked_peers', 'Vector<CommunityPeer>'), ('admins_count', 'flags.1?int'), ('kicked_count', 'flags.2?int'), ('peer_link_requests_pending', 'flags.0?int'))
+    flags: object
+    id: object
+    about: object
+    chat_photo: object
+    linked_peers: object
+    admins_count: object
+    kicked_count: object
+    peer_link_requests_pending: object
 @dataclass(slots=True)
 class ChatParticipant(TLObject):
-    TL_ID: ClassVar[int] = -1070776313
+    TL_ID: ClassVar[int] = 954703838
     TL_NAME: ClassVar[str] = "chatParticipant"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('user_id', 'long'), ('inviter_id', 'long'), ('date', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('user_id', 'long'), ('inviter_id', 'long'), ('date', 'int'), ('rank', 'flags.0?string'))
+    flags: object
     user_id: object
     inviter_id: object
     date: object
+    rank: object
 @dataclass(slots=True)
 class ChatParticipantCreator(TLObject):
-    TL_ID: ClassVar[int] = -462696732
+    TL_ID: ClassVar[int] = -503814216
     TL_NAME: ClassVar[str] = "chatParticipantCreator"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('user_id', 'long'),)
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('user_id', 'long'), ('rank', 'flags.0?string'))
+    flags: object
     user_id: object
+    rank: object
 @dataclass(slots=True)
 class ChatParticipantAdmin(TLObject):
-    TL_ID: ClassVar[int] = -1600962725
+    TL_ID: ClassVar[int] = 56677842
     TL_NAME: ClassVar[str] = "chatParticipantAdmin"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('user_id', 'long'), ('inviter_id', 'long'), ('date', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('user_id', 'long'), ('inviter_id', 'long'), ('date', 'int'), ('rank', 'flags.0?string'))
+    flags: object
     user_id: object
     inviter_id: object
     date: object
+    rank: object
 @dataclass(slots=True)
 class ChatParticipantsForbidden(TLObject):
     TL_ID: ClassVar[int] = -2023500831
@@ -1355,9 +1423,9 @@ class MessageEmpty(TLObject):
     peer_id: object
 @dataclass(slots=True)
 class Message(TLObject):
-    TL_ID: ClassVar[int] = -1188071729
+    TL_ID: ClassVar[int] = 1979759059
     TL_NAME: ClassVar[str] = "message"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('out', 'flags.1?true'), ('mentioned', 'flags.4?true'), ('media_unread', 'flags.5?true'), ('silent', 'flags.13?true'), ('post', 'flags.14?true'), ('from_scheduled', 'flags.18?true'), ('legacy', 'flags.19?true'), ('edit_hide', 'flags.21?true'), ('pinned', 'flags.24?true'), ('noforwards', 'flags.26?true'), ('invert_media', 'flags.27?true'), ('flags2', '#'), ('offline', 'flags2.1?true'), ('video_processing_pending', 'flags2.4?true'), ('paid_suggested_post_stars', 'flags2.8?true'), ('paid_suggested_post_ton', 'flags2.9?true'), ('id', 'int'), ('from_id', 'flags.8?Peer'), ('from_boosts_applied', 'flags.29?int'), ('peer_id', 'Peer'), ('saved_peer_id', 'flags.28?Peer'), ('fwd_from', 'flags.2?MessageFwdHeader'), ('via_bot_id', 'flags.11?long'), ('via_business_bot_id', 'flags2.0?long'), ('reply_to', 'flags.3?MessageReplyHeader'), ('date', 'int'), ('message', 'string'), ('media', 'flags.9?MessageMedia'), ('reply_markup', 'flags.6?ReplyMarkup'), ('entities', 'flags.7?Vector<MessageEntity>'), ('views', 'flags.10?int'), ('forwards', 'flags.10?int'), ('replies', 'flags.23?MessageReplies'), ('edit_date', 'flags.15?int'), ('post_author', 'flags.16?string'), ('grouped_id', 'flags.17?long'), ('reactions', 'flags.20?MessageReactions'), ('restriction_reason', 'flags.22?Vector<RestrictionReason>'), ('ttl_period', 'flags.25?int'), ('quick_reply_shortcut_id', 'flags.30?int'), ('effect', 'flags2.2?long'), ('factcheck', 'flags2.3?FactCheck'), ('report_delivery_until_date', 'flags2.5?int'), ('paid_message_stars', 'flags2.6?long'), ('suggested_post', 'flags2.7?SuggestedPost'), ('schedule_repeat_period', 'flags2.10?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('out', 'flags.1?true'), ('mentioned', 'flags.4?true'), ('media_unread', 'flags.5?true'), ('silent', 'flags.13?true'), ('post', 'flags.14?true'), ('from_scheduled', 'flags.18?true'), ('legacy', 'flags.19?true'), ('edit_hide', 'flags.21?true'), ('pinned', 'flags.24?true'), ('noforwards', 'flags.26?true'), ('invert_media', 'flags.27?true'), ('flags2', '#'), ('offline', 'flags2.1?true'), ('video_processing_pending', 'flags2.4?true'), ('paid_suggested_post_stars', 'flags2.8?true'), ('paid_suggested_post_ton', 'flags2.9?true'), ('id', 'int'), ('from_id', 'flags.8?Peer'), ('from_boosts_applied', 'flags.29?int'), ('from_rank', 'flags2.12?string'), ('peer_id', 'Peer'), ('saved_peer_id', 'flags.28?Peer'), ('fwd_from', 'flags.2?MessageFwdHeader'), ('via_bot_id', 'flags.11?long'), ('via_business_bot_id', 'flags2.0?long'), ('guestchat_via_from', 'flags2.19?Peer'), ('reply_to', 'flags.3?MessageReplyHeader'), ('date', 'int'), ('message', 'string'), ('media', 'flags.9?MessageMedia'), ('reply_markup', 'flags.6?ReplyMarkup'), ('entities', 'flags.7?Vector<MessageEntity>'), ('views', 'flags.10?int'), ('forwards', 'flags.10?int'), ('replies', 'flags.23?MessageReplies'), ('edit_date', 'flags.15?int'), ('post_author', 'flags.16?string'), ('grouped_id', 'flags.17?long'), ('reactions', 'flags.20?MessageReactions'), ('restriction_reason', 'flags.22?Vector<RestrictionReason>'), ('ttl_period', 'flags.25?int'), ('quick_reply_shortcut_id', 'flags.30?int'), ('effect', 'flags2.2?long'), ('factcheck', 'flags2.3?FactCheck'), ('report_delivery_until_date', 'flags2.5?int'), ('paid_message_stars', 'flags2.6?long'), ('suggested_post', 'flags2.7?SuggestedPost'), ('schedule_repeat_period', 'flags2.10?int'), ('summary_from_language', 'flags2.11?string'), ('rich_message', 'flags2.13?RichMessage'))
     flags: object
     out: object
     mentioned: object
@@ -1378,11 +1446,13 @@ class Message(TLObject):
     id: object
     from_id: object
     from_boosts_applied: object
+    from_rank: object
     peer_id: object
     saved_peer_id: object
     fwd_from: object
     via_bot_id: object
     via_business_bot_id: object
+    guestchat_via_from: object
     reply_to: object
     date: object
     message: object
@@ -1405,6 +1475,8 @@ class Message(TLObject):
     paid_message_stars: object
     suggested_post: object
     schedule_repeat_period: object
+    summary_from_language: object
+    rich_message: object
 @dataclass(slots=True)
 class MessageService(TLObject):
     TL_ID: ClassVar[int] = 2055212554
@@ -1435,13 +1507,15 @@ class MessageMediaEmpty(TLObject):
     pass
 @dataclass(slots=True)
 class MessageMediaPhoto(TLObject):
-    TL_ID: ClassVar[int] = 1766936791
+    TL_ID: ClassVar[int] = -501814429
     TL_NAME: ClassVar[str] = "messageMediaPhoto"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('spoiler', 'flags.3?true'), ('photo', 'flags.0?Photo'), ('ttl_seconds', 'flags.2?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('spoiler', 'flags.3?true'), ('live_photo', 'flags.4?true'), ('photo', 'flags.0?Photo'), ('ttl_seconds', 'flags.2?int'), ('video', 'flags.4?Document'))
     flags: object
     spoiler: object
+    live_photo: object
     photo: object
     ttl_seconds: object
+    video: object
 @dataclass(slots=True)
 class MessageMediaGeo(TLObject):
     TL_ID: ClassVar[int] = 1457575028
@@ -1536,18 +1610,22 @@ class MessageMediaGeoLive(TLObject):
     proximity_notification_radius: object
 @dataclass(slots=True)
 class MessageMediaPoll(TLObject):
-    TL_ID: ClassVar[int] = 1272375192
+    TL_ID: ClassVar[int] = 2000637542
     TL_NAME: ClassVar[str] = "messageMediaPoll"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('poll', 'Poll'), ('results', 'PollResults'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('poll', 'Poll'), ('results', 'PollResults'), ('attached_media', 'flags.0?MessageMedia'))
+    flags: object
     poll: object
     results: object
+    attached_media: object
 @dataclass(slots=True)
 class MessageMediaDice(TLObject):
-    TL_ID: ClassVar[int] = 1065280907
+    TL_ID: ClassVar[int] = 147581959
     TL_NAME: ClassVar[str] = "messageMediaDice"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('value', 'int'), ('emoticon', 'string'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('value', 'int'), ('emoticon', 'string'), ('game_outcome', 'flags.0?messages.EmojiGameOutcome'))
+    flags: object
     value: object
     emoticon: object
+    game_outcome: object
 @dataclass(slots=True)
 class MessageMediaStory(TLObject):
     TL_ID: ClassVar[int] = 1758159491
@@ -2004,9 +2082,9 @@ class MessageActionStarGift(TLObject):
     gift_num: object
 @dataclass(slots=True)
 class MessageActionStarGiftUnique(TLObject):
-    TL_ID: ClassVar[int] = -1787656893
+    TL_ID: ClassVar[int] = -423422686
     TL_NAME: ClassVar[str] = "messageActionStarGiftUnique"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('upgrade', 'flags.0?true'), ('transferred', 'flags.1?true'), ('saved', 'flags.2?true'), ('refunded', 'flags.5?true'), ('prepaid_upgrade', 'flags.11?true'), ('assigned', 'flags.13?true'), ('from_offer', 'flags.14?true'), ('gift', 'StarGift'), ('can_export_at', 'flags.3?int'), ('transfer_stars', 'flags.4?long'), ('from_id', 'flags.6?Peer'), ('peer', 'flags.7?Peer'), ('saved_id', 'flags.7?long'), ('resale_amount', 'flags.8?StarsAmount'), ('can_transfer_at', 'flags.9?int'), ('can_resell_at', 'flags.10?int'), ('drop_original_details_stars', 'flags.12?long'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('upgrade', 'flags.0?true'), ('transferred', 'flags.1?true'), ('saved', 'flags.2?true'), ('refunded', 'flags.5?true'), ('prepaid_upgrade', 'flags.11?true'), ('assigned', 'flags.13?true'), ('from_offer', 'flags.14?true'), ('craft', 'flags.16?true'), ('gift', 'StarGift'), ('can_export_at', 'flags.3?int'), ('transfer_stars', 'flags.4?long'), ('from_id', 'flags.6?Peer'), ('peer', 'flags.7?Peer'), ('saved_id', 'flags.7?long'), ('resale_amount', 'flags.8?StarsAmount'), ('can_transfer_at', 'flags.9?int'), ('can_resell_at', 'flags.10?int'), ('drop_original_details_stars', 'flags.12?long'), ('can_craft_at', 'flags.15?int'))
     flags: object
     upgrade: object
     transferred: object
@@ -2015,6 +2093,7 @@ class MessageActionStarGiftUnique(TLObject):
     prepaid_upgrade: object
     assigned: object
     from_offer: object
+    craft: object
     gift: object
     can_export_at: object
     transfer_stars: object
@@ -2025,6 +2104,7 @@ class MessageActionStarGiftUnique(TLObject):
     can_transfer_at: object
     can_resell_at: object
     drop_original_details_stars: object
+    can_craft_at: object
 @dataclass(slots=True)
 class MessageActionPaidMessagesRefunded(TLObject):
     TL_ID: ClassVar[int] = -1407246387
@@ -2127,10 +2207,63 @@ class MessageActionStarGiftPurchaseOfferDeclined(TLObject):
     gift: object
     price: object
 @dataclass(slots=True)
+class MessageActionNewCreatorPending(TLObject):
+    TL_ID: ClassVar[int] = -1333866363
+    TL_NAME: ClassVar[str] = "messageActionNewCreatorPending"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('new_creator_id', 'long'),)
+    new_creator_id: object
+@dataclass(slots=True)
+class MessageActionChangeCreator(TLObject):
+    TL_ID: ClassVar[int] = -511160261
+    TL_NAME: ClassVar[str] = "messageActionChangeCreator"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('new_creator_id', 'long'),)
+    new_creator_id: object
+@dataclass(slots=True)
+class MessageActionNoForwardsToggle(TLObject):
+    TL_ID: ClassVar[int] = -1082301070
+    TL_NAME: ClassVar[str] = "messageActionNoForwardsToggle"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('prev_value', 'Bool'), ('new_value', 'Bool'))
+    prev_value: object
+    new_value: object
+@dataclass(slots=True)
+class MessageActionNoForwardsRequest(TLObject):
+    TL_ID: ClassVar[int] = 1042781114
+    TL_NAME: ClassVar[str] = "messageActionNoForwardsRequest"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('expired', 'flags.0?true'), ('prev_value', 'Bool'), ('new_value', 'Bool'))
+    flags: object
+    expired: object
+    prev_value: object
+    new_value: object
+@dataclass(slots=True)
+class MessageActionPollAppendAnswer(TLObject):
+    TL_ID: ClassVar[int] = -1650340500
+    TL_NAME: ClassVar[str] = "messageActionPollAppendAnswer"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('answer', 'PollAnswer'),)
+    answer: object
+@dataclass(slots=True)
+class MessageActionPollDeleteAnswer(TLObject):
+    TL_ID: ClassVar[int] = 966161628
+    TL_NAME: ClassVar[str] = "messageActionPollDeleteAnswer"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('answer', 'PollAnswer'),)
+    answer: object
+@dataclass(slots=True)
+class MessageActionManagedBotCreated(TLObject):
+    TL_ID: ClassVar[int] = 375414334
+    TL_NAME: ClassVar[str] = "messageActionManagedBotCreated"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('bot_id', 'long'),)
+    bot_id: object
+@dataclass(slots=True)
+class MessageActionChangeCommunity(TLObject):
+    TL_ID: ClassVar[int] = 1562426088
+    TL_NAME: ClassVar[str] = "messageActionChangeCommunity"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('community_id', 'flags.0?long'))
+    flags: object
+    community_id: object
+@dataclass(slots=True)
 class Dialog(TLObject):
-    TL_ID: ClassVar[int] = -712374074
+    TL_ID: ClassVar[int] = -58066957
     TL_NAME: ClassVar[str] = "dialog"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('pinned', 'flags.2?true'), ('unread_mark', 'flags.3?true'), ('view_forum_as_messages', 'flags.6?true'), ('peer', 'Peer'), ('top_message', 'int'), ('read_inbox_max_id', 'int'), ('read_outbox_max_id', 'int'), ('unread_count', 'int'), ('unread_mentions_count', 'int'), ('unread_reactions_count', 'int'), ('notify_settings', 'PeerNotifySettings'), ('pts', 'flags.0?int'), ('draft', 'flags.1?DraftMessage'), ('folder_id', 'flags.4?int'), ('ttl_period', 'flags.5?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('pinned', 'flags.2?true'), ('unread_mark', 'flags.3?true'), ('view_forum_as_messages', 'flags.6?true'), ('peer', 'Peer'), ('top_message', 'int'), ('read_inbox_max_id', 'int'), ('read_outbox_max_id', 'int'), ('unread_count', 'int'), ('unread_mentions_count', 'int'), ('unread_reactions_count', 'int'), ('unread_poll_votes_count', 'int'), ('notify_settings', 'PeerNotifySettings'), ('pts', 'flags.0?int'), ('draft', 'flags.1?DraftMessage'), ('folder_id', 'flags.4?int'), ('ttl_period', 'flags.5?int'))
     flags: object
     pinned: object
     unread_mark: object
@@ -2142,6 +2275,7 @@ class Dialog(TLObject):
     unread_count: object
     unread_mentions_count: object
     unread_reactions_count: object
+    unread_poll_votes_count: object
     notify_settings: object
     pts: object
     draft: object
@@ -2161,6 +2295,15 @@ class DialogFolder(TLObject):
     unread_unmuted_peers_count: object
     unread_muted_messages_count: object
     unread_unmuted_messages_count: object
+@dataclass(slots=True)
+class DialogCommunity(TLObject):
+    TL_ID: ClassVar[int] = -141948557
+    TL_NAME: ClassVar[str] = "dialogCommunity"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('pinned', 'flags.2?true'), ('community_id', 'long'), ('notify_settings', 'PeerNotifySettings'))
+    flags: object
+    pinned: object
+    community_id: object
+    notify_settings: object
 @dataclass(slots=True)
 class PhotoEmpty(TLObject):
     TL_ID: ClassVar[int] = 590459437
@@ -2262,13 +2405,14 @@ class AuthSentCodeSuccess(TLObject):
     authorization: object
 @dataclass(slots=True)
 class AuthSentCodePaymentRequired(TLObject):
-    TL_ID: ClassVar[int] = -527082948
+    TL_ID: ClassVar[int] = -125665601
     TL_NAME: ClassVar[str] = "auth.sentCodePaymentRequired"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('store_product', 'string'), ('phone_code_hash', 'string'), ('support_email_address', 'string'), ('support_email_subject', 'string'), ('currency', 'string'), ('amount', 'long'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('store_product', 'string'), ('phone_code_hash', 'string'), ('support_email_address', 'string'), ('support_email_subject', 'string'), ('premium_days', 'int'), ('currency', 'string'), ('amount', 'long'))
     store_product: object
     phone_code_hash: object
     support_email_address: object
     support_email_subject: object
+    premium_days: object
     currency: object
     amount: object
 @dataclass(slots=True)
@@ -2327,6 +2471,12 @@ class InputNotifyForumTopic(TLObject):
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('peer', 'InputPeer'), ('top_msg_id', 'int'))
     peer: object
     top_msg_id: object
+@dataclass(slots=True)
+class InputNotifyCommunity(TLObject):
+    TL_ID: ClassVar[int] = 666573532
+    TL_NAME: ClassVar[str] = "inputNotifyCommunity"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('community', 'InputChannel'),)
+    community: object
 @dataclass(slots=True)
 class InputPeerNotifySettings(TLObject):
     TL_ID: ClassVar[int] = -892638494
@@ -2471,9 +2621,9 @@ class InputReportReasonPersonalDetails(TLObject):
     pass
 @dataclass(slots=True)
 class UserFull(TLObject):
-    TL_ID: ClassVar[int] = -1607745218
+    TL_ID: ClassVar[int] = 114026053
     TL_NAME: ClassVar[str] = "userFull"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('blocked', 'flags.0?true'), ('phone_calls_available', 'flags.4?true'), ('phone_calls_private', 'flags.5?true'), ('can_pin_message', 'flags.7?true'), ('has_scheduled', 'flags.12?true'), ('video_calls_available', 'flags.13?true'), ('voice_messages_forbidden', 'flags.20?true'), ('translations_disabled', 'flags.23?true'), ('stories_pinned_available', 'flags.26?true'), ('blocked_my_stories_from', 'flags.27?true'), ('wallpaper_overridden', 'flags.28?true'), ('contact_require_premium', 'flags.29?true'), ('read_dates_private', 'flags.30?true'), ('flags2', '#'), ('sponsored_enabled', 'flags2.7?true'), ('can_view_revenue', 'flags2.9?true'), ('bot_can_manage_emoji_status', 'flags2.10?true'), ('display_gifts_button', 'flags2.16?true'), ('id', 'long'), ('about', 'flags.1?string'), ('settings', 'PeerSettings'), ('personal_photo', 'flags.21?Photo'), ('profile_photo', 'flags.2?Photo'), ('fallback_photo', 'flags.22?Photo'), ('notify_settings', 'PeerNotifySettings'), ('bot_info', 'flags.3?BotInfo'), ('pinned_msg_id', 'flags.6?int'), ('common_chats_count', 'int'), ('folder_id', 'flags.11?int'), ('ttl_period', 'flags.14?int'), ('theme', 'flags.15?ChatTheme'), ('private_forward_name', 'flags.16?string'), ('bot_group_admin_rights', 'flags.17?ChatAdminRights'), ('bot_broadcast_admin_rights', 'flags.18?ChatAdminRights'), ('wallpaper', 'flags.24?WallPaper'), ('stories', 'flags.25?PeerStories'), ('business_work_hours', 'flags2.0?BusinessWorkHours'), ('business_location', 'flags2.1?BusinessLocation'), ('business_greeting_message', 'flags2.2?BusinessGreetingMessage'), ('business_away_message', 'flags2.3?BusinessAwayMessage'), ('business_intro', 'flags2.4?BusinessIntro'), ('birthday', 'flags2.5?Birthday'), ('personal_channel_id', 'flags2.6?long'), ('personal_channel_message', 'flags2.6?int'), ('stargifts_count', 'flags2.8?int'), ('starref_program', 'flags2.11?StarRefProgram'), ('bot_verification', 'flags2.12?BotVerification'), ('send_paid_messages_stars', 'flags2.14?long'), ('disallowed_gifts', 'flags2.15?DisallowedGiftsSettings'), ('stars_rating', 'flags2.17?StarsRating'), ('stars_my_pending_rating', 'flags2.18?StarsRating'), ('stars_my_pending_rating_date', 'flags2.18?int'), ('main_tab', 'flags2.20?ProfileTab'), ('saved_music', 'flags2.21?Document'), ('note', 'flags2.22?TextWithEntities'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('blocked', 'flags.0?true'), ('phone_calls_available', 'flags.4?true'), ('phone_calls_private', 'flags.5?true'), ('can_pin_message', 'flags.7?true'), ('has_scheduled', 'flags.12?true'), ('video_calls_available', 'flags.13?true'), ('voice_messages_forbidden', 'flags.20?true'), ('translations_disabled', 'flags.23?true'), ('stories_pinned_available', 'flags.26?true'), ('blocked_my_stories_from', 'flags.27?true'), ('wallpaper_overridden', 'flags.28?true'), ('contact_require_premium', 'flags.29?true'), ('read_dates_private', 'flags.30?true'), ('flags2', '#'), ('sponsored_enabled', 'flags2.7?true'), ('can_view_revenue', 'flags2.9?true'), ('bot_can_manage_emoji_status', 'flags2.10?true'), ('display_gifts_button', 'flags2.16?true'), ('noforwards_my_enabled', 'flags2.23?true'), ('noforwards_peer_enabled', 'flags2.24?true'), ('unofficial_security_risk', 'flags2.26?true'), ('id', 'long'), ('about', 'flags.1?string'), ('settings', 'PeerSettings'), ('personal_photo', 'flags.21?Photo'), ('profile_photo', 'flags.2?Photo'), ('fallback_photo', 'flags.22?Photo'), ('notify_settings', 'PeerNotifySettings'), ('bot_info', 'flags.3?BotInfo'), ('pinned_msg_id', 'flags.6?int'), ('common_chats_count', 'int'), ('folder_id', 'flags.11?int'), ('ttl_period', 'flags.14?int'), ('theme', 'flags.15?ChatTheme'), ('private_forward_name', 'flags.16?string'), ('bot_group_admin_rights', 'flags.17?ChatAdminRights'), ('bot_broadcast_admin_rights', 'flags.18?ChatAdminRights'), ('wallpaper', 'flags.24?WallPaper'), ('stories', 'flags.25?PeerStories'), ('business_work_hours', 'flags2.0?BusinessWorkHours'), ('business_location', 'flags2.1?BusinessLocation'), ('business_greeting_message', 'flags2.2?BusinessGreetingMessage'), ('business_away_message', 'flags2.3?BusinessAwayMessage'), ('business_intro', 'flags2.4?BusinessIntro'), ('birthday', 'flags2.5?Birthday'), ('personal_channel_id', 'flags2.6?long'), ('personal_channel_message', 'flags2.6?int'), ('stargifts_count', 'flags2.8?int'), ('starref_program', 'flags2.11?StarRefProgram'), ('bot_verification', 'flags2.12?BotVerification'), ('send_paid_messages_stars', 'flags2.14?long'), ('disallowed_gifts', 'flags2.15?DisallowedGiftsSettings'), ('stars_rating', 'flags2.17?StarsRating'), ('stars_my_pending_rating', 'flags2.18?StarsRating'), ('stars_my_pending_rating_date', 'flags2.18?int'), ('main_tab', 'flags2.20?ProfileTab'), ('saved_music', 'flags2.21?Document'), ('note', 'flags2.22?TextWithEntities'), ('bot_manager_id', 'flags2.25?long'))
     flags: object
     blocked: object
     phone_calls_available: object
@@ -2493,6 +2643,9 @@ class UserFull(TLObject):
     can_view_revenue: object
     bot_can_manage_emoji_status: object
     display_gifts_button: object
+    noforwards_my_enabled: object
+    noforwards_peer_enabled: object
+    unofficial_security_risk: object
     id: object
     about: object
     settings: object
@@ -2530,6 +2683,7 @@ class UserFull(TLObject):
     main_tab: object
     saved_music: object
     note: object
+    bot_manager_id: object
 @dataclass(slots=True)
 class Contact(TLObject):
     TL_ID: ClassVar[int] = 341499403
@@ -2790,6 +2944,12 @@ class InputMessagesFilterContacts(TLObject):
 class InputMessagesFilterPinned(TLObject):
     TL_ID: ClassVar[int] = 464520273
     TL_NAME: ClassVar[str] = "inputMessagesFilterPinned"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class InputMessagesFilterPoll(TLObject):
+    TL_ID: ClassVar[int] = -97793782
+    TL_NAME: ClassVar[str] = "inputMessagesFilterPoll"
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
     pass
 @dataclass(slots=True)
@@ -3304,10 +3464,13 @@ class UpdateDialogUnreadMark(TLObject):
     saved_peer_id: object
 @dataclass(slots=True)
 class UpdateMessagePoll(TLObject):
-    TL_ID: ClassVar[int] = -1398708869
+    TL_ID: ClassVar[int] = -699641301
     TL_NAME: ClassVar[str] = "updateMessagePoll"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('poll_id', 'long'), ('poll', 'flags.0?Poll'), ('results', 'PollResults'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('peer', 'flags.1?Peer'), ('msg_id', 'flags.1?int'), ('top_msg_id', 'flags.2?int'), ('poll_id', 'long'), ('poll', 'flags.0?Poll'), ('results', 'PollResults'))
     flags: object
+    peer: object
+    msg_id: object
+    top_msg_id: object
     poll_id: object
     poll: object
     results: object
@@ -3376,12 +3539,13 @@ class UpdateLoginToken(TLObject):
     pass
 @dataclass(slots=True)
 class UpdateMessagePollVote(TLObject):
-    TL_ID: ClassVar[int] = 619974263
+    TL_ID: ClassVar[int] = 1989799956
     TL_NAME: ClassVar[str] = "updateMessagePollVote"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('poll_id', 'long'), ('peer', 'Peer'), ('options', 'Vector<bytes>'), ('qts', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('poll_id', 'long'), ('peer', 'Peer'), ('options', 'Vector<bytes>'), ('positions', 'Vector<int>'), ('qts', 'int'))
     poll_id: object
     peer: object
     options: object
+    positions: object
     qts: object
 @dataclass(slots=True)
 class UpdateDialogFilter(TLObject):
@@ -3573,15 +3737,17 @@ class UpdatePendingJoinRequests(TLObject):
     recent_requesters: object
 @dataclass(slots=True)
 class UpdateBotChatInviteRequester(TLObject):
-    TL_ID: ClassVar[int] = 299870598
+    TL_ID: ClassVar[int] = 2092125561
     TL_NAME: ClassVar[str] = "updateBotChatInviteRequester"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('peer', 'Peer'), ('date', 'int'), ('user_id', 'long'), ('about', 'string'), ('invite', 'ExportedChatInvite'), ('qts', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('peer', 'Peer'), ('date', 'int'), ('user_id', 'long'), ('about', 'string'), ('invite', 'ExportedChatInvite'), ('qts', 'int'), ('query_id', 'flags.0?long'))
+    flags: object
     peer: object
     date: object
     user_id: object
     about: object
     invite: object
     qts: object
+    query_id: object
 @dataclass(slots=True)
 class UpdateMessageReactions(TLObject):
     TL_ID: ClassVar[int] = 506035194
@@ -3999,6 +4165,118 @@ class UpdateStarGiftAuctionUserState(TLObject):
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('gift_id', 'long'), ('user_state', 'StarGiftAuctionUserState'))
     gift_id: object
     user_state: object
+@dataclass(slots=True)
+class UpdateEmojiGameInfo(TLObject):
+    TL_ID: ClassVar[int] = -73640838
+    TL_NAME: ClassVar[str] = "updateEmojiGameInfo"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('info', 'messages.EmojiGameInfo'),)
+    info: object
+@dataclass(slots=True)
+class UpdateStarGiftCraftFail(TLObject):
+    TL_ID: ClassVar[int] = -1408818108
+    TL_NAME: ClassVar[str] = "updateStarGiftCraftFail"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class UpdateChatParticipantRank(TLObject):
+    TL_ID: ClassVar[int] = -1115461703
+    TL_NAME: ClassVar[str] = "updateChatParticipantRank"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('chat_id', 'long'), ('user_id', 'long'), ('rank', 'string'), ('version', 'int'))
+    chat_id: object
+    user_id: object
+    rank: object
+    version: object
+@dataclass(slots=True)
+class UpdateManagedBot(TLObject):
+    TL_ID: ClassVar[int] = 1216408986
+    TL_NAME: ClassVar[str] = "updateManagedBot"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('user_id', 'long'), ('bot_id', 'long'), ('qts', 'int'))
+    user_id: object
+    bot_id: object
+    qts: object
+@dataclass(slots=True)
+class UpdateBotGuestChatQuery(TLObject):
+    TL_ID: ClassVar[int] = -841742019
+    TL_NAME: ClassVar[str] = "updateBotGuestChatQuery"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('query_id', 'long'), ('message', 'Message'), ('reference_messages', 'flags.0?Vector<Message>'), ('qts', 'int'))
+    flags: object
+    query_id: object
+    message: object
+    reference_messages: object
+    qts: object
+@dataclass(slots=True)
+class UpdateAiComposeTones(TLObject):
+    TL_ID: ClassVar[int] = -1945136645
+    TL_NAME: ClassVar[str] = "updateAiComposeTones"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class UpdateJoinChatWebViewDecision(TLObject):
+    TL_ID: ClassVar[int] = -1112768912
+    TL_NAME: ClassVar[str] = "updateJoinChatWebViewDecision"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('peer', 'Peer'), ('query_id', 'long'), ('result', 'JoinChatBotResult'))
+    peer: object
+    query_id: object
+    result: object
+@dataclass(slots=True)
+class UpdateNewBotConnection(TLObject):
+    TL_ID: ClassVar[int] = -1306491994
+    TL_NAME: ClassVar[str] = "updateNewBotConnection"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('confirmed', 'flags.0?true'), ('bot_id', 'long'), ('date', 'flags.1?int'), ('device', 'flags.1?string'), ('location', 'flags.1?string'))
+    flags: object
+    confirmed: object
+    bot_id: object
+    date: object
+    device: object
+    location: object
+@dataclass(slots=True)
+class UpdateWebBrowserSettings(TLObject):
+    TL_ID: ClassVar[int] = -1013306658
+    TL_NAME: ClassVar[str] = "updateWebBrowserSettings"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('open_external_browser', 'flags.0?true'), ('display_close_button', 'flags.1?true'))
+    flags: object
+    open_external_browser: object
+    display_close_button: object
+@dataclass(slots=True)
+class UpdateWebBrowserException(TLObject):
+    TL_ID: ClassVar[int] = 335872721
+    TL_NAME: ClassVar[str] = "updateWebBrowserException"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('delete', 'flags.1?true'), ('open_external_browser', 'flags.0?Bool'), ('exception', 'WebDomainException'))
+    flags: object
+    delete: object
+    open_external_browser: object
+    exception: object
+@dataclass(slots=True)
+class UpdateNewEphemeralMessage(TLObject):
+    TL_ID: ClassVar[int] = 549239713
+    TL_NAME: ClassVar[str] = "updateNewEphemeralMessage"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('message', 'EphemeralMessage'),)
+    message: object
+@dataclass(slots=True)
+class UpdateDeleteEphemeralMessages(TLObject):
+    TL_ID: ClassVar[int] = 1457257720
+    TL_NAME: ClassVar[str] = "updateDeleteEphemeralMessages"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('peer', 'Peer'), ('ids', 'Vector<int>'))
+    peer: object
+    ids: object
+@dataclass(slots=True)
+class UpdateEditEphemeralMessage(TLObject):
+    TL_ID: ClassVar[int] = 1270583041
+    TL_NAME: ClassVar[str] = "updateEditEphemeralMessage"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('message', 'EphemeralMessage'),)
+    message: object
+@dataclass(slots=True)
+class UpdateBotStarsSubscription(TLObject):
+    TL_ID: ClassVar[int] = 1812827683
+    TL_NAME: ClassVar[str] = "updateBotStarsSubscription"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('canceled', 'flags.0?true'), ('payment_failed', 'flags.1?true'), ('restored', 'flags.2?true'), ('user_id', 'long'), ('payload', 'bytes'), ('qts', 'int'))
+    flags: object
+    canceled: object
+    payment_failed: object
+    restored: object
+    user_id: object
+    payload: object
+    qts: object
 @dataclass(slots=True)
 class UpdatesState(TLObject):
     TL_ID: ClassVar[int] = -1519637954
@@ -4502,6 +4780,12 @@ class NotifyForumTopic(TLObject):
     peer: object
     top_msg_id: object
 @dataclass(slots=True)
+class NotifyCommunity(TLObject):
+    TL_ID: ClassVar[int] = -1103664743
+    TL_NAME: ClassVar[str] = "notifyCommunity"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('community_id', 'long'),)
+    community_id: object
+@dataclass(slots=True)
 class SendMessageTypingAction(TLObject):
     TL_ID: ClassVar[int] = 381645902
     TL_NAME: ClassVar[str] = "sendMessageTypingAction"
@@ -4618,6 +4902,20 @@ class SendMessageTextDraftAction(TLObject):
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('random_id', 'long'), ('text', 'TextWithEntities'))
     random_id: object
     text: object
+@dataclass(slots=True)
+class InputSendMessageRichMessageDraftAction(TLObject):
+    TL_ID: ClassVar[int] = -491635887
+    TL_NAME: ClassVar[str] = "inputSendMessageRichMessageDraftAction"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('random_id', 'long'), ('rich_message', 'InputRichMessage'))
+    random_id: object
+    rich_message: object
+@dataclass(slots=True)
+class SendMessageRichMessageDraftAction(TLObject):
+    TL_ID: ClassVar[int] = -1563745031
+    TL_NAME: ClassVar[str] = "sendMessageRichMessageDraftAction"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('random_id', 'long'), ('rich_message', 'RichMessage'))
+    random_id: object
+    rich_message: object
 @dataclass(slots=True)
 class ContactsFound(TLObject):
     TL_ID: ClassVar[int] = -1290580579
@@ -5373,9 +5671,11 @@ class MessagesStickerSetNotModified(TLObject):
     pass
 @dataclass(slots=True)
 class BotCommand(TLObject):
-    TL_ID: ClassVar[int] = -1032140601
+    TL_ID: ClassVar[int] = -1739401518
     TL_NAME: ClassVar[str] = "botCommand"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('command', 'string'), ('description', 'string'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('ephemeral', 'flags.0?true'), ('command', 'string'), ('description', 'string'))
+    flags: object
+    ephemeral: object
     command: object
     description: object
 @dataclass(slots=True)
@@ -5396,144 +5696,174 @@ class BotInfo(TLObject):
     verifier_settings: object
 @dataclass(slots=True)
 class KeyboardButton(TLObject):
-    TL_ID: ClassVar[int] = -1560655744
+    TL_ID: ClassVar[int] = 2098662655
     TL_NAME: ClassVar[str] = "keyboardButton"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'),)
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'))
+    flags: object
+    style: object
     text: object
 @dataclass(slots=True)
 class KeyboardButtonUrl(TLObject):
-    TL_ID: ClassVar[int] = 629866245
+    TL_ID: ClassVar[int] = -670292500
     TL_NAME: ClassVar[str] = "keyboardButtonUrl"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'), ('url', 'string'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('url', 'string'))
+    flags: object
+    style: object
     text: object
     url: object
 @dataclass(slots=True)
 class KeyboardButtonCallback(TLObject):
-    TL_ID: ClassVar[int] = 901503851
+    TL_ID: ClassVar[int] = -433338016
     TL_NAME: ClassVar[str] = "keyboardButtonCallback"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('requires_password', 'flags.0?true'), ('text', 'string'), ('data', 'bytes'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('requires_password', 'flags.0?true'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('data', 'bytes'))
     flags: object
     requires_password: object
+    style: object
     text: object
     data: object
 @dataclass(slots=True)
 class KeyboardButtonRequestPhone(TLObject):
-    TL_ID: ClassVar[int] = -1318425559
+    TL_ID: ClassVar[int] = 1098841487
     TL_NAME: ClassVar[str] = "keyboardButtonRequestPhone"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'),)
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'))
+    flags: object
+    style: object
     text: object
 @dataclass(slots=True)
 class KeyboardButtonRequestGeoLocation(TLObject):
-    TL_ID: ClassVar[int] = -59151553
+    TL_ID: ClassVar[int] = -1438582451
     TL_NAME: ClassVar[str] = "keyboardButtonRequestGeoLocation"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'),)
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'))
+    flags: object
+    style: object
     text: object
 @dataclass(slots=True)
 class KeyboardButtonSwitchInline(TLObject):
-    TL_ID: ClassVar[int] = -1816527947
+    TL_ID: ClassVar[int] = -1726768644
     TL_NAME: ClassVar[str] = "keyboardButtonSwitchInline"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('same_peer', 'flags.0?true'), ('text', 'string'), ('query', 'string'), ('peer_types', 'flags.1?Vector<InlineQueryPeerType>'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('same_peer', 'flags.0?true'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('query', 'string'), ('peer_types', 'flags.1?Vector<InlineQueryPeerType>'))
     flags: object
     same_peer: object
+    style: object
     text: object
     query: object
     peer_types: object
 @dataclass(slots=True)
 class KeyboardButtonGame(TLObject):
-    TL_ID: ClassVar[int] = 1358175439
+    TL_ID: ClassVar[int] = -1983540999
     TL_NAME: ClassVar[str] = "keyboardButtonGame"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'),)
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'))
+    flags: object
+    style: object
     text: object
 @dataclass(slots=True)
 class KeyboardButtonBuy(TLObject):
-    TL_ID: ClassVar[int] = -1344716869
+    TL_ID: ClassVar[int] = 1067792645
     TL_NAME: ClassVar[str] = "keyboardButtonBuy"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'),)
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'))
+    flags: object
+    style: object
     text: object
 @dataclass(slots=True)
 class KeyboardButtonUrlAuth(TLObject):
-    TL_ID: ClassVar[int] = 280464681
+    TL_ID: ClassVar[int] = -183499015
     TL_NAME: ClassVar[str] = "keyboardButtonUrlAuth"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('text', 'string'), ('fwd_text', 'flags.0?string'), ('url', 'string'), ('button_id', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('fwd_text', 'flags.0?string'), ('url', 'string'), ('button_id', 'int'))
     flags: object
+    style: object
     text: object
     fwd_text: object
     url: object
     button_id: object
 @dataclass(slots=True)
 class InputKeyboardButtonUrlAuth(TLObject):
-    TL_ID: ClassVar[int] = -802258988
+    TL_ID: ClassVar[int] = 1744911986
     TL_NAME: ClassVar[str] = "inputKeyboardButtonUrlAuth"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('request_write_access', 'flags.0?true'), ('text', 'string'), ('fwd_text', 'flags.1?string'), ('url', 'string'), ('bot', 'InputUser'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('request_write_access', 'flags.0?true'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('fwd_text', 'flags.1?string'), ('url', 'string'), ('bot', 'InputUser'))
     flags: object
     request_write_access: object
+    style: object
     text: object
     fwd_text: object
     url: object
     bot: object
 @dataclass(slots=True)
 class KeyboardButtonRequestPoll(TLObject):
-    TL_ID: ClassVar[int] = -1144565411
+    TL_ID: ClassVar[int] = 2047989634
     TL_NAME: ClassVar[str] = "keyboardButtonRequestPoll"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('quiz', 'flags.0?Bool'), ('text', 'string'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('quiz', 'flags.0?Bool'), ('text', 'string'))
     flags: object
+    style: object
     quiz: object
     text: object
 @dataclass(slots=True)
 class InputKeyboardButtonUserProfile(TLObject):
-    TL_ID: ClassVar[int] = -376962181
+    TL_ID: ClassVar[int] = 2103314375
     TL_NAME: ClassVar[str] = "inputKeyboardButtonUserProfile"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'), ('user_id', 'InputUser'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('user_id', 'InputUser'))
+    flags: object
+    style: object
     text: object
     user_id: object
 @dataclass(slots=True)
 class KeyboardButtonUserProfile(TLObject):
-    TL_ID: ClassVar[int] = 814112961
+    TL_ID: ClassVar[int] = -1057137399
     TL_NAME: ClassVar[str] = "keyboardButtonUserProfile"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'), ('user_id', 'long'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('user_id', 'long'))
+    flags: object
+    style: object
     text: object
     user_id: object
 @dataclass(slots=True)
 class KeyboardButtonWebView(TLObject):
-    TL_ID: ClassVar[int] = 326529584
+    TL_ID: ClassVar[int] = -398020192
     TL_NAME: ClassVar[str] = "keyboardButtonWebView"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'), ('url', 'string'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('url', 'string'))
+    flags: object
+    style: object
     text: object
     url: object
 @dataclass(slots=True)
 class KeyboardButtonSimpleWebView(TLObject):
-    TL_ID: ClassVar[int] = -1598009252
+    TL_ID: ClassVar[int] = -514047120
     TL_NAME: ClassVar[str] = "keyboardButtonSimpleWebView"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'), ('url', 'string'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('url', 'string'))
+    flags: object
+    style: object
     text: object
     url: object
 @dataclass(slots=True)
 class KeyboardButtonRequestPeer(TLObject):
-    TL_ID: ClassVar[int] = 1406648280
+    TL_ID: ClassVar[int] = 1527715317
     TL_NAME: ClassVar[str] = "keyboardButtonRequestPeer"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'), ('button_id', 'int'), ('peer_type', 'RequestPeerType'), ('max_quantity', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('button_id', 'int'), ('peer_type', 'RequestPeerType'), ('max_quantity', 'int'))
+    flags: object
+    style: object
     text: object
     button_id: object
     peer_type: object
     max_quantity: object
 @dataclass(slots=True)
 class InputKeyboardButtonRequestPeer(TLObject):
-    TL_ID: ClassVar[int] = -916050683
+    TL_ID: ClassVar[int] = 45580630
     TL_NAME: ClassVar[str] = "inputKeyboardButtonRequestPeer"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('name_requested', 'flags.0?true'), ('username_requested', 'flags.1?true'), ('photo_requested', 'flags.2?true'), ('text', 'string'), ('button_id', 'int'), ('peer_type', 'RequestPeerType'), ('max_quantity', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('name_requested', 'flags.0?true'), ('username_requested', 'flags.1?true'), ('photo_requested', 'flags.2?true'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('button_id', 'int'), ('peer_type', 'RequestPeerType'), ('max_quantity', 'int'))
     flags: object
     name_requested: object
     username_requested: object
     photo_requested: object
+    style: object
     text: object
     button_id: object
     peer_type: object
     max_quantity: object
 @dataclass(slots=True)
 class KeyboardButtonCopy(TLObject):
-    TL_ID: ClassVar[int] = 1976723854
+    TL_ID: ClassVar[int] = -1127960816
     TL_NAME: ClassVar[str] = "keyboardButtonCopy"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'string'), ('copy_text', 'string'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('style', 'flags.10?KeyboardButtonStyle'), ('text', 'string'), ('copy_text', 'string'))
+    flags: object
+    style: object
     text: object
     copy_text: object
 @dataclass(slots=True)
@@ -5731,6 +6061,43 @@ class MessageEntityBlockquote(TLObject):
     offset: object
     length: object
 @dataclass(slots=True)
+class MessageEntityFormattedDate(TLObject):
+    TL_ID: ClassVar[int] = -1874147385
+    TL_NAME: ClassVar[str] = "messageEntityFormattedDate"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('relative', 'flags.0?true'), ('short_time', 'flags.1?true'), ('long_time', 'flags.2?true'), ('short_date', 'flags.3?true'), ('long_date', 'flags.4?true'), ('day_of_week', 'flags.5?true'), ('offset', 'int'), ('length', 'int'), ('date', 'int'))
+    flags: object
+    relative: object
+    short_time: object
+    long_time: object
+    short_date: object
+    long_date: object
+    day_of_week: object
+    offset: object
+    length: object
+    date: object
+@dataclass(slots=True)
+class MessageEntityDiffInsert(TLObject):
+    TL_ID: ClassVar[int] = 1903653142
+    TL_NAME: ClassVar[str] = "messageEntityDiffInsert"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('offset', 'int'), ('length', 'int'))
+    offset: object
+    length: object
+@dataclass(slots=True)
+class MessageEntityDiffReplace(TLObject):
+    TL_ID: ClassVar[int] = -960371289
+    TL_NAME: ClassVar[str] = "messageEntityDiffReplace"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('offset', 'int'), ('length', 'int'), ('old_text', 'string'))
+    offset: object
+    length: object
+    old_text: object
+@dataclass(slots=True)
+class MessageEntityDiffDelete(TLObject):
+    TL_ID: ClassVar[int] = 106086853
+    TL_NAME: ClassVar[str] = "messageEntityDiffDelete"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('offset', 'int'), ('length', 'int'))
+    offset: object
+    length: object
+@dataclass(slots=True)
 class InputChannelEmpty(TLObject):
     TL_ID: ClassVar[int] = -292807034
     TL_NAME: ClassVar[str] = "inputChannelEmpty"
@@ -5816,24 +6183,26 @@ class ChannelMessagesFilter(TLObject):
     ranges: object
 @dataclass(slots=True)
 class ChannelParticipant(TLObject):
-    TL_ID: ClassVar[int] = -885426663
+    TL_ID: ClassVar[int] = 466961494
     TL_NAME: ClassVar[str] = "channelParticipant"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('user_id', 'long'), ('date', 'int'), ('subscription_until_date', 'flags.0?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('user_id', 'long'), ('date', 'int'), ('subscription_until_date', 'flags.0?int'), ('rank', 'flags.2?string'))
     flags: object
     user_id: object
     date: object
     subscription_until_date: object
+    rank: object
 @dataclass(slots=True)
 class ChannelParticipantSelf(TLObject):
-    TL_ID: ClassVar[int] = 1331723247
+    TL_ID: ClassVar[int] = -1454929382
     TL_NAME: ClassVar[str] = "channelParticipantSelf"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('via_request', 'flags.0?true'), ('user_id', 'long'), ('inviter_id', 'long'), ('date', 'int'), ('subscription_until_date', 'flags.1?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('via_request', 'flags.0?true'), ('user_id', 'long'), ('inviter_id', 'long'), ('date', 'int'), ('subscription_until_date', 'flags.1?int'), ('rank', 'flags.2?string'))
     flags: object
     via_request: object
     user_id: object
     inviter_id: object
     date: object
     subscription_until_date: object
+    rank: object
 @dataclass(slots=True)
 class ChannelParticipantCreator(TLObject):
     TL_ID: ClassVar[int] = 803602899
@@ -5859,15 +6228,16 @@ class ChannelParticipantAdmin(TLObject):
     rank: object
 @dataclass(slots=True)
 class ChannelParticipantBanned(TLObject):
-    TL_ID: ClassVar[int] = 1844969806
+    TL_ID: ClassVar[int] = -705647215
     TL_NAME: ClassVar[str] = "channelParticipantBanned"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('left', 'flags.0?true'), ('peer', 'Peer'), ('kicked_by', 'long'), ('date', 'int'), ('banned_rights', 'ChatBannedRights'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('left', 'flags.0?true'), ('peer', 'Peer'), ('kicked_by', 'long'), ('date', 'int'), ('banned_rights', 'ChatBannedRights'), ('rank', 'flags.2?string'))
     flags: object
     left: object
     peer: object
     kicked_by: object
     date: object
     banned_rights: object
+    rank: object
 @dataclass(slots=True)
 class ChannelParticipantLeft(TLObject):
     TL_ID: ClassVar[int] = 453242886
@@ -6063,6 +6433,14 @@ class InputBotInlineMessageMediaWebPage(TLObject):
     url: object
     reply_markup: object
 @dataclass(slots=True)
+class InputBotInlineMessageRichMessage(TLObject):
+    TL_ID: ClassVar[int] = -1271007892
+    TL_NAME: ClassVar[str] = "inputBotInlineMessageRichMessage"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('reply_markup', 'flags.2?ReplyMarkup'), ('rich_message', 'InputRichMessage'))
+    flags: object
+    reply_markup: object
+    rich_message: object
+@dataclass(slots=True)
 class InputBotInlineResult(TLObject):
     TL_ID: ClassVar[int] = -2000710887
     TL_NAME: ClassVar[str] = "inputBotInlineResult"
@@ -6190,6 +6568,14 @@ class BotInlineMessageMediaWebPage(TLObject):
     entities: object
     url: object
     reply_markup: object
+@dataclass(slots=True)
+class BotInlineMessageRichMessage(TLObject):
+    TL_ID: ClassVar[int] = 174161531
+    TL_NAME: ClassVar[str] = "botInlineMessageRichMessage"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('reply_markup', 'flags.2?ReplyMarkup'), ('rich_message', 'RichMessage'))
+    flags: object
+    reply_markup: object
+    rich_message: object
 @dataclass(slots=True)
 class BotInlineResult(TLObject):
     TL_ID: ClassVar[int] = 295067450
@@ -6486,6 +6872,12 @@ class TopPeerCategoryBotsApp(TLObject):
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
     pass
 @dataclass(slots=True)
+class TopPeerCategoryBotsGuestChat(TLObject):
+    TL_ID: ClassVar[int] = 1814361053
+    TL_NAME: ClassVar[str] = "topPeerCategoryBotsGuestChat"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
 class TopPeerCategoryPeers(TLObject):
     TL_ID: ClassVar[int] = -75283823
     TL_NAME: ClassVar[str] = "topPeerCategoryPeers"
@@ -6522,9 +6914,9 @@ class DraftMessageEmpty(TLObject):
     date: object
 @dataclass(slots=True)
 class DraftMessage(TLObject):
-    TL_ID: ClassVar[int] = -1763006997
+    TL_ID: ClassVar[int] = 1627271828
     TL_NAME: ClassVar[str] = "draftMessage"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('no_webpage', 'flags.1?true'), ('invert_media', 'flags.6?true'), ('reply_to', 'flags.4?InputReplyTo'), ('message', 'string'), ('entities', 'flags.3?Vector<MessageEntity>'), ('media', 'flags.5?InputMedia'), ('date', 'int'), ('effect', 'flags.7?long'), ('suggested_post', 'flags.8?SuggestedPost'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('no_webpage', 'flags.1?true'), ('invert_media', 'flags.6?true'), ('reply_to', 'flags.4?InputReplyTo'), ('message', 'string'), ('entities', 'flags.3?Vector<MessageEntity>'), ('media', 'flags.5?InputMedia'), ('date', 'int'), ('effect', 'flags.7?long'), ('suggested_post', 'flags.8?SuggestedPost'), ('rich_message', 'flags.9?RichMessage'))
     flags: object
     no_webpage: object
     invert_media: object
@@ -6535,6 +6927,7 @@ class DraftMessage(TLObject):
     date: object
     effect: object
     suggested_post: object
+    rich_message: object
 @dataclass(slots=True)
 class MessagesFeaturedStickersNotModified(TLObject):
     TL_ID: ClassVar[int] = -958657434
@@ -6782,6 +7175,101 @@ class TextAnchor(TLObject):
     text: object
     name: object
 @dataclass(slots=True)
+class TextMath(TLObject):
+    TL_ID: ClassVar[int] = -1657885545
+    TL_NAME: ClassVar[str] = "textMath"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('source', 'string'),)
+    source: object
+@dataclass(slots=True)
+class TextCustomEmoji(TLObject):
+    TL_ID: ClassVar[int] = -1570679104
+    TL_NAME: ClassVar[str] = "textCustomEmoji"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('document_id', 'long'), ('alt', 'string'))
+    document_id: object
+    alt: object
+@dataclass(slots=True)
+class TextSpoiler(TLObject):
+    TL_ID: ClassVar[int] = 1277844834
+    TL_NAME: ClassVar[str] = "textSpoiler"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class TextMention(TLObject):
+    TL_ID: ClassVar[int] = -853225660
+    TL_NAME: ClassVar[str] = "textMention"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class TextHashtag(TLObject):
+    TL_ID: ClassVar[int] = 1368728810
+    TL_NAME: ClassVar[str] = "textHashtag"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class TextBotCommand(TLObject):
+    TL_ID: ClassVar[int] = 50276819
+    TL_NAME: ClassVar[str] = "textBotCommand"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class TextCashtag(TLObject):
+    TL_ID: ClassVar[int] = 2073958401
+    TL_NAME: ClassVar[str] = "textCashtag"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class TextAutoUrl(TLObject):
+    TL_ID: ClassVar[int] = -1402305622
+    TL_NAME: ClassVar[str] = "textAutoUrl"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class TextAutoEmail(TLObject):
+    TL_ID: ClassVar[int] = -984177571
+    TL_NAME: ClassVar[str] = "textAutoEmail"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class TextAutoPhone(TLObject):
+    TL_ID: ClassVar[int] = 616720265
+    TL_NAME: ClassVar[str] = "textAutoPhone"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class TextBankCard(TLObject):
+    TL_ID: ClassVar[int] = -1185513171
+    TL_NAME: ClassVar[str] = "textBankCard"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class TextMentionName(TLObject):
+    TL_ID: ClassVar[int] = 27917308
+    TL_NAME: ClassVar[str] = "textMentionName"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'), ('user_id', 'long'))
+    text: object
+    user_id: object
+@dataclass(slots=True)
+class TextDate(TLObject):
+    TL_ID: ClassVar[int] = -1514906069
+    TL_NAME: ClassVar[str] = "textDate"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('relative', 'flags.0?true'), ('short_time', 'flags.1?true'), ('long_time', 'flags.2?true'), ('short_date', 'flags.3?true'), ('long_date', 'flags.4?true'), ('day_of_week', 'flags.5?true'), ('text', 'RichText'), ('date', 'int'))
+    flags: object
+    relative: object
+    short_time: object
+    long_time: object
+    short_date: object
+    long_date: object
+    day_of_week: object
+    text: object
+    date: object
+@dataclass(slots=True)
+class TextDiff(TLObject):
+    TL_ID: ClassVar[int] = -1769551024
+    TL_NAME: ClassVar[str] = "textDiff"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'), ('old_text', 'RichText'))
+    text: object
+    old_text: object
+@dataclass(slots=True)
 class PageBlockUnsupported(TLObject):
     TL_ID: ClassVar[int] = 324435594
     TL_NAME: ClassVar[str] = "pageBlockUnsupported"
@@ -6873,8 +7361,9 @@ class PageBlockPullquote(TLObject):
 class PageBlockPhoto(TLObject):
     TL_ID: ClassVar[int] = 391759200
     TL_NAME: ClassVar[str] = "pageBlockPhoto"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('photo_id', 'long'), ('caption', 'PageCaption'), ('url', 'flags.0?string'), ('webpage_id', 'flags.0?long'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('spoiler', 'flags.1?true'), ('photo_id', 'long'), ('caption', 'PageCaption'), ('url', 'flags.0?string'), ('webpage_id', 'flags.0?long'))
     flags: object
+    spoiler: object
     photo_id: object
     caption: object
     url: object
@@ -6883,10 +7372,11 @@ class PageBlockPhoto(TLObject):
 class PageBlockVideo(TLObject):
     TL_ID: ClassVar[int] = 2089805750
     TL_NAME: ClassVar[str] = "pageBlockVideo"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('autoplay', 'flags.0?true'), ('loop', 'flags.1?true'), ('video_id', 'long'), ('caption', 'PageCaption'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('autoplay', 'flags.0?true'), ('loop', 'flags.1?true'), ('spoiler', 'flags.2?true'), ('video_id', 'long'), ('caption', 'PageCaption'))
     flags: object
     autoplay: object
     loop: object
+    spoiler: object
     video_id: object
     caption: object
 @dataclass(slots=True)
@@ -6966,10 +7456,14 @@ class PageBlockTable(TLObject):
     rows: object
 @dataclass(slots=True)
 class PageBlockOrderedList(TLObject):
-    TL_ID: ClassVar[int] = -1702174239
+    TL_ID: ClassVar[int] = 534181569
     TL_NAME: ClassVar[str] = "pageBlockOrderedList"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('items', 'Vector<PageListOrderedItem>'),)
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('reversed', 'flags.2?true'), ('items', 'Vector<PageListOrderedItem>'), ('start', 'flags.0?int'), ('type', 'flags.1?string'))
+    flags: object
+    reversed: object
     items: object
+    start: object
+    type: object
 @dataclass(slots=True)
 class PageBlockDetails(TLObject):
     TL_ID: ClassVar[int] = 1987480557
@@ -6995,6 +7489,71 @@ class PageBlockMap(TLObject):
     zoom: object
     w: object
     h: object
+    caption: object
+@dataclass(slots=True)
+class PageBlockHeading1(TLObject):
+    TL_ID: ClassVar[int] = -1157691601
+    TL_NAME: ClassVar[str] = "pageBlockHeading1"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class PageBlockHeading2(TLObject):
+    TL_ID: ClassVar[int] = 158018284
+    TL_NAME: ClassVar[str] = "pageBlockHeading2"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class PageBlockHeading3(TLObject):
+    TL_ID: ClassVar[int] = 1743204781
+    TL_NAME: ClassVar[str] = "pageBlockHeading3"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class PageBlockHeading4(TLObject):
+    TL_ID: ClassVar[int] = -1254983893
+    TL_NAME: ClassVar[str] = "pageBlockHeading4"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class PageBlockHeading5(TLObject):
+    TL_ID: ClassVar[int] = -608277398
+    TL_NAME: ClassVar[str] = "pageBlockHeading5"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class PageBlockHeading6(TLObject):
+    TL_ID: ClassVar[int] = 1747599785
+    TL_NAME: ClassVar[str] = "pageBlockHeading6"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class PageBlockMath(TLObject):
+    TL_ID: ClassVar[int] = 1493699616
+    TL_NAME: ClassVar[str] = "pageBlockMath"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('source', 'string'),)
+    source: object
+@dataclass(slots=True)
+class PageBlockThinking(TLObject):
+    TL_ID: ClassVar[int] = 1009361890
+    TL_NAME: ClassVar[str] = "pageBlockThinking"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    text: object
+@dataclass(slots=True)
+class InputPageBlockMap(TLObject):
+    TL_ID: ClassVar[int] = 1464557951
+    TL_NAME: ClassVar[str] = "inputPageBlockMap"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('geo', 'InputGeoPoint'), ('zoom', 'int'), ('w', 'int'), ('h', 'int'), ('caption', 'PageCaption'))
+    geo: object
+    zoom: object
+    w: object
+    h: object
+    caption: object
+@dataclass(slots=True)
+class PageBlockBlockquoteBlocks(TLObject):
+    TL_ID: ClassVar[int] = 242108356
+    TL_NAME: ClassVar[str] = "pageBlockBlockquoteBlocks"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('blocks', 'Vector<PageBlock>'), ('caption', 'RichText'))
+    blocks: object
     caption: object
 @dataclass(slots=True)
 class PhoneCallDiscardReasonMissed(TLObject):
@@ -7862,6 +8421,14 @@ class ChannelAdminLogEventActionToggleAutotranslation(TLObject):
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('new_value', 'Bool'),)
     new_value: object
 @dataclass(slots=True)
+class ChannelAdminLogEventActionParticipantEditRank(TLObject):
+    TL_ID: ClassVar[int] = 1476834540
+    TL_NAME: ClassVar[str] = "channelAdminLogEventActionParticipantEditRank"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('user_id', 'long'), ('prev_rank', 'string'), ('new_rank', 'string'))
+    user_id: object
+    prev_rank: object
+    new_rank: object
+@dataclass(slots=True)
 class ChannelAdminLogEvent(TLObject):
     TL_ID: ClassVar[int] = 531458253
     TL_NAME: ClassVar[str] = "channelAdminLogEvent"
@@ -7882,7 +8449,7 @@ class ChannelsAdminLogResults(TLObject):
 class ChannelAdminLogEventsFilter(TLObject):
     TL_ID: ClassVar[int] = -368018716
     TL_NAME: ClassVar[str] = "channelAdminLogEventsFilter"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('join', 'flags.0?true'), ('leave', 'flags.1?true'), ('invite', 'flags.2?true'), ('ban', 'flags.3?true'), ('unban', 'flags.4?true'), ('kick', 'flags.5?true'), ('unkick', 'flags.6?true'), ('promote', 'flags.7?true'), ('demote', 'flags.8?true'), ('info', 'flags.9?true'), ('settings', 'flags.10?true'), ('pinned', 'flags.11?true'), ('edit', 'flags.12?true'), ('delete', 'flags.13?true'), ('group_call', 'flags.14?true'), ('invites', 'flags.15?true'), ('send', 'flags.16?true'), ('forums', 'flags.17?true'), ('sub_extend', 'flags.18?true'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('join', 'flags.0?true'), ('leave', 'flags.1?true'), ('invite', 'flags.2?true'), ('ban', 'flags.3?true'), ('unban', 'flags.4?true'), ('kick', 'flags.5?true'), ('unkick', 'flags.6?true'), ('promote', 'flags.7?true'), ('demote', 'flags.8?true'), ('info', 'flags.9?true'), ('settings', 'flags.10?true'), ('pinned', 'flags.11?true'), ('edit', 'flags.12?true'), ('delete', 'flags.13?true'), ('group_call', 'flags.14?true'), ('invites', 'flags.15?true'), ('send', 'flags.16?true'), ('forums', 'flags.17?true'), ('sub_extend', 'flags.18?true'), ('edit_rank', 'flags.19?true'))
     flags: object
     join: object
     leave: object
@@ -7903,6 +8470,7 @@ class ChannelAdminLogEventsFilter(TLObject):
     send: object
     forums: object
     sub_extend: object
+    edit_rank: object
 @dataclass(slots=True)
 class PopularContact(TLObject):
     TL_ID: ClassVar[int] = 1558266229
@@ -8035,6 +8603,12 @@ class InputDialogPeerFolder(TLObject):
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('folder_id', 'int'),)
     folder_id: object
 @dataclass(slots=True)
+class InputDialogPeerCommunity(TLObject):
+    TL_ID: ClassVar[int] = 1777300164
+    TL_NAME: ClassVar[str] = "inputDialogPeerCommunity"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('community', 'InputChannel'),)
+    community: object
+@dataclass(slots=True)
 class DialogPeer(TLObject):
     TL_ID: ClassVar[int] = -445792507
     TL_NAME: ClassVar[str] = "dialogPeer"
@@ -8046,6 +8620,12 @@ class DialogPeerFolder(TLObject):
     TL_NAME: ClassVar[str] = "dialogPeerFolder"
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('folder_id', 'int'),)
     folder_id: object
+@dataclass(slots=True)
+class DialogPeerCommunity(TLObject):
+    TL_ID: ClassVar[int] = 795199716
+    TL_NAME: ClassVar[str] = "dialogPeerCommunity"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('community_id', 'long'),)
+    community_id: object
 @dataclass(slots=True)
 class MessagesFoundStickerSetsNotModified(TLObject):
     TL_ID: ClassVar[int] = 223655517
@@ -8550,30 +9130,46 @@ class PageCaption(TLObject):
     credit: object
 @dataclass(slots=True)
 class PageListItemText(TLObject):
-    TL_ID: ClassVar[int] = -1188055347
+    TL_ID: ClassVar[int] = 794323004
     TL_NAME: ClassVar[str] = "pageListItemText"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'RichText'),)
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('checkbox', 'flags.0?true'), ('checked', 'flags.1?true'), ('text', 'RichText'))
+    flags: object
+    checkbox: object
+    checked: object
     text: object
 @dataclass(slots=True)
 class PageListItemBlocks(TLObject):
-    TL_ID: ClassVar[int] = 635466748
+    TL_ID: ClassVar[int] = 1674209194
     TL_NAME: ClassVar[str] = "pageListItemBlocks"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('blocks', 'Vector<PageBlock>'),)
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('checkbox', 'flags.0?true'), ('checked', 'flags.1?true'), ('blocks', 'Vector<PageBlock>'))
+    flags: object
+    checkbox: object
+    checked: object
     blocks: object
 @dataclass(slots=True)
 class PageListOrderedItemText(TLObject):
-    TL_ID: ClassVar[int] = 1577484359
+    TL_ID: ClassVar[int] = 352522633
     TL_NAME: ClassVar[str] = "pageListOrderedItemText"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('num', 'string'), ('text', 'RichText'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('checkbox', 'flags.0?true'), ('checked', 'flags.1?true'), ('num', 'flags.2?string'), ('text', 'RichText'), ('value', 'flags.3?int'), ('type', 'flags.4?string'))
+    flags: object
+    checkbox: object
+    checked: object
     num: object
     text: object
+    value: object
+    type: object
 @dataclass(slots=True)
 class PageListOrderedItemBlocks(TLObject):
-    TL_ID: ClassVar[int] = -1730311882
+    TL_ID: ClassVar[int] = -1879910928
     TL_NAME: ClassVar[str] = "pageListOrderedItemBlocks"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('num', 'string'), ('blocks', 'Vector<PageBlock>'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('checkbox', 'flags.0?true'), ('checked', 'flags.1?true'), ('num', 'flags.2?string'), ('blocks', 'Vector<PageBlock>'), ('value', 'flags.3?int'), ('type', 'flags.4?string'))
+    flags: object
+    checkbox: object
+    checked: object
     num: object
     blocks: object
+    value: object
+    type: object
 @dataclass(slots=True)
 class PageRelatedArticle(TLObject):
     TL_ID: ClassVar[int] = -1282352120
@@ -8624,48 +9220,72 @@ class HelpUserInfo(TLObject):
     date: object
 @dataclass(slots=True)
 class PollAnswer(TLObject):
-    TL_ID: ClassVar[int] = -15277366
+    TL_ID: ClassVar[int] = 1266514026
     TL_NAME: ClassVar[str] = "pollAnswer"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('text', 'TextWithEntities'), ('option', 'bytes'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('text', 'TextWithEntities'), ('option', 'bytes'), ('media', 'flags.0?MessageMedia'), ('added_by', 'flags.1?Peer'), ('date', 'flags.1?int'))
+    flags: object
     text: object
     option: object
+    media: object
+    added_by: object
+    date: object
+@dataclass(slots=True)
+class InputPollAnswer(TLObject):
+    TL_ID: ClassVar[int] = 429911446
+    TL_NAME: ClassVar[str] = "inputPollAnswer"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('text', 'TextWithEntities'), ('media', 'flags.0?InputMedia'))
+    flags: object
+    text: object
+    media: object
 @dataclass(slots=True)
 class Poll(TLObject):
-    TL_ID: ClassVar[int] = 1484026161
+    TL_ID: ClassVar[int] = -1771164225
     TL_NAME: ClassVar[str] = "poll"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('id', 'long'), ('flags', '#'), ('closed', 'flags.0?true'), ('public_voters', 'flags.1?true'), ('multiple_choice', 'flags.2?true'), ('quiz', 'flags.3?true'), ('question', 'TextWithEntities'), ('answers', 'Vector<PollAnswer>'), ('close_period', 'flags.4?int'), ('close_date', 'flags.5?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('id', 'long'), ('flags', '#'), ('closed', 'flags.0?true'), ('public_voters', 'flags.1?true'), ('multiple_choice', 'flags.2?true'), ('quiz', 'flags.3?true'), ('open_answers', 'flags.6?true'), ('revoting_disabled', 'flags.7?true'), ('shuffle_answers', 'flags.8?true'), ('hide_results_until_close', 'flags.9?true'), ('creator', 'flags.10?true'), ('subscribers_only', 'flags.11?true'), ('question', 'TextWithEntities'), ('answers', 'Vector<PollAnswer>'), ('close_period', 'flags.4?int'), ('close_date', 'flags.5?int'), ('countries_iso2', 'flags.12?Vector<string>'), ('hash', 'long'))
     id: object
     flags: object
     closed: object
     public_voters: object
     multiple_choice: object
     quiz: object
+    open_answers: object
+    revoting_disabled: object
+    shuffle_answers: object
+    hide_results_until_close: object
+    creator: object
+    subscribers_only: object
     question: object
     answers: object
     close_period: object
     close_date: object
+    countries_iso2: object
+    hash: object
 @dataclass(slots=True)
 class PollAnswerVoters(TLObject):
-    TL_ID: ClassVar[int] = 997055186
+    TL_ID: ClassVar[int] = 910500618
     TL_NAME: ClassVar[str] = "pollAnswerVoters"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('chosen', 'flags.0?true'), ('correct', 'flags.1?true'), ('option', 'bytes'), ('voters', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('chosen', 'flags.0?true'), ('correct', 'flags.1?true'), ('option', 'bytes'), ('voters', 'flags.2?int'), ('recent_voters', 'flags.2?Vector<Peer>'))
     flags: object
     chosen: object
     correct: object
     option: object
     voters: object
+    recent_voters: object
 @dataclass(slots=True)
 class PollResults(TLObject):
-    TL_ID: ClassVar[int] = 2061444128
+    TL_ID: ClassVar[int] = -1166298786
     TL_NAME: ClassVar[str] = "pollResults"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('min', 'flags.0?true'), ('results', 'flags.1?Vector<PollAnswerVoters>'), ('total_voters', 'flags.2?int'), ('recent_voters', 'flags.3?Vector<Peer>'), ('solution', 'flags.4?string'), ('solution_entities', 'flags.4?Vector<MessageEntity>'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('min', 'flags.0?true'), ('has_unread_votes', 'flags.6?true'), ('can_view_stats', 'flags.7?true'), ('results', 'flags.1?Vector<PollAnswerVoters>'), ('total_voters', 'flags.2?int'), ('recent_voters', 'flags.3?Vector<Peer>'), ('solution', 'flags.4?string'), ('solution_entities', 'flags.4?Vector<MessageEntity>'), ('solution_media', 'flags.5?MessageMedia'))
     flags: object
     min: object
+    has_unread_votes: object
+    can_view_stats: object
     results: object
     total_voters: object
     recent_voters: object
     solution: object
     solution_entities: object
+    solution_media: object
 @dataclass(slots=True)
 class ChatOnlines(TLObject):
     TL_ID: ClassVar[int] = -264117680
@@ -8682,7 +9302,7 @@ class StatsUrl(TLObject):
 class ChatAdminRights(TLObject):
     TL_ID: ClassVar[int] = 1605510357
     TL_NAME: ClassVar[str] = "chatAdminRights"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('change_info', 'flags.0?true'), ('post_messages', 'flags.1?true'), ('edit_messages', 'flags.2?true'), ('delete_messages', 'flags.3?true'), ('ban_users', 'flags.4?true'), ('invite_users', 'flags.5?true'), ('pin_messages', 'flags.7?true'), ('add_admins', 'flags.9?true'), ('anonymous', 'flags.10?true'), ('manage_call', 'flags.11?true'), ('other', 'flags.12?true'), ('manage_topics', 'flags.13?true'), ('post_stories', 'flags.14?true'), ('edit_stories', 'flags.15?true'), ('delete_stories', 'flags.16?true'), ('manage_direct_messages', 'flags.17?true'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('change_info', 'flags.0?true'), ('post_messages', 'flags.1?true'), ('edit_messages', 'flags.2?true'), ('delete_messages', 'flags.3?true'), ('ban_users', 'flags.4?true'), ('invite_users', 'flags.5?true'), ('pin_messages', 'flags.7?true'), ('add_admins', 'flags.9?true'), ('anonymous', 'flags.10?true'), ('manage_call', 'flags.11?true'), ('other', 'flags.12?true'), ('manage_topics', 'flags.13?true'), ('post_stories', 'flags.14?true'), ('edit_stories', 'flags.15?true'), ('delete_stories', 'flags.16?true'), ('manage_direct_messages', 'flags.17?true'), ('manage_ranks', 'flags.18?true'), ('manage_linked_peers', 'flags.19?true'))
     flags: object
     change_info: object
     post_messages: object
@@ -8700,11 +9320,13 @@ class ChatAdminRights(TLObject):
     edit_stories: object
     delete_stories: object
     manage_direct_messages: object
+    manage_ranks: object
+    manage_linked_peers: object
 @dataclass(slots=True)
 class ChatBannedRights(TLObject):
     TL_ID: ClassVar[int] = -1626209256
     TL_NAME: ClassVar[str] = "chatBannedRights"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('view_messages', 'flags.0?true'), ('send_messages', 'flags.1?true'), ('send_media', 'flags.2?true'), ('send_stickers', 'flags.3?true'), ('send_gifs', 'flags.4?true'), ('send_games', 'flags.5?true'), ('send_inline', 'flags.6?true'), ('embed_links', 'flags.7?true'), ('send_polls', 'flags.8?true'), ('change_info', 'flags.10?true'), ('invite_users', 'flags.15?true'), ('pin_messages', 'flags.17?true'), ('manage_topics', 'flags.18?true'), ('send_photos', 'flags.19?true'), ('send_videos', 'flags.20?true'), ('send_roundvideos', 'flags.21?true'), ('send_audios', 'flags.22?true'), ('send_voices', 'flags.23?true'), ('send_docs', 'flags.24?true'), ('send_plain', 'flags.25?true'), ('until_date', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('view_messages', 'flags.0?true'), ('send_messages', 'flags.1?true'), ('send_media', 'flags.2?true'), ('send_stickers', 'flags.3?true'), ('send_gifs', 'flags.4?true'), ('send_games', 'flags.5?true'), ('send_inline', 'flags.6?true'), ('embed_links', 'flags.7?true'), ('send_polls', 'flags.8?true'), ('change_info', 'flags.10?true'), ('invite_users', 'flags.15?true'), ('pin_messages', 'flags.17?true'), ('manage_topics', 'flags.18?true'), ('send_photos', 'flags.19?true'), ('send_videos', 'flags.20?true'), ('send_roundvideos', 'flags.21?true'), ('send_audios', 'flags.22?true'), ('send_voices', 'flags.23?true'), ('send_docs', 'flags.24?true'), ('send_plain', 'flags.25?true'), ('edit_rank', 'flags.26?true'), ('send_reactions', 'flags.27?true'), ('manage_linked_peers', 'flags.28?true'), ('until_date', 'int'))
     flags: object
     view_messages: object
     send_messages: object
@@ -8726,6 +9348,9 @@ class ChatBannedRights(TLObject):
     send_voices: object
     send_docs: object
     send_plain: object
+    edit_rank: object
+    send_reactions: object
+    manage_linked_peers: object
     until_date: object
 @dataclass(slots=True)
 class InputWallPaper(TLObject):
@@ -8886,18 +9511,29 @@ class MessagesSearchCounter(TLObject):
     count: object
 @dataclass(slots=True)
 class UrlAuthResultRequest(TLObject):
-    TL_ID: ClassVar[int] = -1831650802
+    TL_ID: ClassVar[int] = 1020666860
     TL_NAME: ClassVar[str] = "urlAuthResultRequest"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('request_write_access', 'flags.0?true'), ('bot', 'User'), ('domain', 'string'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('request_write_access', 'flags.0?true'), ('request_phone_number', 'flags.1?true'), ('match_codes_first', 'flags.5?true'), ('is_app', 'flags.6?true'), ('bot', 'User'), ('domain', 'string'), ('browser', 'flags.2?string'), ('platform', 'flags.2?string'), ('ip', 'flags.2?string'), ('region', 'flags.2?string'), ('match_codes', 'flags.3?Vector<string>'), ('user_id_hint', 'flags.4?long'), ('verified_app_name', 'flags.7?string'))
     flags: object
     request_write_access: object
+    request_phone_number: object
+    match_codes_first: object
+    is_app: object
     bot: object
     domain: object
+    browser: object
+    platform: object
+    ip: object
+    region: object
+    match_codes: object
+    user_id_hint: object
+    verified_app_name: object
 @dataclass(slots=True)
 class UrlAuthResultAccepted(TLObject):
-    TL_ID: ClassVar[int] = -1886646706
+    TL_ID: ClassVar[int] = 1648005024
     TL_NAME: ClassVar[str] = "urlAuthResultAccepted"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('url', 'string'),)
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('url', 'flags.0?string'))
+    flags: object
     url: object
 @dataclass(slots=True)
 class UrlAuthResultDefault(TLObject):
@@ -9119,6 +9755,12 @@ class WebPageAttributeStarGiftAuction(TLObject):
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('gift', 'StarGift'), ('end_date', 'int'))
     gift: object
     end_date: object
+@dataclass(slots=True)
+class WebPageAttributeAiComposeTone(TLObject):
+    TL_ID: ClassVar[int] = 2005007896
+    TL_NAME: ClassVar[str] = "webPageAttributeAiComposeTone"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('emoji_id', 'long'),)
+    emoji_id: object
 @dataclass(slots=True)
 class MessagesVotesList(TLObject):
     TL_ID: ClassVar[int] = 1218005070
@@ -9434,13 +10076,14 @@ class MessagesDiscussionMessage(TLObject):
     users: object
 @dataclass(slots=True)
 class MessageReplyHeader(TLObject):
-    TL_ID: ClassVar[int] = 1763137035
+    TL_ID: ClassVar[int] = 462937446
     TL_NAME: ClassVar[str] = "messageReplyHeader"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('reply_to_scheduled', 'flags.2?true'), ('forum_topic', 'flags.3?true'), ('quote', 'flags.9?true'), ('reply_to_msg_id', 'flags.4?int'), ('reply_to_peer_id', 'flags.0?Peer'), ('reply_from', 'flags.5?MessageFwdHeader'), ('reply_media', 'flags.8?MessageMedia'), ('reply_to_top_id', 'flags.1?int'), ('quote_text', 'flags.6?string'), ('quote_entities', 'flags.7?Vector<MessageEntity>'), ('quote_offset', 'flags.10?int'), ('todo_item_id', 'flags.11?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('reply_to_scheduled', 'flags.2?true'), ('forum_topic', 'flags.3?true'), ('quote', 'flags.9?true'), ('reply_to_ephemeral', 'flags.13?true'), ('reply_to_msg_id', 'flags.4?int'), ('reply_to_peer_id', 'flags.0?Peer'), ('reply_from', 'flags.5?MessageFwdHeader'), ('reply_media', 'flags.8?MessageMedia'), ('reply_to_top_id', 'flags.1?int'), ('quote_text', 'flags.6?string'), ('quote_entities', 'flags.7?Vector<MessageEntity>'), ('quote_offset', 'flags.10?int'), ('todo_item_id', 'flags.11?int'), ('poll_option', 'flags.12?bytes'))
     flags: object
     reply_to_scheduled: object
     forum_topic: object
     quote: object
+    reply_to_ephemeral: object
     reply_to_msg_id: object
     reply_to_peer_id: object
     reply_from: object
@@ -9450,6 +10093,7 @@ class MessageReplyHeader(TLObject):
     quote_entities: object
     quote_offset: object
     todo_item_id: object
+    poll_option: object
 @dataclass(slots=True)
 class MessageReplyStoryHeader(TLObject):
     TL_ID: ClassVar[int] = 240843065
@@ -10103,10 +10747,11 @@ class AttachMenuBotsBot(TLObject):
 class WebViewResultUrl(TLObject):
     TL_ID: ClassVar[int] = 1294139288
     TL_NAME: ClassVar[str] = "webViewResultUrl"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('fullsize', 'flags.1?true'), ('fullscreen', 'flags.2?true'), ('query_id', 'flags.0?long'), ('url', 'string'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('fullsize', 'flags.1?true'), ('fullscreen', 'flags.2?true'), ('same_origin', 'flags.3?true'), ('query_id', 'flags.0?long'), ('url', 'string'))
     flags: object
     fullsize: object
     fullscreen: object
+    same_origin: object
     query_id: object
     url: object
 @dataclass(slots=True)
@@ -10439,13 +11084,14 @@ class InputStorePaymentStarsGiveaway(TLObject):
     users: object
 @dataclass(slots=True)
 class InputStorePaymentAuthCode(TLObject):
-    TL_ID: ClassVar[int] = -1682807955
+    TL_ID: ClassVar[int] = 1069645911
     TL_NAME: ClassVar[str] = "inputStorePaymentAuthCode"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('restore', 'flags.0?true'), ('phone_number', 'string'), ('phone_code_hash', 'string'), ('currency', 'string'), ('amount', 'long'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('restore', 'flags.0?true'), ('phone_number', 'string'), ('phone_code_hash', 'string'), ('premium_days', 'int'), ('currency', 'string'), ('amount', 'long'))
     flags: object
     restore: object
     phone_number: object
     phone_code_hash: object
+    premium_days: object
     currency: object
     amount: object
 @dataclass(slots=True)
@@ -10674,9 +11320,9 @@ class ForumTopicDeleted(TLObject):
     id: object
 @dataclass(slots=True)
 class ForumTopic(TLObject):
-    TL_ID: ClassVar[int] = -838922550
+    TL_ID: ClassVar[int] = -52766699
     TL_NAME: ClassVar[str] = "forumTopic"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('my', 'flags.1?true'), ('closed', 'flags.2?true'), ('pinned', 'flags.3?true'), ('short', 'flags.5?true'), ('hidden', 'flags.6?true'), ('title_missing', 'flags.7?true'), ('id', 'int'), ('date', 'int'), ('peer', 'Peer'), ('title', 'string'), ('icon_color', 'int'), ('icon_emoji_id', 'flags.0?long'), ('top_message', 'int'), ('read_inbox_max_id', 'int'), ('read_outbox_max_id', 'int'), ('unread_count', 'int'), ('unread_mentions_count', 'int'), ('unread_reactions_count', 'int'), ('from_id', 'Peer'), ('notify_settings', 'PeerNotifySettings'), ('draft', 'flags.4?DraftMessage'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('my', 'flags.1?true'), ('closed', 'flags.2?true'), ('pinned', 'flags.3?true'), ('short', 'flags.5?true'), ('hidden', 'flags.6?true'), ('title_missing', 'flags.7?true'), ('id', 'int'), ('date', 'int'), ('peer', 'Peer'), ('title', 'string'), ('icon_color', 'int'), ('icon_emoji_id', 'flags.0?long'), ('top_message', 'int'), ('read_inbox_max_id', 'int'), ('read_outbox_max_id', 'int'), ('unread_count', 'int'), ('unread_mentions_count', 'int'), ('unread_reactions_count', 'int'), ('unread_poll_votes_count', 'int'), ('from_id', 'Peer'), ('notify_settings', 'PeerNotifySettings'), ('draft', 'flags.4?DraftMessage'))
     flags: object
     my: object
     closed: object
@@ -10696,6 +11342,7 @@ class ForumTopic(TLObject):
     unread_count: object
     unread_mentions_count: object
     unread_reactions_count: object
+    unread_poll_votes_count: object
     from_id: object
     notify_settings: object
     draft: object
@@ -10755,6 +11402,15 @@ class RequestPeerTypeBroadcast(TLObject):
     has_username: object
     user_admin_rights: object
     bot_admin_rights: object
+@dataclass(slots=True)
+class RequestPeerTypeCreateBot(TLObject):
+    TL_ID: ClassVar[int] = 1048699000
+    TL_NAME: ClassVar[str] = "requestPeerTypeCreateBot"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('bot_managed', 'flags.0?true'), ('suggested_name', 'flags.1?string'), ('suggested_username', 'flags.2?string'))
+    flags: object
+    bot_managed: object
+    suggested_name: object
+    suggested_username: object
 @dataclass(slots=True)
 class EmojiListNotModified(TLObject):
     TL_ID: ClassVar[int] = 1209970170
@@ -11037,9 +11693,9 @@ class StoryItemSkipped(TLObject):
     expire_date: object
 @dataclass(slots=True)
 class StoryItem(TLObject):
-    TL_ID: ClassVar[int] = -302947087
+    TL_ID: ClassVar[int] = 379894076
     TL_NAME: ClassVar[str] = "storyItem"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('pinned', 'flags.5?true'), ('public', 'flags.7?true'), ('close_friends', 'flags.8?true'), ('min', 'flags.9?true'), ('noforwards', 'flags.10?true'), ('edited', 'flags.11?true'), ('contacts', 'flags.12?true'), ('selected_contacts', 'flags.13?true'), ('out', 'flags.16?true'), ('id', 'int'), ('date', 'int'), ('from_id', 'flags.18?Peer'), ('fwd_from', 'flags.17?StoryFwdHeader'), ('expire_date', 'int'), ('caption', 'flags.0?string'), ('entities', 'flags.1?Vector<MessageEntity>'), ('media', 'MessageMedia'), ('media_areas', 'flags.14?Vector<MediaArea>'), ('privacy', 'flags.2?Vector<PrivacyRule>'), ('views', 'flags.3?StoryViews'), ('sent_reaction', 'flags.15?Reaction'), ('albums', 'flags.19?Vector<int>'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('pinned', 'flags.5?true'), ('public', 'flags.7?true'), ('close_friends', 'flags.8?true'), ('min', 'flags.9?true'), ('noforwards', 'flags.10?true'), ('edited', 'flags.11?true'), ('contacts', 'flags.12?true'), ('selected_contacts', 'flags.13?true'), ('out', 'flags.16?true'), ('id', 'int'), ('date', 'int'), ('from_id', 'flags.18?Peer'), ('fwd_from', 'flags.17?StoryFwdHeader'), ('expire_date', 'int'), ('caption', 'flags.0?string'), ('entities', 'flags.1?Vector<MessageEntity>'), ('media', 'MessageMedia'), ('media_areas', 'flags.14?Vector<MediaArea>'), ('privacy', 'flags.2?Vector<PrivacyRule>'), ('views', 'flags.3?StoryViews'), ('sent_reaction', 'flags.15?Reaction'), ('albums', 'flags.19?Vector<int>'), ('music', 'flags.20?Document'))
     flags: object
     pinned: object
     public: object
@@ -11063,6 +11719,7 @@ class StoryItem(TLObject):
     views: object
     sent_reaction: object
     albums: object
+    music: object
 @dataclass(slots=True)
 class StoriesAllStoriesNotModified(TLObject):
     TL_ID: ClassVar[int] = 291044926
@@ -11148,9 +11805,9 @@ class StoriesStoryViews(TLObject):
     users: object
 @dataclass(slots=True)
 class InputReplyToMessage(TLObject):
-    TL_ID: ClassVar[int] = -2036351472
+    TL_ID: ClassVar[int] = 1003796418
     TL_NAME: ClassVar[str] = "inputReplyToMessage"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('reply_to_msg_id', 'int'), ('top_msg_id', 'flags.0?int'), ('reply_to_peer_id', 'flags.1?InputPeer'), ('quote_text', 'flags.2?string'), ('quote_entities', 'flags.3?Vector<MessageEntity>'), ('quote_offset', 'flags.4?int'), ('monoforum_peer_id', 'flags.5?InputPeer'), ('todo_item_id', 'flags.6?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('reply_to_msg_id', 'int'), ('top_msg_id', 'flags.0?int'), ('reply_to_peer_id', 'flags.1?InputPeer'), ('quote_text', 'flags.2?string'), ('quote_entities', 'flags.3?Vector<MessageEntity>'), ('quote_offset', 'flags.4?int'), ('monoforum_peer_id', 'flags.5?InputPeer'), ('todo_item_id', 'flags.6?int'), ('poll_option', 'flags.7?bytes'))
     flags: object
     reply_to_msg_id: object
     top_msg_id: object
@@ -11160,6 +11817,7 @@ class InputReplyToMessage(TLObject):
     quote_offset: object
     monoforum_peer_id: object
     todo_item_id: object
+    poll_option: object
 @dataclass(slots=True)
 class InputReplyToStory(TLObject):
     TL_ID: ClassVar[int] = 1484862010
@@ -11173,6 +11831,12 @@ class InputReplyToMonoForum(TLObject):
     TL_NAME: ClassVar[str] = "inputReplyToMonoForum"
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('monoforum_peer_id', 'InputPeer'),)
     monoforum_peer_id: object
+@dataclass(slots=True)
+class InputReplyToEphemeralMessage(TLObject):
+    TL_ID: ClassVar[int] = 1092204894
+    TL_NAME: ClassVar[str] = "inputReplyToEphemeralMessage"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('id', 'int'),)
+    id: object
 @dataclass(slots=True)
 class ExportedStoryLink(TLObject):
     TL_ID: ClassVar[int] = 1070138683
@@ -11861,13 +12525,16 @@ class MessagesQuickRepliesNotModified(TLObject):
     pass
 @dataclass(slots=True)
 class ConnectedBot(TLObject):
-    TL_ID: ClassVar[int] = -849058964
+    TL_ID: ClassVar[int] = 54448129
     TL_NAME: ClassVar[str] = "connectedBot"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('bot_id', 'long'), ('recipients', 'BusinessBotRecipients'), ('rights', 'BusinessBotRights'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('bot_id', 'long'), ('recipients', 'BusinessBotRecipients'), ('rights', 'BusinessBotRights'), ('device', 'flags.0?string'), ('date', 'flags.1?int'), ('location', 'flags.2?string'))
     flags: object
     bot_id: object
     recipients: object
     rights: object
+    device: object
+    date: object
+    location: object
 @dataclass(slots=True)
 class AccountConnectedBots(TLObject):
     TL_ID: ClassVar[int] = 400029819
@@ -12117,12 +12784,13 @@ class ReactionNotificationsFromAll(TLObject):
     pass
 @dataclass(slots=True)
 class ReactionsNotifySettings(TLObject):
-    TL_ID: ClassVar[int] = 1457736048
+    TL_ID: ClassVar[int] = 1910827608
     TL_NAME: ClassVar[str] = "reactionsNotifySettings"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('messages_notify_from', 'flags.0?ReactionNotificationsFrom'), ('stories_notify_from', 'flags.1?ReactionNotificationsFrom'), ('sound', 'NotificationSound'), ('show_previews', 'Bool'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('messages_notify_from', 'flags.0?ReactionNotificationsFrom'), ('stories_notify_from', 'flags.1?ReactionNotificationsFrom'), ('poll_votes_notify_from', 'flags.2?ReactionNotificationsFrom'), ('sound', 'NotificationSound'), ('show_previews', 'Bool'))
     flags: object
     messages_notify_from: object
     stories_notify_from: object
+    poll_votes_notify_from: object
     sound: object
     show_previews: object
 @dataclass(slots=True)
@@ -12474,13 +13142,15 @@ class StarGift(TLObject):
     background: object
 @dataclass(slots=True)
 class StarGiftUnique(TLObject):
-    TL_ID: ClassVar[int] = 1453155529
+    TL_ID: ClassVar[int] = -2047825459
     TL_NAME: ClassVar[str] = "starGiftUnique"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('require_premium', 'flags.6?true'), ('resale_ton_only', 'flags.7?true'), ('theme_available', 'flags.9?true'), ('id', 'long'), ('gift_id', 'long'), ('title', 'string'), ('slug', 'string'), ('num', 'int'), ('owner_id', 'flags.0?Peer'), ('owner_name', 'flags.1?string'), ('owner_address', 'flags.2?string'), ('attributes', 'Vector<StarGiftAttribute>'), ('availability_issued', 'int'), ('availability_total', 'int'), ('gift_address', 'flags.3?string'), ('resell_amount', 'flags.4?Vector<StarsAmount>'), ('released_by', 'flags.5?Peer'), ('value_amount', 'flags.8?long'), ('value_currency', 'flags.8?string'), ('value_usd_amount', 'flags.8?long'), ('theme_peer', 'flags.10?Peer'), ('peer_color', 'flags.11?PeerColor'), ('host_id', 'flags.12?Peer'), ('offer_min_stars', 'flags.13?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('require_premium', 'flags.6?true'), ('resale_ton_only', 'flags.7?true'), ('theme_available', 'flags.9?true'), ('burned', 'flags.14?true'), ('crafted', 'flags.15?true'), ('id', 'long'), ('gift_id', 'long'), ('title', 'string'), ('slug', 'string'), ('num', 'int'), ('owner_id', 'flags.0?Peer'), ('owner_name', 'flags.1?string'), ('owner_address', 'flags.2?string'), ('attributes', 'Vector<StarGiftAttribute>'), ('availability_issued', 'int'), ('availability_total', 'int'), ('gift_address', 'flags.3?string'), ('resell_amount', 'flags.4?Vector<StarsAmount>'), ('released_by', 'flags.5?Peer'), ('value_amount', 'flags.8?long'), ('value_currency', 'flags.8?string'), ('value_usd_amount', 'flags.8?long'), ('theme_peer', 'flags.10?Peer'), ('peer_color', 'flags.11?PeerColor'), ('host_id', 'flags.12?Peer'), ('offer_min_stars', 'flags.13?int'), ('craft_chance_permille', 'flags.16?int'))
     flags: object
     require_premium: object
     resale_ton_only: object
     theme_available: object
+    burned: object
+    crafted: object
     id: object
     gift_id: object
     title: object
@@ -12502,6 +13172,7 @@ class StarGiftUnique(TLObject):
     peer_color: object
     host_id: object
     offer_min_stars: object
+    craft_chance_permille: object
 @dataclass(slots=True)
 class PaymentsStarGiftsNotModified(TLObject):
     TL_ID: ClassVar[int] = -1551326360
@@ -12665,32 +13336,34 @@ class BotVerification(TLObject):
     description: object
 @dataclass(slots=True)
 class StarGiftAttributeModel(TLObject):
-    TL_ID: ClassVar[int] = 970559507
+    TL_ID: ClassVar[int] = 1448235490
     TL_NAME: ClassVar[str] = "starGiftAttributeModel"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('name', 'string'), ('document', 'Document'), ('rarity_permille', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('crafted', 'flags.0?true'), ('name', 'string'), ('document', 'Document'), ('rarity', 'StarGiftAttributeRarity'))
+    flags: object
+    crafted: object
     name: object
     document: object
-    rarity_permille: object
+    rarity: object
 @dataclass(slots=True)
 class StarGiftAttributePattern(TLObject):
-    TL_ID: ClassVar[int] = 330104601
+    TL_ID: ClassVar[int] = 1315997162
     TL_NAME: ClassVar[str] = "starGiftAttributePattern"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('name', 'string'), ('document', 'Document'), ('rarity_permille', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('name', 'string'), ('document', 'Document'), ('rarity', 'StarGiftAttributeRarity'))
     name: object
     document: object
-    rarity_permille: object
+    rarity: object
 @dataclass(slots=True)
 class StarGiftAttributeBackdrop(TLObject):
-    TL_ID: ClassVar[int] = -650279524
+    TL_ID: ClassVar[int] = -1624963868
     TL_NAME: ClassVar[str] = "starGiftAttributeBackdrop"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('name', 'string'), ('backdrop_id', 'int'), ('center_color', 'int'), ('edge_color', 'int'), ('pattern_color', 'int'), ('text_color', 'int'), ('rarity_permille', 'int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('name', 'string'), ('backdrop_id', 'int'), ('center_color', 'int'), ('edge_color', 'int'), ('pattern_color', 'int'), ('text_color', 'int'), ('rarity', 'StarGiftAttributeRarity'))
     name: object
     backdrop_id: object
     center_color: object
     edge_color: object
     pattern_color: object
     text_color: object
-    rarity_permille: object
+    rarity: object
 @dataclass(slots=True)
 class StarGiftAttributeOriginalDetails(TLObject):
     TL_ID: ClassVar[int] = -524291476
@@ -12740,9 +13413,9 @@ class MessagesWebPagePreview(TLObject):
     users: object
 @dataclass(slots=True)
 class SavedStarGift(TLObject):
-    TL_ID: ClassVar[int] = -355041186
+    TL_ID: ClassVar[int] = 1105150972
     TL_NAME: ClassVar[str] = "savedStarGift"
-    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('name_hidden', 'flags.0?true'), ('unsaved', 'flags.5?true'), ('refunded', 'flags.9?true'), ('can_upgrade', 'flags.10?true'), ('pinned_to_top', 'flags.12?true'), ('upgrade_separate', 'flags.17?true'), ('from_id', 'flags.1?Peer'), ('date', 'int'), ('gift', 'StarGift'), ('message', 'flags.2?TextWithEntities'), ('msg_id', 'flags.3?int'), ('saved_id', 'flags.11?long'), ('convert_stars', 'flags.4?long'), ('upgrade_stars', 'flags.6?long'), ('can_export_at', 'flags.7?int'), ('transfer_stars', 'flags.8?long'), ('can_transfer_at', 'flags.13?int'), ('can_resell_at', 'flags.14?int'), ('collection_id', 'flags.15?Vector<int>'), ('prepaid_upgrade_hash', 'flags.16?string'), ('drop_original_details_stars', 'flags.18?long'), ('gift_num', 'flags.19?int'))
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('name_hidden', 'flags.0?true'), ('unsaved', 'flags.5?true'), ('refunded', 'flags.9?true'), ('can_upgrade', 'flags.10?true'), ('pinned_to_top', 'flags.12?true'), ('upgrade_separate', 'flags.17?true'), ('from_id', 'flags.1?Peer'), ('date', 'int'), ('gift', 'StarGift'), ('message', 'flags.2?TextWithEntities'), ('msg_id', 'flags.3?int'), ('saved_id', 'flags.11?long'), ('convert_stars', 'flags.4?long'), ('upgrade_stars', 'flags.6?long'), ('can_export_at', 'flags.7?int'), ('transfer_stars', 'flags.8?long'), ('can_transfer_at', 'flags.13?int'), ('can_resell_at', 'flags.14?int'), ('collection_id', 'flags.15?Vector<int>'), ('prepaid_upgrade_hash', 'flags.16?string'), ('drop_original_details_stars', 'flags.18?long'), ('gift_num', 'flags.19?int'), ('can_craft_at', 'flags.20?int'))
     flags: object
     name_hidden: object
     unsaved: object
@@ -12766,6 +13439,7 @@ class SavedStarGift(TLObject):
     prepaid_upgrade_hash: object
     drop_original_details_stars: object
     gift_num: object
+    can_craft_at: object
 @dataclass(slots=True)
 class PaymentsSavedStarGifts(TLObject):
     TL_ID: ClassVar[int] = -1779201615
@@ -13401,6 +14075,12 @@ class InputPasskeyCredentialPublicKey(TLObject):
     raw_id: object
     response: object
 @dataclass(slots=True)
+class InputPasskeyCredentialFirebasePnv(TLObject):
+    TL_ID: ClassVar[int] = 1528613672
+    TL_NAME: ClassVar[str] = "inputPasskeyCredentialFirebasePNV"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('pnv_token', 'string'),)
+    pnv_token: object
+@dataclass(slots=True)
 class StarGiftBackground(TLObject):
     TL_ID: ClassVar[int] = -1342872680
     TL_NAME: ClassVar[str] = "starGiftBackground"
@@ -13430,4 +14110,375 @@ class PaymentsStarGiftUpgradeAttributes(TLObject):
     TL_NAME: ClassVar[str] = "payments.starGiftUpgradeAttributes"
     TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('attributes', 'Vector<StarGiftAttribute>'),)
     attributes: object
-__all__ = ['Int', 'Long', 'Double', 'String', 'Vector', 'Int128', 'Int256', 'ResPq', 'PQInnerData', 'PQInnerDataDc', 'PQInnerDataTemp', 'PQInnerDataTempDc', 'BindAuthKeyInner', 'ServerDhParamsFail', 'ServerDhParamsOk', 'ServerDhInnerData', 'ClientDhInnerData', 'DhGenOk', 'DhGenRetry', 'DhGenFail', 'DestroyAuthKeyOk', 'DestroyAuthKeyNone', 'DestroyAuthKeyFail', 'MsgsAck', 'BadMsgNotification', 'BadServerSalt', 'MsgsStateReq', 'MsgsStateInfo', 'MsgsAllInfo', 'MsgDetailedInfo', 'MsgNewDetailedInfo', 'MsgResendReq', 'RpcError', 'RpcAnswerUnknown', 'RpcAnswerDroppedRunning', 'RpcAnswerDropped', 'FutureSalt', 'FutureSalts', 'Pong', 'DestroySessionOk', 'DestroySessionNone', 'NewSessionCreated', 'HttpWait', 'IpPort', 'IpPortSecret', 'AccessPointRule', 'HelpConfigSimple', 'TlsClientHello', 'TlsBlockString', 'TlsBlockRandom', 'TlsBlockZero', 'TlsBlockDomain', 'TlsBlockGrease', 'TlsBlockPublicKey', 'TlsBlockScope', 'TlsBlockPermutation', 'TlsBlockM', 'TlsBlockE', 'TlsBlockPadding', 'BoolFalse', 'BoolTrue', 'TLTrue', 'Error', 'Null', 'InputPeerEmpty', 'InputPeerSelf', 'InputPeerChat', 'InputPeerUser', 'InputPeerChannel', 'InputPeerUserFromMessage', 'InputPeerChannelFromMessage', 'InputUserEmpty', 'InputUserSelf', 'InputUser', 'InputUserFromMessage', 'InputPhoneContact', 'InputFile', 'InputFileBig', 'InputFileStoryDocument', 'InputMediaEmpty', 'InputMediaUploadedPhoto', 'InputMediaPhoto', 'InputMediaGeoPoint', 'InputMediaContact', 'InputMediaUploadedDocument', 'InputMediaDocument', 'InputMediaVenue', 'InputMediaPhotoExternal', 'InputMediaDocumentExternal', 'InputMediaGame', 'InputMediaInvoice', 'InputMediaGeoLive', 'InputMediaPoll', 'InputMediaDice', 'InputMediaStory', 'InputMediaWebPage', 'InputMediaPaidMedia', 'InputMediaTodo', 'InputChatPhotoEmpty', 'InputChatUploadedPhoto', 'InputChatPhoto', 'InputGeoPointEmpty', 'InputGeoPoint', 'InputPhotoEmpty', 'InputPhoto', 'InputFileLocation', 'InputEncryptedFileLocation', 'InputDocumentFileLocation', 'InputSecureFileLocation', 'InputTakeoutFileLocation', 'InputPhotoFileLocation', 'InputPhotoLegacyFileLocation', 'InputPeerPhotoFileLocation', 'InputStickerSetThumb', 'InputGroupCallStream', 'PeerUser', 'PeerChat', 'PeerChannel', 'StorageFileUnknown', 'StorageFilePartial', 'StorageFileJpeg', 'StorageFileGif', 'StorageFilePng', 'StorageFilePdf', 'StorageFileMp3', 'StorageFileMov', 'StorageFileMp4', 'StorageFileWebp', 'UserEmpty', 'User', 'UserProfilePhotoEmpty', 'UserProfilePhoto', 'UserStatusEmpty', 'UserStatusOnline', 'UserStatusOffline', 'UserStatusRecently', 'UserStatusLastWeek', 'UserStatusLastMonth', 'ChatEmpty', 'Chat', 'ChatForbidden', 'Channel', 'ChannelForbidden', 'ChatFull', 'ChannelFull', 'ChatParticipant', 'ChatParticipantCreator', 'ChatParticipantAdmin', 'ChatParticipantsForbidden', 'ChatParticipants', 'ChatPhotoEmpty', 'ChatPhoto', 'MessageEmpty', 'Message', 'MessageService', 'MessageMediaEmpty', 'MessageMediaPhoto', 'MessageMediaGeo', 'MessageMediaContact', 'MessageMediaUnsupported', 'MessageMediaDocument', 'MessageMediaWebPage', 'MessageMediaVenue', 'MessageMediaGame', 'MessageMediaInvoice', 'MessageMediaGeoLive', 'MessageMediaPoll', 'MessageMediaDice', 'MessageMediaStory', 'MessageMediaGiveaway', 'MessageMediaGiveawayResults', 'MessageMediaPaidMedia', 'MessageMediaToDo', 'MessageMediaVideoStream', 'MessageActionEmpty', 'MessageActionChatCreate', 'MessageActionChatEditTitle', 'MessageActionChatEditPhoto', 'MessageActionChatDeletePhoto', 'MessageActionChatAddUser', 'MessageActionChatDeleteUser', 'MessageActionChatJoinedByLink', 'MessageActionChannelCreate', 'MessageActionChatMigrateTo', 'MessageActionChannelMigrateFrom', 'MessageActionPinMessage', 'MessageActionHistoryClear', 'MessageActionGameScore', 'MessageActionPaymentSentMe', 'MessageActionPaymentSent', 'MessageActionPhoneCall', 'MessageActionScreenshotTaken', 'MessageActionCustomAction', 'MessageActionBotAllowed', 'MessageActionSecureValuesSentMe', 'MessageActionSecureValuesSent', 'MessageActionContactSignUp', 'MessageActionGeoProximityReached', 'MessageActionGroupCall', 'MessageActionInviteToGroupCall', 'MessageActionSetMessagesTtl', 'MessageActionGroupCallScheduled', 'MessageActionSetChatTheme', 'MessageActionChatJoinedByRequest', 'MessageActionWebViewDataSentMe', 'MessageActionWebViewDataSent', 'MessageActionGiftPremium', 'MessageActionTopicCreate', 'MessageActionTopicEdit', 'MessageActionSuggestProfilePhoto', 'MessageActionRequestedPeer', 'MessageActionSetChatWallPaper', 'MessageActionGiftCode', 'MessageActionGiveawayLaunch', 'MessageActionGiveawayResults', 'MessageActionBoostApply', 'MessageActionRequestedPeerSentMe', 'MessageActionPaymentRefunded', 'MessageActionGiftStars', 'MessageActionPrizeStars', 'MessageActionStarGift', 'MessageActionStarGiftUnique', 'MessageActionPaidMessagesRefunded', 'MessageActionPaidMessagesPrice', 'MessageActionConferenceCall', 'MessageActionTodoCompletions', 'MessageActionTodoAppendTasks', 'MessageActionSuggestedPostApproval', 'MessageActionSuggestedPostSuccess', 'MessageActionSuggestedPostRefund', 'MessageActionGiftTon', 'MessageActionSuggestBirthday', 'MessageActionStarGiftPurchaseOffer', 'MessageActionStarGiftPurchaseOfferDeclined', 'Dialog', 'DialogFolder', 'PhotoEmpty', 'Photo', 'PhotoSizeEmpty', 'PhotoSize', 'PhotoCachedSize', 'PhotoStrippedSize', 'PhotoSizeProgressive', 'PhotoPathSize', 'GeoPointEmpty', 'GeoPoint', 'AuthSentCode', 'AuthSentCodeSuccess', 'AuthSentCodePaymentRequired', 'AuthAuthorization', 'AuthAuthorizationSignUpRequired', 'AuthExportedAuthorization', 'InputNotifyPeer', 'InputNotifyUsers', 'InputNotifyChats', 'InputNotifyBroadcasts', 'InputNotifyForumTopic', 'InputPeerNotifySettings', 'PeerNotifySettings', 'PeerSettings', 'WallPaper', 'WallPaperNoFile', 'InputReportReasonSpam', 'InputReportReasonViolence', 'InputReportReasonPornography', 'InputReportReasonChildAbuse', 'InputReportReasonOther', 'InputReportReasonCopyright', 'InputReportReasonGeoIrrelevant', 'InputReportReasonFake', 'InputReportReasonIllegalDrugs', 'InputReportReasonPersonalDetails', 'UserFull', 'Contact', 'ImportedContact', 'ContactStatus', 'ContactsContactsNotModified', 'ContactsContacts', 'ContactsImportedContacts', 'ContactsBlocked', 'ContactsBlockedSlice', 'MessagesDialogs', 'MessagesDialogsSlice', 'MessagesDialogsNotModified', 'MessagesMessages', 'MessagesMessagesSlice', 'MessagesChannelMessages', 'MessagesMessagesNotModified', 'MessagesChats', 'MessagesChatsSlice', 'MessagesChatFull', 'MessagesAffectedHistory', 'InputMessagesFilterEmpty', 'InputMessagesFilterPhotos', 'InputMessagesFilterVideo', 'InputMessagesFilterPhotoVideo', 'InputMessagesFilterDocument', 'InputMessagesFilterUrl', 'InputMessagesFilterGif', 'InputMessagesFilterVoice', 'InputMessagesFilterMusic', 'InputMessagesFilterChatPhotos', 'InputMessagesFilterPhoneCalls', 'InputMessagesFilterRoundVoice', 'InputMessagesFilterRoundVideo', 'InputMessagesFilterMyMentions', 'InputMessagesFilterGeo', 'InputMessagesFilterContacts', 'InputMessagesFilterPinned', 'UpdateNewMessage', 'UpdateMessageId', 'UpdateDeleteMessages', 'UpdateUserTyping', 'UpdateChatUserTyping', 'UpdateChatParticipants', 'UpdateUserStatus', 'UpdateUserName', 'UpdateNewAuthorization', 'UpdateNewEncryptedMessage', 'UpdateEncryptedChatTyping', 'UpdateEncryption', 'UpdateEncryptedMessagesRead', 'UpdateChatParticipantAdd', 'UpdateChatParticipantDelete', 'UpdateDcOptions', 'UpdateNotifySettings', 'UpdateServiceNotification', 'UpdatePrivacy', 'UpdateUserPhone', 'UpdateReadHistoryInbox', 'UpdateReadHistoryOutbox', 'UpdateWebPage', 'UpdateReadMessagesContents', 'UpdateChannelTooLong', 'UpdateChannel', 'UpdateNewChannelMessage', 'UpdateReadChannelInbox', 'UpdateDeleteChannelMessages', 'UpdateChannelMessageViews', 'UpdateChatParticipantAdmin', 'UpdateNewStickerSet', 'UpdateStickerSetsOrder', 'UpdateStickerSets', 'UpdateSavedGifs', 'UpdateBotInlineQuery', 'UpdateBotInlineSend', 'UpdateEditChannelMessage', 'UpdateBotCallbackQuery', 'UpdateEditMessage', 'UpdateInlineBotCallbackQuery', 'UpdateReadChannelOutbox', 'UpdateDraftMessage', 'UpdateReadFeaturedStickers', 'UpdateRecentStickers', 'UpdateConfig', 'UpdatePtsChanged', 'UpdateChannelWebPage', 'UpdateDialogPinned', 'UpdatePinnedDialogs', 'UpdateBotWebhookJson', 'UpdateBotWebhookJsonquery', 'UpdateBotShippingQuery', 'UpdateBotPrecheckoutQuery', 'UpdatePhoneCall', 'UpdateLangPackTooLong', 'UpdateLangPack', 'UpdateFavedStickers', 'UpdateChannelReadMessagesContents', 'UpdateContactsReset', 'UpdateChannelAvailableMessages', 'UpdateDialogUnreadMark', 'UpdateMessagePoll', 'UpdateChatDefaultBannedRights', 'UpdateFolderPeers', 'UpdatePeerSettings', 'UpdatePeerLocated', 'UpdateNewScheduledMessage', 'UpdateDeleteScheduledMessages', 'UpdateTheme', 'UpdateGeoLiveViewed', 'UpdateLoginToken', 'UpdateMessagePollVote', 'UpdateDialogFilter', 'UpdateDialogFilterOrder', 'UpdateDialogFilters', 'UpdatePhoneCallSignalingData', 'UpdateChannelMessageForwards', 'UpdateReadChannelDiscussionInbox', 'UpdateReadChannelDiscussionOutbox', 'UpdatePeerBlocked', 'UpdateChannelUserTyping', 'UpdatePinnedMessages', 'UpdatePinnedChannelMessages', 'UpdateChat', 'UpdateGroupCallParticipants', 'UpdateGroupCall', 'UpdatePeerHistoryTtl', 'UpdateChatParticipant', 'UpdateChannelParticipant', 'UpdateBotStopped', 'UpdateGroupCallConnection', 'UpdateBotCommands', 'UpdatePendingJoinRequests', 'UpdateBotChatInviteRequester', 'UpdateMessageReactions', 'UpdateAttachMenuBots', 'UpdateWebViewResultSent', 'UpdateBotMenuButton', 'UpdateSavedRingtones', 'UpdateTranscribedAudio', 'UpdateReadFeaturedEmojiStickers', 'UpdateUserEmojiStatus', 'UpdateRecentEmojiStatuses', 'UpdateRecentReactions', 'UpdateMoveStickerSetToTop', 'UpdateMessageExtendedMedia', 'UpdateUser', 'UpdateAutoSaveSettings', 'UpdateStory', 'UpdateReadStories', 'UpdateStoryId', 'UpdateStoriesStealthMode', 'UpdateSentStoryReaction', 'UpdateBotChatBoost', 'UpdateChannelViewForumAsMessages', 'UpdatePeerWallpaper', 'UpdateBotMessageReaction', 'UpdateBotMessageReactions', 'UpdateSavedDialogPinned', 'UpdatePinnedSavedDialogs', 'UpdateSavedReactionTags', 'UpdateSmsJob', 'UpdateQuickReplies', 'UpdateNewQuickReply', 'UpdateDeleteQuickReply', 'UpdateQuickReplyMessage', 'UpdateDeleteQuickReplyMessages', 'UpdateBotBusinessConnect', 'UpdateBotNewBusinessMessage', 'UpdateBotEditBusinessMessage', 'UpdateBotDeleteBusinessMessage', 'UpdateNewStoryReaction', 'UpdateStarsBalance', 'UpdateBusinessBotCallbackQuery', 'UpdateStarsRevenueStatus', 'UpdateBotPurchasedPaidMedia', 'UpdatePaidReactionPrivacy', 'UpdateSentPhoneCode', 'UpdateGroupCallChainBlocks', 'UpdateReadMonoForumInbox', 'UpdateReadMonoForumOutbox', 'UpdateMonoForumNoPaidException', 'UpdateGroupCallMessage', 'UpdateGroupCallEncryptedMessage', 'UpdatePinnedForumTopic', 'UpdatePinnedForumTopics', 'UpdateDeleteGroupCallMessages', 'UpdateStarGiftAuctionState', 'UpdateStarGiftAuctionUserState', 'UpdatesState', 'UpdatesDifferenceEmpty', 'UpdatesDifference', 'UpdatesDifferenceSlice', 'UpdatesDifferenceTooLong', 'UpdatesTooLong', 'UpdateShortMessage', 'UpdateShortChatMessage', 'UpdateShort', 'UpdatesCombined', 'Updates', 'UpdateShortSentMessage', 'PhotosPhotos', 'PhotosPhotosSlice', 'PhotosPhoto', 'UploadFile', 'UploadFileCdnRedirect', 'DcOption', 'Config', 'NearestDc', 'HelpAppUpdate', 'HelpNoAppUpdate', 'HelpInviteText', 'EncryptedChatEmpty', 'EncryptedChatWaiting', 'EncryptedChatRequested', 'EncryptedChat', 'EncryptedChatDiscarded', 'InputEncryptedChat', 'EncryptedFileEmpty', 'EncryptedFile', 'InputEncryptedFileEmpty', 'InputEncryptedFileUploaded', 'InputEncryptedFile', 'InputEncryptedFileBigUploaded', 'EncryptedMessage', 'EncryptedMessageService', 'MessagesDhConfigNotModified', 'MessagesDhConfig', 'MessagesSentEncryptedMessage', 'MessagesSentEncryptedFile', 'InputDocumentEmpty', 'InputDocument', 'DocumentEmpty', 'Document', 'HelpSupport', 'NotifyPeer', 'NotifyUsers', 'NotifyChats', 'NotifyBroadcasts', 'NotifyForumTopic', 'SendMessageTypingAction', 'SendMessageCancelAction', 'SendMessageRecordVideoAction', 'SendMessageUploadVideoAction', 'SendMessageRecordAudioAction', 'SendMessageUploadAudioAction', 'SendMessageUploadPhotoAction', 'SendMessageUploadDocumentAction', 'SendMessageGeoLocationAction', 'SendMessageChooseContactAction', 'SendMessageGamePlayAction', 'SendMessageRecordRoundAction', 'SendMessageUploadRoundAction', 'SpeakingInGroupCallAction', 'SendMessageHistoryImportAction', 'SendMessageChooseStickerAction', 'SendMessageEmojiInteraction', 'SendMessageEmojiInteractionSeen', 'SendMessageTextDraftAction', 'ContactsFound', 'InputPrivacyKeyStatusTimestamp', 'InputPrivacyKeyChatInvite', 'InputPrivacyKeyPhoneCall', 'InputPrivacyKeyPhoneP2P', 'InputPrivacyKeyForwards', 'InputPrivacyKeyProfilePhoto', 'InputPrivacyKeyPhoneNumber', 'InputPrivacyKeyAddedByPhone', 'InputPrivacyKeyVoiceMessages', 'InputPrivacyKeyAbout', 'InputPrivacyKeyBirthday', 'InputPrivacyKeyStarGiftsAutoSave', 'InputPrivacyKeyNoPaidMessages', 'InputPrivacyKeySavedMusic', 'PrivacyKeyStatusTimestamp', 'PrivacyKeyChatInvite', 'PrivacyKeyPhoneCall', 'PrivacyKeyPhoneP2P', 'PrivacyKeyForwards', 'PrivacyKeyProfilePhoto', 'PrivacyKeyPhoneNumber', 'PrivacyKeyAddedByPhone', 'PrivacyKeyVoiceMessages', 'PrivacyKeyAbout', 'PrivacyKeyBirthday', 'PrivacyKeyStarGiftsAutoSave', 'PrivacyKeyNoPaidMessages', 'PrivacyKeySavedMusic', 'InputPrivacyValueAllowContacts', 'InputPrivacyValueAllowAll', 'InputPrivacyValueAllowUsers', 'InputPrivacyValueDisallowContacts', 'InputPrivacyValueDisallowAll', 'InputPrivacyValueDisallowUsers', 'InputPrivacyValueAllowChatParticipants', 'InputPrivacyValueDisallowChatParticipants', 'InputPrivacyValueAllowCloseFriends', 'InputPrivacyValueAllowPremium', 'InputPrivacyValueAllowBots', 'InputPrivacyValueDisallowBots', 'PrivacyValueAllowContacts', 'PrivacyValueAllowAll', 'PrivacyValueAllowUsers', 'PrivacyValueDisallowContacts', 'PrivacyValueDisallowAll', 'PrivacyValueDisallowUsers', 'PrivacyValueAllowChatParticipants', 'PrivacyValueDisallowChatParticipants', 'PrivacyValueAllowCloseFriends', 'PrivacyValueAllowPremium', 'PrivacyValueAllowBots', 'PrivacyValueDisallowBots', 'AccountPrivacyRules', 'AccountDaysTtl', 'DocumentAttributeImageSize', 'DocumentAttributeAnimated', 'DocumentAttributeSticker', 'DocumentAttributeVideo', 'DocumentAttributeAudio', 'DocumentAttributeFilename', 'DocumentAttributeHasStickers', 'DocumentAttributeCustomEmoji', 'MessagesStickersNotModified', 'MessagesStickers', 'StickerPack', 'MessagesAllStickersNotModified', 'MessagesAllStickers', 'MessagesAffectedMessages', 'WebPageEmpty', 'WebPagePending', 'WebPage', 'WebPageNotModified', 'Authorization', 'AccountAuthorizations', 'AccountPassword', 'AccountPasswordSettings', 'AccountPasswordInputSettings', 'AuthPasswordRecovery', 'ReceivedNotifyMessage', 'ChatInviteExported', 'ChatInvitePublicJoinRequests', 'ChatInviteAlready', 'ChatInvite', 'ChatInvitePeek', 'InputStickerSetEmpty', 'InputStickerSetId', 'InputStickerSetShortName', 'InputStickerSetAnimatedEmoji', 'InputStickerSetDice', 'InputStickerSetAnimatedEmojiAnimations', 'InputStickerSetPremiumGifts', 'InputStickerSetEmojiGenericAnimations', 'InputStickerSetEmojiDefaultStatuses', 'InputStickerSetEmojiDefaultTopicIcons', 'InputStickerSetEmojiChannelDefaultStatuses', 'InputStickerSetTonGifts', 'StickerSet', 'MessagesStickerSet', 'MessagesStickerSetNotModified', 'BotCommand', 'BotInfo', 'KeyboardButton', 'KeyboardButtonUrl', 'KeyboardButtonCallback', 'KeyboardButtonRequestPhone', 'KeyboardButtonRequestGeoLocation', 'KeyboardButtonSwitchInline', 'KeyboardButtonGame', 'KeyboardButtonBuy', 'KeyboardButtonUrlAuth', 'InputKeyboardButtonUrlAuth', 'KeyboardButtonRequestPoll', 'InputKeyboardButtonUserProfile', 'KeyboardButtonUserProfile', 'KeyboardButtonWebView', 'KeyboardButtonSimpleWebView', 'KeyboardButtonRequestPeer', 'InputKeyboardButtonRequestPeer', 'KeyboardButtonCopy', 'KeyboardButtonRow', 'ReplyKeyboardHide', 'ReplyKeyboardForceReply', 'ReplyKeyboardMarkup', 'ReplyInlineMarkup', 'MessageEntityUnknown', 'MessageEntityMention', 'MessageEntityHashtag', 'MessageEntityBotCommand', 'MessageEntityUrl', 'MessageEntityEmail', 'MessageEntityBold', 'MessageEntityItalic', 'MessageEntityCode', 'MessageEntityPre', 'MessageEntityTextUrl', 'MessageEntityMentionName', 'InputMessageEntityMentionName', 'MessageEntityPhone', 'MessageEntityCashtag', 'MessageEntityUnderline', 'MessageEntityStrike', 'MessageEntityBankCard', 'MessageEntitySpoiler', 'MessageEntityCustomEmoji', 'MessageEntityBlockquote', 'InputChannelEmpty', 'InputChannel', 'InputChannelFromMessage', 'ContactsResolvedPeer', 'MessageRange', 'UpdatesChannelDifferenceEmpty', 'UpdatesChannelDifferenceTooLong', 'UpdatesChannelDifference', 'ChannelMessagesFilterEmpty', 'ChannelMessagesFilter', 'ChannelParticipant', 'ChannelParticipantSelf', 'ChannelParticipantCreator', 'ChannelParticipantAdmin', 'ChannelParticipantBanned', 'ChannelParticipantLeft', 'ChannelParticipantsRecent', 'ChannelParticipantsAdmins', 'ChannelParticipantsKicked', 'ChannelParticipantsBots', 'ChannelParticipantsBanned', 'ChannelParticipantsSearch', 'ChannelParticipantsContacts', 'ChannelParticipantsMentions', 'ChannelsChannelParticipants', 'ChannelsChannelParticipantsNotModified', 'ChannelsChannelParticipant', 'HelpTermsOfService', 'MessagesSavedGifsNotModified', 'MessagesSavedGifs', 'InputBotInlineMessageMediaAuto', 'InputBotInlineMessageText', 'InputBotInlineMessageMediaGeo', 'InputBotInlineMessageMediaVenue', 'InputBotInlineMessageMediaContact', 'InputBotInlineMessageGame', 'InputBotInlineMessageMediaInvoice', 'InputBotInlineMessageMediaWebPage', 'InputBotInlineResult', 'InputBotInlineResultPhoto', 'InputBotInlineResultDocument', 'InputBotInlineResultGame', 'BotInlineMessageMediaAuto', 'BotInlineMessageText', 'BotInlineMessageMediaGeo', 'BotInlineMessageMediaVenue', 'BotInlineMessageMediaContact', 'BotInlineMessageMediaInvoice', 'BotInlineMessageMediaWebPage', 'BotInlineResult', 'BotInlineMediaResult', 'MessagesBotResults', 'ExportedMessageLink', 'MessageFwdHeader', 'AuthCodeTypeSms', 'AuthCodeTypeCall', 'AuthCodeTypeFlashCall', 'AuthCodeTypeMissedCall', 'AuthCodeTypeFragmentSms', 'AuthSentCodeTypeApp', 'AuthSentCodeTypeSms', 'AuthSentCodeTypeCall', 'AuthSentCodeTypeFlashCall', 'AuthSentCodeTypeMissedCall', 'AuthSentCodeTypeEmailCode', 'AuthSentCodeTypeSetUpEmailRequired', 'AuthSentCodeTypeFragmentSms', 'AuthSentCodeTypeFirebaseSms', 'AuthSentCodeTypeSmsWord', 'AuthSentCodeTypeSmsPhrase', 'MessagesBotCallbackAnswer', 'MessagesMessageEditData', 'InputBotInlineMessageId', 'InputBotInlineMessageId64', 'InlineBotSwitchPm', 'MessagesPeerDialogs', 'TopPeer', 'TopPeerCategoryBotsPm', 'TopPeerCategoryBotsInline', 'TopPeerCategoryCorrespondents', 'TopPeerCategoryGroups', 'TopPeerCategoryChannels', 'TopPeerCategoryPhoneCalls', 'TopPeerCategoryForwardUsers', 'TopPeerCategoryForwardChats', 'TopPeerCategoryBotsApp', 'TopPeerCategoryPeers', 'ContactsTopPeersNotModified', 'ContactsTopPeers', 'ContactsTopPeersDisabled', 'DraftMessageEmpty', 'DraftMessage', 'MessagesFeaturedStickersNotModified', 'MessagesFeaturedStickers', 'MessagesRecentStickersNotModified', 'MessagesRecentStickers', 'MessagesArchivedStickers', 'MessagesStickerSetInstallResultSuccess', 'MessagesStickerSetInstallResultArchive', 'StickerSetCovered', 'StickerSetMultiCovered', 'StickerSetFullCovered', 'StickerSetNoCovered', 'MaskCoords', 'InputStickeredMediaPhoto', 'InputStickeredMediaDocument', 'Game', 'InputGameId', 'InputGameShortName', 'HighScore', 'MessagesHighScores', 'TextEmpty', 'TextPlain', 'TextBold', 'TextItalic', 'TextUnderline', 'TextStrike', 'TextFixed', 'TextUrl', 'TextEmail', 'TextConcat', 'TextSubscript', 'TextSuperscript', 'TextMarked', 'TextPhone', 'TextImage', 'TextAnchor', 'PageBlockUnsupported', 'PageBlockTitle', 'PageBlockSubtitle', 'PageBlockAuthorDate', 'PageBlockHeader', 'PageBlockSubheader', 'PageBlockParagraph', 'PageBlockPreformatted', 'PageBlockFooter', 'PageBlockDivider', 'PageBlockAnchor', 'PageBlockList', 'PageBlockBlockquote', 'PageBlockPullquote', 'PageBlockPhoto', 'PageBlockVideo', 'PageBlockCover', 'PageBlockEmbed', 'PageBlockEmbedPost', 'PageBlockCollage', 'PageBlockSlideshow', 'PageBlockChannel', 'PageBlockAudio', 'PageBlockKicker', 'PageBlockTable', 'PageBlockOrderedList', 'PageBlockDetails', 'PageBlockRelatedArticles', 'PageBlockMap', 'PhoneCallDiscardReasonMissed', 'PhoneCallDiscardReasonDisconnect', 'PhoneCallDiscardReasonHangup', 'PhoneCallDiscardReasonBusy', 'PhoneCallDiscardReasonMigrateConferenceCall', 'DataJson', 'LabeledPrice', 'Invoice', 'PaymentCharge', 'PostAddress', 'PaymentRequestedInfo', 'PaymentSavedCredentialsCard', 'WebDocument', 'WebDocumentNoProxy', 'InputWebDocument', 'InputWebFileLocation', 'InputWebFileGeoPointLocation', 'InputWebFileAudioAlbumThumbLocation', 'UploadWebFile', 'PaymentsPaymentForm', 'PaymentsPaymentFormStars', 'PaymentsPaymentFormStarGift', 'PaymentsValidatedRequestedInfo', 'PaymentsPaymentResult', 'PaymentsPaymentVerificationNeeded', 'PaymentsPaymentReceipt', 'PaymentsPaymentReceiptStars', 'PaymentsSavedInfo', 'InputPaymentCredentialsSaved', 'InputPaymentCredentials', 'InputPaymentCredentialsApplePay', 'InputPaymentCredentialsGooglePay', 'AccountTmpPassword', 'ShippingOption', 'InputStickerSetItem', 'InputPhoneCall', 'PhoneCallEmpty', 'PhoneCallWaiting', 'PhoneCallRequested', 'PhoneCallAccepted', 'PhoneCall', 'PhoneCallDiscarded', 'PhoneConnection', 'PhoneConnectionWebrtc', 'PhoneCallProtocol', 'PhonePhoneCall', 'UploadCdnFileReuploadNeeded', 'UploadCdnFile', 'CdnPublicKey', 'CdnConfig', 'LangPackString', 'LangPackStringPluralized', 'LangPackStringDeleted', 'LangPackDifference', 'LangPackLanguage', 'ChannelAdminLogEventActionChangeTitle', 'ChannelAdminLogEventActionChangeAbout', 'ChannelAdminLogEventActionChangeUsername', 'ChannelAdminLogEventActionChangePhoto', 'ChannelAdminLogEventActionToggleInvites', 'ChannelAdminLogEventActionToggleSignatures', 'ChannelAdminLogEventActionUpdatePinned', 'ChannelAdminLogEventActionEditMessage', 'ChannelAdminLogEventActionDeleteMessage', 'ChannelAdminLogEventActionParticipantJoin', 'ChannelAdminLogEventActionParticipantLeave', 'ChannelAdminLogEventActionParticipantInvite', 'ChannelAdminLogEventActionParticipantToggleBan', 'ChannelAdminLogEventActionParticipantToggleAdmin', 'ChannelAdminLogEventActionChangeStickerSet', 'ChannelAdminLogEventActionTogglePreHistoryHidden', 'ChannelAdminLogEventActionDefaultBannedRights', 'ChannelAdminLogEventActionStopPoll', 'ChannelAdminLogEventActionChangeLinkedChat', 'ChannelAdminLogEventActionChangeLocation', 'ChannelAdminLogEventActionToggleSlowMode', 'ChannelAdminLogEventActionStartGroupCall', 'ChannelAdminLogEventActionDiscardGroupCall', 'ChannelAdminLogEventActionParticipantMute', 'ChannelAdminLogEventActionParticipantUnmute', 'ChannelAdminLogEventActionToggleGroupCallSetting', 'ChannelAdminLogEventActionParticipantJoinByInvite', 'ChannelAdminLogEventActionExportedInviteDelete', 'ChannelAdminLogEventActionExportedInviteRevoke', 'ChannelAdminLogEventActionExportedInviteEdit', 'ChannelAdminLogEventActionParticipantVolume', 'ChannelAdminLogEventActionChangeHistoryTtl', 'ChannelAdminLogEventActionParticipantJoinByRequest', 'ChannelAdminLogEventActionToggleNoForwards', 'ChannelAdminLogEventActionSendMessage', 'ChannelAdminLogEventActionChangeAvailableReactions', 'ChannelAdminLogEventActionChangeUsernames', 'ChannelAdminLogEventActionToggleForum', 'ChannelAdminLogEventActionCreateTopic', 'ChannelAdminLogEventActionEditTopic', 'ChannelAdminLogEventActionDeleteTopic', 'ChannelAdminLogEventActionPinTopic', 'ChannelAdminLogEventActionToggleAntiSpam', 'ChannelAdminLogEventActionChangePeerColor', 'ChannelAdminLogEventActionChangeProfilePeerColor', 'ChannelAdminLogEventActionChangeWallpaper', 'ChannelAdminLogEventActionChangeEmojiStatus', 'ChannelAdminLogEventActionChangeEmojiStickerSet', 'ChannelAdminLogEventActionToggleSignatureProfiles', 'ChannelAdminLogEventActionParticipantSubExtend', 'ChannelAdminLogEventActionToggleAutotranslation', 'ChannelAdminLogEvent', 'ChannelsAdminLogResults', 'ChannelAdminLogEventsFilter', 'PopularContact', 'MessagesFavedStickersNotModified', 'MessagesFavedStickers', 'RecentMeUrlUnknown', 'RecentMeUrlUser', 'RecentMeUrlChat', 'RecentMeUrlChatInvite', 'RecentMeUrlStickerSet', 'HelpRecentMeUrls', 'InputSingleMedia', 'WebAuthorization', 'AccountWebAuthorizations', 'InputMessageId', 'InputMessageReplyTo', 'InputMessagePinned', 'InputMessageCallbackQuery', 'InputDialogPeer', 'InputDialogPeerFolder', 'DialogPeer', 'DialogPeerFolder', 'MessagesFoundStickerSetsNotModified', 'MessagesFoundStickerSets', 'FileHash', 'InputClientProxy', 'HelpTermsOfServiceUpdateEmpty', 'HelpTermsOfServiceUpdate', 'InputSecureFileUploaded', 'InputSecureFile', 'SecureFileEmpty', 'SecureFile', 'SecureData', 'SecurePlainPhone', 'SecurePlainEmail', 'SecureValueTypePersonalDetails', 'SecureValueTypePassport', 'SecureValueTypeDriverLicense', 'SecureValueTypeIdentityCard', 'SecureValueTypeInternalPassport', 'SecureValueTypeAddress', 'SecureValueTypeUtilityBill', 'SecureValueTypeBankStatement', 'SecureValueTypeRentalAgreement', 'SecureValueTypePassportRegistration', 'SecureValueTypeTemporaryRegistration', 'SecureValueTypePhone', 'SecureValueTypeEmail', 'SecureValue', 'InputSecureValue', 'SecureValueHash', 'SecureValueErrorData', 'SecureValueErrorFrontSide', 'SecureValueErrorReverseSide', 'SecureValueErrorSelfie', 'SecureValueErrorFile', 'SecureValueErrorFiles', 'SecureValueError', 'SecureValueErrorTranslationFile', 'SecureValueErrorTranslationFiles', 'SecureCredentialsEncrypted', 'AccountAuthorizationForm', 'AccountSentEmailCode', 'HelpDeepLinkInfoEmpty', 'HelpDeepLinkInfo', 'SavedPhoneContact', 'AccountTakeout', 'PasswordKdfAlgoUnknown', 'PasswordKdfAlgoSha256Sha256Pbkdf2Hmacsha512iter100000Sha256ModPow', 'SecurePasswordKdfAlgoUnknown', 'SecurePasswordKdfAlgoPbkdf2Hmacsha512iter100000', 'SecurePasswordKdfAlgoSha512', 'SecureSecretSettings', 'InputCheckPasswordEmpty', 'InputCheckPasswordSrp', 'SecureRequiredType', 'SecureRequiredTypeOneOf', 'HelpPassportConfigNotModified', 'HelpPassportConfig', 'InputAppEvent', 'JsonObjectValue', 'JsonNull', 'JsonBool', 'JsonNumber', 'JsonString', 'JsonArray', 'JsonObject', 'PageTableCell', 'PageTableRow', 'PageCaption', 'PageListItemText', 'PageListItemBlocks', 'PageListOrderedItemText', 'PageListOrderedItemBlocks', 'PageRelatedArticle', 'Page', 'HelpSupportName', 'HelpUserInfoEmpty', 'HelpUserInfo', 'PollAnswer', 'Poll', 'PollAnswerVoters', 'PollResults', 'ChatOnlines', 'StatsUrl', 'ChatAdminRights', 'ChatBannedRights', 'InputWallPaper', 'InputWallPaperSlug', 'InputWallPaperNoFile', 'AccountWallPapersNotModified', 'AccountWallPapers', 'CodeSettings', 'WallPaperSettings', 'AutoDownloadSettings', 'AccountAutoDownloadSettings', 'EmojiKeyword', 'EmojiKeywordDeleted', 'EmojiKeywordsDifference', 'EmojiUrl', 'EmojiLanguage', 'Folder', 'InputFolderPeer', 'FolderPeer', 'MessagesSearchCounter', 'UrlAuthResultRequest', 'UrlAuthResultAccepted', 'UrlAuthResultDefault', 'ChannelLocationEmpty', 'ChannelLocation', 'PeerLocated', 'PeerSelfLocated', 'RestrictionReason', 'InputTheme', 'InputThemeSlug', 'Theme', 'AccountThemesNotModified', 'AccountThemes', 'AuthLoginToken', 'AuthLoginTokenMigrateTo', 'AuthLoginTokenSuccess', 'AccountContentSettings', 'MessagesInactiveChats', 'BaseThemeClassic', 'BaseThemeDay', 'BaseThemeNight', 'BaseThemeTinted', 'BaseThemeArctic', 'InputThemeSettings', 'ThemeSettings', 'WebPageAttributeTheme', 'WebPageAttributeStory', 'WebPageAttributeStickerSet', 'WebPageAttributeUniqueStarGift', 'WebPageAttributeStarGiftCollection', 'WebPageAttributeStarGiftAuction', 'MessagesVotesList', 'BankCardOpenUrl', 'PaymentsBankCardData', 'DialogFilter', 'DialogFilterDefault', 'DialogFilterChatlist', 'DialogFilterSuggested', 'StatsDateRangeDays', 'StatsAbsValueAndPrev', 'StatsPercentValue', 'StatsGraphAsync', 'StatsGraphError', 'StatsGraph', 'StatsBroadcastStats', 'HelpPromoDataEmpty', 'HelpPromoData', 'VideoSize', 'VideoSizeEmojiMarkup', 'VideoSizeStickerMarkup', 'StatsGroupTopPoster', 'StatsGroupTopAdmin', 'StatsGroupTopInviter', 'StatsMegagroupStats', 'GlobalPrivacySettings', 'HelpCountryCode', 'HelpCountry', 'HelpCountriesListNotModified', 'HelpCountriesList', 'MessageViews', 'MessagesMessageViews', 'MessagesDiscussionMessage', 'MessageReplyHeader', 'MessageReplyStoryHeader', 'MessageReplies', 'PeerBlocked', 'StatsMessageStats', 'GroupCallDiscarded', 'GroupCall', 'InputGroupCall', 'InputGroupCallSlug', 'InputGroupCallInviteMessage', 'GroupCallParticipant', 'PhoneGroupCall', 'PhoneGroupParticipants', 'InlineQueryPeerTypeSameBotPm', 'InlineQueryPeerTypePm', 'InlineQueryPeerTypeChat', 'InlineQueryPeerTypeMegagroup', 'InlineQueryPeerTypeBroadcast', 'InlineQueryPeerTypeBotPm', 'MessagesHistoryImport', 'MessagesHistoryImportParsed', 'MessagesAffectedFoundMessages', 'ChatInviteImporter', 'MessagesExportedChatInvites', 'MessagesExportedChatInvite', 'MessagesExportedChatInviteReplaced', 'MessagesChatInviteImporters', 'ChatAdminWithInvites', 'MessagesChatAdminsWithInvites', 'MessagesCheckedHistoryImportPeer', 'PhoneJoinAsPeers', 'PhoneExportedGroupCallInvite', 'GroupCallParticipantVideoSourceGroup', 'GroupCallParticipantVideo', 'StickersSuggestedShortName', 'BotCommandScopeDefault', 'BotCommandScopeUsers', 'BotCommandScopeChats', 'BotCommandScopeChatAdmins', 'BotCommandScopePeer', 'BotCommandScopePeerAdmins', 'BotCommandScopePeerUser', 'AccountResetPasswordFailedWait', 'AccountResetPasswordRequestedWait', 'AccountResetPasswordOk', 'ChatTheme', 'ChatThemeUniqueGift', 'AccountChatThemesNotModified', 'AccountChatThemes', 'SponsoredMessage', 'MessagesSponsoredMessages', 'MessagesSponsoredMessagesEmpty', 'SearchResultsCalendarPeriod', 'MessagesSearchResultsCalendar', 'SearchResultPosition', 'MessagesSearchResultsPositions', 'ChannelsSendAsPeers', 'UsersUserFull', 'MessagesPeerSettings', 'AuthLoggedOut', 'ReactionCount', 'MessageReactions', 'MessagesMessageReactionsList', 'AvailableReaction', 'MessagesAvailableReactionsNotModified', 'MessagesAvailableReactions', 'MessagePeerReaction', 'GroupCallStreamChannel', 'PhoneGroupCallStreamChannels', 'PhoneGroupCallStreamRtmpUrl', 'AttachMenuBotIconColor', 'AttachMenuBotIcon', 'AttachMenuBot', 'AttachMenuBotsNotModified', 'AttachMenuBots', 'AttachMenuBotsBot', 'WebViewResultUrl', 'WebViewMessageSent', 'BotMenuButtonDefault', 'BotMenuButtonCommands', 'BotMenuButton', 'AccountSavedRingtonesNotModified', 'AccountSavedRingtones', 'NotificationSoundDefault', 'NotificationSoundNone', 'NotificationSoundLocal', 'NotificationSoundRingtone', 'AccountSavedRingtone', 'AccountSavedRingtoneConverted', 'AttachMenuPeerTypeSameBotPm', 'AttachMenuPeerTypeBotPm', 'AttachMenuPeerTypePm', 'AttachMenuPeerTypeChat', 'AttachMenuPeerTypeBroadcast', 'InputInvoiceMessage', 'InputInvoiceSlug', 'InputInvoicePremiumGiftCode', 'InputInvoiceStars', 'InputInvoiceChatInviteSubscription', 'InputInvoiceStarGift', 'InputInvoiceStarGiftUpgrade', 'InputInvoiceStarGiftTransfer', 'InputInvoicePremiumGiftStars', 'InputInvoiceBusinessBotTransferStars', 'InputInvoiceStarGiftResale', 'InputInvoiceStarGiftPrepaidUpgrade', 'InputInvoicePremiumAuthCode', 'InputInvoiceStarGiftDropOriginalDetails', 'InputInvoiceStarGiftAuctionBid', 'PaymentsExportedInvoice', 'MessagesTranscribedAudio', 'HelpPremiumPromo', 'InputStorePaymentPremiumSubscription', 'InputStorePaymentGiftPremium', 'InputStorePaymentPremiumGiftCode', 'InputStorePaymentPremiumGiveaway', 'InputStorePaymentStarsTopup', 'InputStorePaymentStarsGift', 'InputStorePaymentStarsGiveaway', 'InputStorePaymentAuthCode', 'PaymentFormMethod', 'EmojiStatusEmpty', 'EmojiStatus', 'EmojiStatusCollectible', 'InputEmojiStatusCollectible', 'AccountEmojiStatusesNotModified', 'AccountEmojiStatuses', 'ReactionEmpty', 'ReactionEmoji', 'ReactionCustomEmoji', 'ReactionPaid', 'ChatReactionsNone', 'ChatReactionsAll', 'ChatReactionsSome', 'MessagesReactionsNotModified', 'MessagesReactions', 'EmailVerifyPurposeLoginSetup', 'EmailVerifyPurposeLoginChange', 'EmailVerifyPurposePassport', 'EmailVerificationCode', 'EmailVerificationGoogle', 'EmailVerificationApple', 'AccountEmailVerified', 'AccountEmailVerifiedLogin', 'PremiumSubscriptionOption', 'SendAsPeer', 'MessageExtendedMediaPreview', 'MessageExtendedMedia', 'StickerKeyword', 'Username', 'ForumTopicDeleted', 'ForumTopic', 'MessagesForumTopics', 'DefaultHistoryTtl', 'ExportedContactToken', 'RequestPeerTypeUser', 'RequestPeerTypeChat', 'RequestPeerTypeBroadcast', 'EmojiListNotModified', 'EmojiList', 'EmojiGroup', 'EmojiGroupGreeting', 'EmojiGroupPremium', 'MessagesEmojiGroupsNotModified', 'MessagesEmojiGroups', 'TextWithEntities', 'MessagesTranslateResult', 'AutoSaveSettings', 'AutoSaveException', 'AccountAutoSaveSettings', 'HelpAppConfigNotModified', 'HelpAppConfig', 'InputBotAppId', 'InputBotAppShortName', 'BotAppNotModified', 'BotApp', 'MessagesBotApp', 'InlineBotWebView', 'ReadParticipantDate', 'InputChatlistDialogFilter', 'ExportedChatlistInvite', 'ChatlistsExportedChatlistInvite', 'ChatlistsExportedInvites', 'ChatlistsChatlistInviteAlready', 'ChatlistsChatlistInvite', 'ChatlistsChatlistUpdates', 'BotsBotInfo', 'MessagePeerVote', 'MessagePeerVoteInputOption', 'MessagePeerVoteMultiple', 'StoryViews', 'StoryItemDeleted', 'StoryItemSkipped', 'StoryItem', 'StoriesAllStoriesNotModified', 'StoriesAllStories', 'StoriesStories', 'StoryView', 'StoryViewPublicForward', 'StoryViewPublicRepost', 'StoriesStoryViewsList', 'StoriesStoryViews', 'InputReplyToMessage', 'InputReplyToStory', 'InputReplyToMonoForum', 'ExportedStoryLink', 'StoriesStealthMode', 'MediaAreaCoordinates', 'MediaAreaVenue', 'InputMediaAreaVenue', 'MediaAreaGeoPoint', 'MediaAreaSuggestedReaction', 'MediaAreaChannelPost', 'InputMediaAreaChannelPost', 'MediaAreaUrl', 'MediaAreaWeather', 'MediaAreaStarGift', 'PeerStories', 'StoriesPeerStories', 'MessagesWebPage', 'PremiumGiftCodeOption', 'PaymentsCheckedGiftCode', 'PaymentsGiveawayInfo', 'PaymentsGiveawayInfoResults', 'PrepaidGiveaway', 'PrepaidStarsGiveaway', 'Boost', 'PremiumBoostsList', 'MyBoost', 'PremiumMyBoosts', 'PremiumBoostsStatus', 'StoryFwdHeader', 'PostInteractionCountersMessage', 'PostInteractionCountersStory', 'StatsStoryStats', 'PublicForwardMessage', 'PublicForwardStory', 'StatsPublicForwards', 'PeerColor', 'PeerColorCollectible', 'InputPeerColorCollectible', 'HelpPeerColorSet', 'HelpPeerColorProfileSet', 'HelpPeerColorOption', 'HelpPeerColorsNotModified', 'HelpPeerColors', 'StoryReaction', 'StoryReactionPublicForward', 'StoryReactionPublicRepost', 'StoriesStoryReactionsList', 'SavedDialog', 'MonoForumDialog', 'MessagesSavedDialogs', 'MessagesSavedDialogsSlice', 'MessagesSavedDialogsNotModified', 'SavedReactionTag', 'MessagesSavedReactionTagsNotModified', 'MessagesSavedReactionTags', 'OutboxReadDate', 'SmsjobsEligibleToJoin', 'SmsjobsStatus', 'SmsJob', 'BusinessWeeklyOpen', 'BusinessWorkHours', 'BusinessLocation', 'InputBusinessRecipients', 'BusinessRecipients', 'BusinessAwayMessageScheduleAlways', 'BusinessAwayMessageScheduleOutsideWorkHours', 'BusinessAwayMessageScheduleCustom', 'InputBusinessGreetingMessage', 'BusinessGreetingMessage', 'InputBusinessAwayMessage', 'BusinessAwayMessage', 'Timezone', 'HelpTimezonesListNotModified', 'HelpTimezonesList', 'QuickReply', 'InputQuickReplyShortcut', 'InputQuickReplyShortcutId', 'MessagesQuickReplies', 'MessagesQuickRepliesNotModified', 'ConnectedBot', 'AccountConnectedBots', 'MessagesDialogFilters', 'Birthday', 'BotBusinessConnection', 'InputBusinessIntro', 'BusinessIntro', 'MessagesMyStickers', 'InputCollectibleUsername', 'InputCollectiblePhone', 'FragmentCollectibleInfo', 'InputBusinessBotRecipients', 'BusinessBotRecipients', 'ContactBirthday', 'ContactsContactBirthdays', 'MissingInvitee', 'MessagesInvitedUsers', 'InputBusinessChatLink', 'BusinessChatLink', 'AccountBusinessChatLinks', 'AccountResolvedBusinessChatLinks', 'RequestedPeerUser', 'RequestedPeerChat', 'RequestedPeerChannel', 'SponsoredMessageReportOption', 'ChannelsSponsoredMessageReportResultChooseOption', 'ChannelsSponsoredMessageReportResultAdsHidden', 'ChannelsSponsoredMessageReportResultReported', 'ReactionNotificationsFromContacts', 'ReactionNotificationsFromAll', 'ReactionsNotifySettings', 'AvailableEffect', 'MessagesAvailableEffectsNotModified', 'MessagesAvailableEffects', 'FactCheck', 'StarsTransactionPeerUnsupported', 'StarsTransactionPeerAppStore', 'StarsTransactionPeerPlayMarket', 'StarsTransactionPeerPremiumBot', 'StarsTransactionPeerFragment', 'StarsTransactionPeer', 'StarsTransactionPeerAds', 'StarsTransactionPeerApi', 'StarsTopupOption', 'StarsTransaction', 'PaymentsStarsStatus', 'FoundStory', 'StoriesFoundStories', 'GeoPointAddress', 'StarsRevenueStatus', 'PaymentsStarsRevenueStats', 'PaymentsStarsRevenueWithdrawalUrl', 'PaymentsStarsRevenueAdsAccountUrl', 'InputStarsTransaction', 'StarsGiftOption', 'BotsPopularAppBots', 'BotPreviewMedia', 'BotsPreviewInfo', 'StarsSubscriptionPricing', 'StarsSubscription', 'MessageReactor', 'StarsGiveawayOption', 'StarsGiveawayWinnersOption', 'StarGift', 'StarGiftUnique', 'PaymentsStarGiftsNotModified', 'PaymentsStarGifts', 'MessageReportOption', 'ReportResultChooseOption', 'ReportResultAddComment', 'ReportResultReported', 'MessagesBotPreparedInlineMessage', 'MessagesPreparedInlineMessage', 'BotAppSettings', 'StarRefProgram', 'ConnectedBotStarRef', 'PaymentsConnectedStarRefBots', 'PaymentsSuggestedStarRefBots', 'StarsAmount', 'StarsTonAmount', 'MessagesFoundStickersNotModified', 'MessagesFoundStickers', 'BotVerifierSettings', 'BotVerification', 'StarGiftAttributeModel', 'StarGiftAttributePattern', 'StarGiftAttributeBackdrop', 'StarGiftAttributeOriginalDetails', 'PaymentsStarGiftUpgradePreview', 'UsersUsers', 'UsersUsersSlice', 'PaymentsUniqueStarGift', 'MessagesWebPagePreview', 'SavedStarGift', 'PaymentsSavedStarGifts', 'InputSavedStarGiftUser', 'InputSavedStarGiftChat', 'InputSavedStarGiftSlug', 'PaymentsStarGiftWithdrawalUrl', 'PaidReactionPrivacyDefault', 'PaidReactionPrivacyAnonymous', 'PaidReactionPrivacyPeer', 'AccountPaidMessagesRevenue', 'RequirementToContactEmpty', 'RequirementToContactPremium', 'RequirementToContactPaidMessages', 'BusinessBotRights', 'DisallowedGiftsSettings', 'SponsoredPeer', 'ContactsSponsoredPeersEmpty', 'ContactsSponsoredPeers', 'StarGiftAttributeIdModel', 'StarGiftAttributeIdPattern', 'StarGiftAttributeIdBackdrop', 'StarGiftAttributeCounter', 'PaymentsResaleStarGifts', 'StoriesCanSendStoryCount', 'PendingSuggestion', 'TodoItem', 'TodoList', 'TodoCompletion', 'SuggestedPost', 'StarsRating', 'StarGiftCollection', 'PaymentsStarGiftCollectionsNotModified', 'PaymentsStarGiftCollections', 'StoryAlbum', 'StoriesAlbumsNotModified', 'StoriesAlbums', 'SearchPostsFlood', 'PaymentsUniqueStarGiftValueInfo', 'ProfileTabPosts', 'ProfileTabGifts', 'ProfileTabMedia', 'ProfileTabFiles', 'ProfileTabMusic', 'ProfileTabVoice', 'ProfileTabLinks', 'ProfileTabGifs', 'UsersSavedMusicNotModified', 'UsersSavedMusic', 'AccountSavedMusicIdsNotModified', 'AccountSavedMusicIds', 'PaymentsCheckCanSendGiftResultOk', 'PaymentsCheckCanSendGiftResultFail', 'InputChatThemeEmpty', 'InputChatTheme', 'InputChatThemeUniqueGift', 'StarGiftUpgradePrice', 'GroupCallMessage', 'GroupCallDonor', 'PhoneGroupCallStars', 'RecentStory', 'AuctionBidLevel', 'StarGiftAuctionStateNotModified', 'StarGiftAuctionState', 'StarGiftAuctionStateFinished', 'StarGiftAuctionUserState', 'PaymentsStarGiftAuctionState', 'StarGiftAuctionAcquiredGift', 'PaymentsStarGiftAuctionAcquiredGifts', 'StarGiftActiveAuctionState', 'PaymentsStarGiftActiveAuctionsNotModified', 'PaymentsStarGiftActiveAuctions', 'InputStarGiftAuction', 'InputStarGiftAuctionSlug', 'Passkey', 'AccountPasskeys', 'AccountPasskeyRegistrationOptions', 'AuthPasskeyLoginOptions', 'InputPasskeyResponseRegister', 'InputPasskeyResponseLogin', 'InputPasskeyCredentialPublicKey', 'StarGiftBackground', 'StarGiftAuctionRound', 'StarGiftAuctionRoundExtendable', 'PaymentsStarGiftUpgradeAttributes']
+@dataclass(slots=True)
+class MessagesEmojiGameOutcome(TLObject):
+    TL_ID: ClassVar[int] = -634726841
+    TL_NAME: ClassVar[str] = "messages.emojiGameOutcome"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('seed', 'bytes'), ('stake_ton_amount', 'long'), ('ton_amount', 'long'))
+    seed: object
+    stake_ton_amount: object
+    ton_amount: object
+@dataclass(slots=True)
+class MessagesEmojiGameUnavailable(TLObject):
+    TL_ID: ClassVar[int] = 1508266805
+    TL_NAME: ClassVar[str] = "messages.emojiGameUnavailable"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class MessagesEmojiGameDiceInfo(TLObject):
+    TL_ID: ClassVar[int] = 1155883043
+    TL_NAME: ClassVar[str] = "messages.emojiGameDiceInfo"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('game_hash', 'string'), ('prev_stake', 'long'), ('current_streak', 'int'), ('params', 'Vector<int>'), ('plays_left', 'flags.0?int'))
+    flags: object
+    game_hash: object
+    prev_stake: object
+    current_streak: object
+    params: object
+    plays_left: object
+@dataclass(slots=True)
+class StarGiftAttributeRarity(TLObject):
+    TL_ID: ClassVar[int] = 910391095
+    TL_NAME: ClassVar[str] = "starGiftAttributeRarity"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('permille', 'int'),)
+    permille: object
+@dataclass(slots=True)
+class StarGiftAttributeRarityUncommon(TLObject):
+    TL_ID: ClassVar[int] = -607231095
+    TL_NAME: ClassVar[str] = "starGiftAttributeRarityUncommon"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class StarGiftAttributeRarityRare(TLObject):
+    TL_ID: ClassVar[int] = -259174037
+    TL_NAME: ClassVar[str] = "starGiftAttributeRarityRare"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class StarGiftAttributeRarityEpic(TLObject):
+    TL_ID: ClassVar[int] = 2029777832
+    TL_NAME: ClassVar[str] = "starGiftAttributeRarityEpic"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class StarGiftAttributeRarityLegendary(TLObject):
+    TL_ID: ClassVar[int] = -822614104
+    TL_NAME: ClassVar[str] = "starGiftAttributeRarityLegendary"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class KeyboardButtonStyle(TLObject):
+    TL_ID: ClassVar[int] = 1339896880
+    TL_NAME: ClassVar[str] = "keyboardButtonStyle"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('bg_primary', 'flags.0?true'), ('bg_danger', 'flags.1?true'), ('bg_success', 'flags.2?true'), ('icon', 'flags.3?long'))
+    flags: object
+    bg_primary: object
+    bg_danger: object
+    bg_success: object
+    icon: object
+@dataclass(slots=True)
+class InputMessageReadMetric(TLObject):
+    TL_ID: ClassVar[int] = 1076577429
+    TL_NAME: ClassVar[str] = "inputMessageReadMetric"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('msg_id', 'int'), ('view_id', 'long'), ('time_in_view_ms', 'int'), ('active_time_in_view_ms', 'int'), ('height_to_viewport_ratio_permille', 'int'), ('seen_range_ratio_permille', 'int'))
+    msg_id: object
+    view_id: object
+    time_in_view_ms: object
+    active_time_in_view_ms: object
+    height_to_viewport_ratio_permille: object
+    seen_range_ratio_permille: object
+@dataclass(slots=True)
+class BotsExportedBotToken(TLObject):
+    TL_ID: ClassVar[int] = 1012971041
+    TL_NAME: ClassVar[str] = "bots.exportedBotToken"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('token', 'string'),)
+    token: object
+@dataclass(slots=True)
+class BotsRequestedButton(TLObject):
+    TL_ID: ClassVar[int] = -247743273
+    TL_NAME: ClassVar[str] = "bots.requestedButton"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('webapp_req_id', 'string'),)
+    webapp_req_id: object
+@dataclass(slots=True)
+class MessagesComposedMessageWithAi(TLObject):
+    TL_ID: ClassVar[int] = -1864913414
+    TL_NAME: ClassVar[str] = "messages.composedMessageWithAI"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('result_text', 'TextWithEntities'), ('diff_text', 'flags.0?TextWithEntities'))
+    flags: object
+    result_text: object
+    diff_text: object
+@dataclass(slots=True)
+class StatsPollStats(TLObject):
+    TL_ID: ClassVar[int] = 697941741
+    TL_NAME: ClassVar[str] = "stats.pollStats"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('votes_graph', 'StatsGraph'),)
+    votes_graph: object
+@dataclass(slots=True)
+class InputAiComposeToneDefault(TLObject):
+    TL_ID: ClassVar[int] = 535407039
+    TL_NAME: ClassVar[str] = "inputAiComposeToneDefault"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('tone', 'string'),)
+    tone: object
+@dataclass(slots=True)
+class InputAiComposeToneId(TLObject):
+    TL_ID: ClassVar[int] = 125026432
+    TL_NAME: ClassVar[str] = "inputAiComposeToneID"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('id', 'long'), ('access_hash', 'long'))
+    id: object
+    access_hash: object
+@dataclass(slots=True)
+class InputAiComposeToneSlug(TLObject):
+    TL_ID: ClassVar[int] = 530584407
+    TL_NAME: ClassVar[str] = "inputAiComposeToneSlug"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('slug', 'string'),)
+    slug: object
+@dataclass(slots=True)
+class InputAiComposeToneSingleUse(TLObject):
+    TL_ID: ClassVar[int] = 235681199
+    TL_NAME: ClassVar[str] = "inputAiComposeToneSingleUse"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('custom_prompt', 'string'),)
+    custom_prompt: object
+@dataclass(slots=True)
+class AiComposeTone(TLObject):
+    TL_ID: ClassVar[int] = -805945687
+    TL_NAME: ClassVar[str] = "aiComposeTone"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('creator', 'flags.0?true'), ('id', 'long'), ('access_hash', 'long'), ('slug', 'string'), ('title', 'string'), ('emoji_id', 'flags.1?long'), ('prompt', 'flags.4?string'), ('installs_count', 'flags.2?int'), ('author_id', 'flags.3?long'), ('example_english', 'flags.5?AiComposeToneExample'))
+    flags: object
+    creator: object
+    id: object
+    access_hash: object
+    slug: object
+    title: object
+    emoji_id: object
+    prompt: object
+    installs_count: object
+    author_id: object
+    example_english: object
+@dataclass(slots=True)
+class AiComposeToneDefault(TLObject):
+    TL_ID: ClassVar[int] = -1683135468
+    TL_NAME: ClassVar[str] = "aiComposeToneDefault"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('tone', 'string'), ('emoji_id', 'long'), ('title', 'string'))
+    tone: object
+    emoji_id: object
+    title: object
+@dataclass(slots=True)
+class AicomposeTonesNotModified(TLObject):
+    TL_ID: ClassVar[int] = -1040948989
+    TL_NAME: ClassVar[str] = "aicompose.tonesNotModified"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class AicomposeTones(TLObject):
+    TL_ID: ClassVar[int] = 1822232318
+    TL_NAME: ClassVar[str] = "aicompose.tones"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('hash', 'long'), ('tones', 'Vector<AiComposeTone>'), ('users', 'Vector<User>'))
+    hash: object
+    tones: object
+    users: object
+@dataclass(slots=True)
+class AiComposeToneExample(TLObject):
+    TL_ID: ClassVar[int] = -237623060
+    TL_NAME: ClassVar[str] = "aiComposeToneExample"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('from_', 'TextWithEntities'), ('to', 'TextWithEntities'))
+    from_: object
+    to: object
+@dataclass(slots=True)
+class BotsAccessSettings(TLObject):
+    TL_ID: ClassVar[int] = -585121901
+    TL_NAME: ClassVar[str] = "bots.accessSettings"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('restricted', 'flags.0?true'), ('add_users', 'flags.1?Vector<User>'))
+    flags: object
+    restricted: object
+    add_users: object
+@dataclass(slots=True)
+class MessagesChatInviteJoinResultOk(TLObject):
+    TL_ID: ClassVar[int] = 1146512295
+    TL_NAME: ClassVar[str] = "messages.chatInviteJoinResultOk"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('updates', 'Updates'),)
+    updates: object
+@dataclass(slots=True)
+class MessagesChatInviteJoinResultWebView(TLObject):
+    TL_ID: ClassVar[int] = 1640638931
+    TL_NAME: ClassVar[str] = "messages.chatInviteJoinResultWebView"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('bot_id', 'long'), ('query_id', 'long'), ('users', 'Vector<User>'))
+    bot_id: object
+    query_id: object
+    users: object
+@dataclass(slots=True)
+class JoinChatBotResultApproved(TLObject):
+    TL_ID: ClassVar[int] = -1374344599
+    TL_NAME: ClassVar[str] = "joinChatBotResultApproved"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class JoinChatBotResultDeclined(TLObject):
+    TL_ID: ClassVar[int] = 251265428
+    TL_NAME: ClassVar[str] = "joinChatBotResultDeclined"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class JoinChatBotResultQueued(TLObject):
+    TL_ID: ClassVar[int] = -1734105024
+    TL_NAME: ClassVar[str] = "joinChatBotResultQueued"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class JoinChatBotResultWebView(TLObject):
+    TL_ID: ClassVar[int] = -689719277
+    TL_NAME: ClassVar[str] = "joinChatBotResultWebView"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('url', 'string'),)
+    url: object
+@dataclass(slots=True)
+class WebDomainException(TLObject):
+    TL_ID: ClassVar[int] = -1824741993
+    TL_NAME: ClassVar[str] = "webDomainException"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('domain', 'string'), ('url', 'string'), ('title', 'string'), ('favicon', 'flags.0?long'))
+    flags: object
+    domain: object
+    url: object
+    title: object
+    favicon: object
+@dataclass(slots=True)
+class AccountWebBrowserSettingsNotModified(TLObject):
+    TL_ID: ClassVar[int] = -1021538482
+    TL_NAME: ClassVar[str] = "account.webBrowserSettingsNotModified"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = ()
+    pass
+@dataclass(slots=True)
+class AccountWebBrowserSettings(TLObject):
+    TL_ID: ClassVar[int] = 2045480115
+    TL_NAME: ClassVar[str] = "account.webBrowserSettings"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('open_external_browser', 'flags.0?true'), ('display_close_button', 'flags.1?true'), ('external_exceptions', 'Vector<WebDomainException>'), ('inapp_exceptions', 'Vector<WebDomainException>'), ('hash', 'long'))
+    flags: object
+    open_external_browser: object
+    display_close_button: object
+    external_exceptions: object
+    inapp_exceptions: object
+    hash: object
+@dataclass(slots=True)
+class InputRichFilePhoto(TLObject):
+    TL_ID: ClassVar[int] = -1694473685
+    TL_NAME: ClassVar[str] = "inputRichFilePhoto"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('id', 'string'), ('photo', 'InputPhoto'))
+    id: object
+    photo: object
+@dataclass(slots=True)
+class InputRichFileDocument(TLObject):
+    TL_ID: ClassVar[int] = -2094522947
+    TL_NAME: ClassVar[str] = "inputRichFileDocument"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('id', 'string'), ('document', 'InputDocument'))
+    id: object
+    document: object
+@dataclass(slots=True)
+class InputRichMessage(TLObject):
+    TL_ID: ClassVar[int] = -456898052
+    TL_NAME: ClassVar[str] = "inputRichMessage"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('rtl', 'flags.0?true'), ('noautolink', 'flags.1?true'), ('blocks', 'Vector<PageBlock>'), ('photos', 'flags.2?Vector<InputPhoto>'), ('documents', 'flags.3?Vector<InputDocument>'), ('users', 'flags.4?Vector<InputUser>'))
+    flags: object
+    rtl: object
+    noautolink: object
+    blocks: object
+    photos: object
+    documents: object
+    users: object
+@dataclass(slots=True)
+class InputRichMessageHtml(TLObject):
+    TL_ID: ClassVar[int] = -624196758
+    TL_NAME: ClassVar[str] = "inputRichMessageHTML"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('rtl', 'flags.0?true'), ('noautolink', 'flags.1?true'), ('html', 'string'), ('files', 'flags.2?Vector<InputRichFile>'))
+    flags: object
+    rtl: object
+    noautolink: object
+    html: object
+    files: object
+@dataclass(slots=True)
+class InputRichMessageMarkdown(TLObject):
+    TL_ID: ClassVar[int] = 4937516
+    TL_NAME: ClassVar[str] = "inputRichMessageMarkdown"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('rtl', 'flags.0?true'), ('noautolink', 'flags.1?true'), ('markdown', 'string'), ('files', 'flags.2?Vector<InputRichFile>'))
+    flags: object
+    rtl: object
+    noautolink: object
+    markdown: object
+    files: object
+@dataclass(slots=True)
+class RichMessage(TLObject):
+    TL_ID: ClassVar[int] = -1158439541
+    TL_NAME: ClassVar[str] = "richMessage"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('rtl', 'flags.0?true'), ('part', 'flags.1?true'), ('blocks', 'Vector<PageBlock>'), ('photos', 'Vector<Photo>'), ('documents', 'Vector<Document>'))
+    flags: object
+    rtl: object
+    part: object
+    blocks: object
+    photos: object
+    documents: object
+@dataclass(slots=True)
+class CommunityPeer(TLObject):
+    TL_ID: ClassVar[int] = 1981030077
+    TL_NAME: ClassVar[str] = "communityPeer"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('can_view_history', 'flags.2?true'), ('visible', 'flags.0?Bool'), ('peer', 'Peer'))
+    flags: object
+    can_view_history: object
+    visible: object
+    peer: object
+@dataclass(slots=True)
+class CommunityPeerRequest(TLObject):
+    TL_ID: ClassVar[int] = 2078997125
+    TL_NAME: ClassVar[str] = "communityPeerRequest"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('visible', 'flags.0?true'), ('peer', 'Peer'), ('requested_by', 'long'), ('date', 'int'))
+    flags: object
+    visible: object
+    peer: object
+    requested_by: object
+    date: object
+@dataclass(slots=True)
+class CommunitiesPeerLinkRequests(TLObject):
+    TL_ID: ClassVar[int] = 574926765
+    TL_NAME: ClassVar[str] = "communities.peerLinkRequests"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('total_count', 'int'), ('requests', 'Vector<CommunityPeerRequest>'), ('next_offset', 'flags.0?string'), ('chats', 'Vector<Chat>'), ('users', 'Vector<User>'))
+    flags: object
+    total_count: object
+    requests: object
+    next_offset: object
+    chats: object
+    users: object
+@dataclass(slots=True)
+class EphemeralMessage(TLObject):
+    TL_ID: ClassVar[int] = -641278950
+    TL_NAME: ClassVar[str] = "ephemeralMessage"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('flags', '#'), ('out', 'flags.0?true'), ('id', 'int'), ('from_id', 'Peer'), ('peer_id', 'Peer'), ('receiver_id', 'long'), ('top_msg_id', 'flags.1?int'), ('date', 'int'), ('message', 'string'), ('entities', 'flags.2?Vector<MessageEntity>'), ('media', 'flags.3?MessageMedia'), ('reply_markup', 'flags.4?ReplyMarkup'), ('reply_to', 'flags.6?MessageReplyHeader'))
+    flags: object
+    out: object
+    id: object
+    from_id: object
+    peer_id: object
+    receiver_id: object
+    top_msg_id: object
+    date: object
+    message: object
+    entities: object
+    media: object
+    reply_markup: object
+    reply_to: object
+@dataclass(slots=True)
+class CommunitiesParticipantJoinedChats(TLObject):
+    TL_ID: ClassVar[int] = -1921494742
+    TL_NAME: ClassVar[str] = "communities.participantJoinedChats"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('creator_chat_ids', 'Vector<long>'), ('joined_chat_ids', 'Vector<long>'), ('chats', 'Vector<Chat>'), ('users', 'Vector<User>'))
+    creator_chat_ids: object
+    joined_chat_ids: object
+    chats: object
+    users: object
+@dataclass(slots=True)
+class MessagesTranslatedRichMessage(TLObject):
+    TL_ID: ClassVar[int] = 1107532175
+    TL_NAME: ClassVar[str] = "messages.translatedRichMessage"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('result', 'Vector<RichMessage>'),)
+    result: object
+@dataclass(slots=True)
+class MessagesComposedRichMessageWithAi(TLObject):
+    TL_ID: ClassVar[int] = 1279604680
+    TL_NAME: ClassVar[str] = "messages.composedRichMessageWithAI"
+    TL_PARAMS: ClassVar[tuple[tuple[str, str], ...]] = (('result', 'RichMessage'),)
+    result: object
+__all__ = ['Int', 'Long', 'Double', 'String', 'Vector', 'Int128', 'Int256', 'ResPq', 'PQInnerData', 'PQInnerDataDc', 'PQInnerDataTemp', 'PQInnerDataTempDc', 'BindAuthKeyInner', 'ServerDhParamsFail', 'ServerDhParamsOk', 'ServerDhInnerData', 'ClientDhInnerData', 'DhGenOk', 'DhGenRetry', 'DhGenFail', 'DestroyAuthKeyOk', 'DestroyAuthKeyNone', 'DestroyAuthKeyFail', 'MsgsAck', 'BadMsgNotification', 'BadServerSalt', 'MsgsStateReq', 'MsgsStateInfo', 'MsgsAllInfo', 'MsgDetailedInfo', 'MsgNewDetailedInfo', 'MsgResendReq', 'RpcError', 'RpcAnswerUnknown', 'RpcAnswerDroppedRunning', 'RpcAnswerDropped', 'FutureSalt', 'FutureSalts', 'Pong', 'DestroySessionOk', 'DestroySessionNone', 'NewSessionCreated', 'HttpWait', 'IpPort', 'IpPortSecret', 'AccessPointRule', 'HelpConfigSimple', 'TlsClientHello', 'TlsBlockString', 'TlsBlockRandom', 'TlsBlockZero', 'TlsBlockDomain', 'TlsBlockGrease', 'TlsBlockPublicKey', 'TlsBlockScope', 'TlsBlockPermutation', 'TlsBlockM', 'TlsBlockE', 'TlsBlockPadding', 'BoolFalse', 'BoolTrue', 'TLTrue', 'Error', 'Null', 'InputPeerEmpty', 'InputPeerSelf', 'InputPeerChat', 'InputPeerUser', 'InputPeerChannel', 'InputPeerUserFromMessage', 'InputPeerChannelFromMessage', 'InputUserEmpty', 'InputUserSelf', 'InputUser', 'InputUserFromMessage', 'InputPhoneContact', 'InputFile', 'InputFileBig', 'InputFileStoryDocument', 'InputMediaEmpty', 'InputMediaUploadedPhoto', 'InputMediaPhoto', 'InputMediaGeoPoint', 'InputMediaContact', 'InputMediaUploadedDocument', 'InputMediaDocument', 'InputMediaVenue', 'InputMediaPhotoExternal', 'InputMediaDocumentExternal', 'InputMediaGame', 'InputMediaInvoice', 'InputMediaGeoLive', 'InputMediaPoll', 'InputMediaDice', 'InputMediaStory', 'InputMediaWebPage', 'InputMediaPaidMedia', 'InputMediaTodo', 'InputMediaStakeDice', 'InputChatPhotoEmpty', 'InputChatUploadedPhoto', 'InputChatPhoto', 'InputGeoPointEmpty', 'InputGeoPoint', 'InputPhotoEmpty', 'InputPhoto', 'InputFileLocation', 'InputEncryptedFileLocation', 'InputDocumentFileLocation', 'InputSecureFileLocation', 'InputTakeoutFileLocation', 'InputPhotoFileLocation', 'InputPhotoLegacyFileLocation', 'InputPeerPhotoFileLocation', 'InputStickerSetThumb', 'InputGroupCallStream', 'PeerUser', 'PeerChat', 'PeerChannel', 'StorageFileUnknown', 'StorageFilePartial', 'StorageFileJpeg', 'StorageFileGif', 'StorageFilePng', 'StorageFilePdf', 'StorageFileMp3', 'StorageFileMov', 'StorageFileMp4', 'StorageFileWebp', 'UserEmpty', 'User', 'UserProfilePhotoEmpty', 'UserProfilePhoto', 'UserStatusEmpty', 'UserStatusOnline', 'UserStatusOffline', 'UserStatusRecently', 'UserStatusLastWeek', 'UserStatusLastMonth', 'ChatEmpty', 'Chat', 'ChatForbidden', 'Channel', 'ChannelForbidden', 'CommunityForbidden', 'Community', 'ChatFull', 'ChannelFull', 'CommunityFull', 'ChatParticipant', 'ChatParticipantCreator', 'ChatParticipantAdmin', 'ChatParticipantsForbidden', 'ChatParticipants', 'ChatPhotoEmpty', 'ChatPhoto', 'MessageEmpty', 'Message', 'MessageService', 'MessageMediaEmpty', 'MessageMediaPhoto', 'MessageMediaGeo', 'MessageMediaContact', 'MessageMediaUnsupported', 'MessageMediaDocument', 'MessageMediaWebPage', 'MessageMediaVenue', 'MessageMediaGame', 'MessageMediaInvoice', 'MessageMediaGeoLive', 'MessageMediaPoll', 'MessageMediaDice', 'MessageMediaStory', 'MessageMediaGiveaway', 'MessageMediaGiveawayResults', 'MessageMediaPaidMedia', 'MessageMediaToDo', 'MessageMediaVideoStream', 'MessageActionEmpty', 'MessageActionChatCreate', 'MessageActionChatEditTitle', 'MessageActionChatEditPhoto', 'MessageActionChatDeletePhoto', 'MessageActionChatAddUser', 'MessageActionChatDeleteUser', 'MessageActionChatJoinedByLink', 'MessageActionChannelCreate', 'MessageActionChatMigrateTo', 'MessageActionChannelMigrateFrom', 'MessageActionPinMessage', 'MessageActionHistoryClear', 'MessageActionGameScore', 'MessageActionPaymentSentMe', 'MessageActionPaymentSent', 'MessageActionPhoneCall', 'MessageActionScreenshotTaken', 'MessageActionCustomAction', 'MessageActionBotAllowed', 'MessageActionSecureValuesSentMe', 'MessageActionSecureValuesSent', 'MessageActionContactSignUp', 'MessageActionGeoProximityReached', 'MessageActionGroupCall', 'MessageActionInviteToGroupCall', 'MessageActionSetMessagesTtl', 'MessageActionGroupCallScheduled', 'MessageActionSetChatTheme', 'MessageActionChatJoinedByRequest', 'MessageActionWebViewDataSentMe', 'MessageActionWebViewDataSent', 'MessageActionGiftPremium', 'MessageActionTopicCreate', 'MessageActionTopicEdit', 'MessageActionSuggestProfilePhoto', 'MessageActionRequestedPeer', 'MessageActionSetChatWallPaper', 'MessageActionGiftCode', 'MessageActionGiveawayLaunch', 'MessageActionGiveawayResults', 'MessageActionBoostApply', 'MessageActionRequestedPeerSentMe', 'MessageActionPaymentRefunded', 'MessageActionGiftStars', 'MessageActionPrizeStars', 'MessageActionStarGift', 'MessageActionStarGiftUnique', 'MessageActionPaidMessagesRefunded', 'MessageActionPaidMessagesPrice', 'MessageActionConferenceCall', 'MessageActionTodoCompletions', 'MessageActionTodoAppendTasks', 'MessageActionSuggestedPostApproval', 'MessageActionSuggestedPostSuccess', 'MessageActionSuggestedPostRefund', 'MessageActionGiftTon', 'MessageActionSuggestBirthday', 'MessageActionStarGiftPurchaseOffer', 'MessageActionStarGiftPurchaseOfferDeclined', 'MessageActionNewCreatorPending', 'MessageActionChangeCreator', 'MessageActionNoForwardsToggle', 'MessageActionNoForwardsRequest', 'MessageActionPollAppendAnswer', 'MessageActionPollDeleteAnswer', 'MessageActionManagedBotCreated', 'MessageActionChangeCommunity', 'Dialog', 'DialogFolder', 'DialogCommunity', 'PhotoEmpty', 'Photo', 'PhotoSizeEmpty', 'PhotoSize', 'PhotoCachedSize', 'PhotoStrippedSize', 'PhotoSizeProgressive', 'PhotoPathSize', 'GeoPointEmpty', 'GeoPoint', 'AuthSentCode', 'AuthSentCodeSuccess', 'AuthSentCodePaymentRequired', 'AuthAuthorization', 'AuthAuthorizationSignUpRequired', 'AuthExportedAuthorization', 'InputNotifyPeer', 'InputNotifyUsers', 'InputNotifyChats', 'InputNotifyBroadcasts', 'InputNotifyForumTopic', 'InputNotifyCommunity', 'InputPeerNotifySettings', 'PeerNotifySettings', 'PeerSettings', 'WallPaper', 'WallPaperNoFile', 'InputReportReasonSpam', 'InputReportReasonViolence', 'InputReportReasonPornography', 'InputReportReasonChildAbuse', 'InputReportReasonOther', 'InputReportReasonCopyright', 'InputReportReasonGeoIrrelevant', 'InputReportReasonFake', 'InputReportReasonIllegalDrugs', 'InputReportReasonPersonalDetails', 'UserFull', 'Contact', 'ImportedContact', 'ContactStatus', 'ContactsContactsNotModified', 'ContactsContacts', 'ContactsImportedContacts', 'ContactsBlocked', 'ContactsBlockedSlice', 'MessagesDialogs', 'MessagesDialogsSlice', 'MessagesDialogsNotModified', 'MessagesMessages', 'MessagesMessagesSlice', 'MessagesChannelMessages', 'MessagesMessagesNotModified', 'MessagesChats', 'MessagesChatsSlice', 'MessagesChatFull', 'MessagesAffectedHistory', 'InputMessagesFilterEmpty', 'InputMessagesFilterPhotos', 'InputMessagesFilterVideo', 'InputMessagesFilterPhotoVideo', 'InputMessagesFilterDocument', 'InputMessagesFilterUrl', 'InputMessagesFilterGif', 'InputMessagesFilterVoice', 'InputMessagesFilterMusic', 'InputMessagesFilterChatPhotos', 'InputMessagesFilterPhoneCalls', 'InputMessagesFilterRoundVoice', 'InputMessagesFilterRoundVideo', 'InputMessagesFilterMyMentions', 'InputMessagesFilterGeo', 'InputMessagesFilterContacts', 'InputMessagesFilterPinned', 'InputMessagesFilterPoll', 'UpdateNewMessage', 'UpdateMessageId', 'UpdateDeleteMessages', 'UpdateUserTyping', 'UpdateChatUserTyping', 'UpdateChatParticipants', 'UpdateUserStatus', 'UpdateUserName', 'UpdateNewAuthorization', 'UpdateNewEncryptedMessage', 'UpdateEncryptedChatTyping', 'UpdateEncryption', 'UpdateEncryptedMessagesRead', 'UpdateChatParticipantAdd', 'UpdateChatParticipantDelete', 'UpdateDcOptions', 'UpdateNotifySettings', 'UpdateServiceNotification', 'UpdatePrivacy', 'UpdateUserPhone', 'UpdateReadHistoryInbox', 'UpdateReadHistoryOutbox', 'UpdateWebPage', 'UpdateReadMessagesContents', 'UpdateChannelTooLong', 'UpdateChannel', 'UpdateNewChannelMessage', 'UpdateReadChannelInbox', 'UpdateDeleteChannelMessages', 'UpdateChannelMessageViews', 'UpdateChatParticipantAdmin', 'UpdateNewStickerSet', 'UpdateStickerSetsOrder', 'UpdateStickerSets', 'UpdateSavedGifs', 'UpdateBotInlineQuery', 'UpdateBotInlineSend', 'UpdateEditChannelMessage', 'UpdateBotCallbackQuery', 'UpdateEditMessage', 'UpdateInlineBotCallbackQuery', 'UpdateReadChannelOutbox', 'UpdateDraftMessage', 'UpdateReadFeaturedStickers', 'UpdateRecentStickers', 'UpdateConfig', 'UpdatePtsChanged', 'UpdateChannelWebPage', 'UpdateDialogPinned', 'UpdatePinnedDialogs', 'UpdateBotWebhookJson', 'UpdateBotWebhookJsonquery', 'UpdateBotShippingQuery', 'UpdateBotPrecheckoutQuery', 'UpdatePhoneCall', 'UpdateLangPackTooLong', 'UpdateLangPack', 'UpdateFavedStickers', 'UpdateChannelReadMessagesContents', 'UpdateContactsReset', 'UpdateChannelAvailableMessages', 'UpdateDialogUnreadMark', 'UpdateMessagePoll', 'UpdateChatDefaultBannedRights', 'UpdateFolderPeers', 'UpdatePeerSettings', 'UpdatePeerLocated', 'UpdateNewScheduledMessage', 'UpdateDeleteScheduledMessages', 'UpdateTheme', 'UpdateGeoLiveViewed', 'UpdateLoginToken', 'UpdateMessagePollVote', 'UpdateDialogFilter', 'UpdateDialogFilterOrder', 'UpdateDialogFilters', 'UpdatePhoneCallSignalingData', 'UpdateChannelMessageForwards', 'UpdateReadChannelDiscussionInbox', 'UpdateReadChannelDiscussionOutbox', 'UpdatePeerBlocked', 'UpdateChannelUserTyping', 'UpdatePinnedMessages', 'UpdatePinnedChannelMessages', 'UpdateChat', 'UpdateGroupCallParticipants', 'UpdateGroupCall', 'UpdatePeerHistoryTtl', 'UpdateChatParticipant', 'UpdateChannelParticipant', 'UpdateBotStopped', 'UpdateGroupCallConnection', 'UpdateBotCommands', 'UpdatePendingJoinRequests', 'UpdateBotChatInviteRequester', 'UpdateMessageReactions', 'UpdateAttachMenuBots', 'UpdateWebViewResultSent', 'UpdateBotMenuButton', 'UpdateSavedRingtones', 'UpdateTranscribedAudio', 'UpdateReadFeaturedEmojiStickers', 'UpdateUserEmojiStatus', 'UpdateRecentEmojiStatuses', 'UpdateRecentReactions', 'UpdateMoveStickerSetToTop', 'UpdateMessageExtendedMedia', 'UpdateUser', 'UpdateAutoSaveSettings', 'UpdateStory', 'UpdateReadStories', 'UpdateStoryId', 'UpdateStoriesStealthMode', 'UpdateSentStoryReaction', 'UpdateBotChatBoost', 'UpdateChannelViewForumAsMessages', 'UpdatePeerWallpaper', 'UpdateBotMessageReaction', 'UpdateBotMessageReactions', 'UpdateSavedDialogPinned', 'UpdatePinnedSavedDialogs', 'UpdateSavedReactionTags', 'UpdateSmsJob', 'UpdateQuickReplies', 'UpdateNewQuickReply', 'UpdateDeleteQuickReply', 'UpdateQuickReplyMessage', 'UpdateDeleteQuickReplyMessages', 'UpdateBotBusinessConnect', 'UpdateBotNewBusinessMessage', 'UpdateBotEditBusinessMessage', 'UpdateBotDeleteBusinessMessage', 'UpdateNewStoryReaction', 'UpdateStarsBalance', 'UpdateBusinessBotCallbackQuery', 'UpdateStarsRevenueStatus', 'UpdateBotPurchasedPaidMedia', 'UpdatePaidReactionPrivacy', 'UpdateSentPhoneCode', 'UpdateGroupCallChainBlocks', 'UpdateReadMonoForumInbox', 'UpdateReadMonoForumOutbox', 'UpdateMonoForumNoPaidException', 'UpdateGroupCallMessage', 'UpdateGroupCallEncryptedMessage', 'UpdatePinnedForumTopic', 'UpdatePinnedForumTopics', 'UpdateDeleteGroupCallMessages', 'UpdateStarGiftAuctionState', 'UpdateStarGiftAuctionUserState', 'UpdateEmojiGameInfo', 'UpdateStarGiftCraftFail', 'UpdateChatParticipantRank', 'UpdateManagedBot', 'UpdateBotGuestChatQuery', 'UpdateAiComposeTones', 'UpdateJoinChatWebViewDecision', 'UpdateNewBotConnection', 'UpdateWebBrowserSettings', 'UpdateWebBrowserException', 'UpdateNewEphemeralMessage', 'UpdateDeleteEphemeralMessages', 'UpdateEditEphemeralMessage', 'UpdateBotStarsSubscription', 'UpdatesState', 'UpdatesDifferenceEmpty', 'UpdatesDifference', 'UpdatesDifferenceSlice', 'UpdatesDifferenceTooLong', 'UpdatesTooLong', 'UpdateShortMessage', 'UpdateShortChatMessage', 'UpdateShort', 'UpdatesCombined', 'Updates', 'UpdateShortSentMessage', 'PhotosPhotos', 'PhotosPhotosSlice', 'PhotosPhoto', 'UploadFile', 'UploadFileCdnRedirect', 'DcOption', 'Config', 'NearestDc', 'HelpAppUpdate', 'HelpNoAppUpdate', 'HelpInviteText', 'EncryptedChatEmpty', 'EncryptedChatWaiting', 'EncryptedChatRequested', 'EncryptedChat', 'EncryptedChatDiscarded', 'InputEncryptedChat', 'EncryptedFileEmpty', 'EncryptedFile', 'InputEncryptedFileEmpty', 'InputEncryptedFileUploaded', 'InputEncryptedFile', 'InputEncryptedFileBigUploaded', 'EncryptedMessage', 'EncryptedMessageService', 'MessagesDhConfigNotModified', 'MessagesDhConfig', 'MessagesSentEncryptedMessage', 'MessagesSentEncryptedFile', 'InputDocumentEmpty', 'InputDocument', 'DocumentEmpty', 'Document', 'HelpSupport', 'NotifyPeer', 'NotifyUsers', 'NotifyChats', 'NotifyBroadcasts', 'NotifyForumTopic', 'NotifyCommunity', 'SendMessageTypingAction', 'SendMessageCancelAction', 'SendMessageRecordVideoAction', 'SendMessageUploadVideoAction', 'SendMessageRecordAudioAction', 'SendMessageUploadAudioAction', 'SendMessageUploadPhotoAction', 'SendMessageUploadDocumentAction', 'SendMessageGeoLocationAction', 'SendMessageChooseContactAction', 'SendMessageGamePlayAction', 'SendMessageRecordRoundAction', 'SendMessageUploadRoundAction', 'SpeakingInGroupCallAction', 'SendMessageHistoryImportAction', 'SendMessageChooseStickerAction', 'SendMessageEmojiInteraction', 'SendMessageEmojiInteractionSeen', 'SendMessageTextDraftAction', 'InputSendMessageRichMessageDraftAction', 'SendMessageRichMessageDraftAction', 'ContactsFound', 'InputPrivacyKeyStatusTimestamp', 'InputPrivacyKeyChatInvite', 'InputPrivacyKeyPhoneCall', 'InputPrivacyKeyPhoneP2P', 'InputPrivacyKeyForwards', 'InputPrivacyKeyProfilePhoto', 'InputPrivacyKeyPhoneNumber', 'InputPrivacyKeyAddedByPhone', 'InputPrivacyKeyVoiceMessages', 'InputPrivacyKeyAbout', 'InputPrivacyKeyBirthday', 'InputPrivacyKeyStarGiftsAutoSave', 'InputPrivacyKeyNoPaidMessages', 'InputPrivacyKeySavedMusic', 'PrivacyKeyStatusTimestamp', 'PrivacyKeyChatInvite', 'PrivacyKeyPhoneCall', 'PrivacyKeyPhoneP2P', 'PrivacyKeyForwards', 'PrivacyKeyProfilePhoto', 'PrivacyKeyPhoneNumber', 'PrivacyKeyAddedByPhone', 'PrivacyKeyVoiceMessages', 'PrivacyKeyAbout', 'PrivacyKeyBirthday', 'PrivacyKeyStarGiftsAutoSave', 'PrivacyKeyNoPaidMessages', 'PrivacyKeySavedMusic', 'InputPrivacyValueAllowContacts', 'InputPrivacyValueAllowAll', 'InputPrivacyValueAllowUsers', 'InputPrivacyValueDisallowContacts', 'InputPrivacyValueDisallowAll', 'InputPrivacyValueDisallowUsers', 'InputPrivacyValueAllowChatParticipants', 'InputPrivacyValueDisallowChatParticipants', 'InputPrivacyValueAllowCloseFriends', 'InputPrivacyValueAllowPremium', 'InputPrivacyValueAllowBots', 'InputPrivacyValueDisallowBots', 'PrivacyValueAllowContacts', 'PrivacyValueAllowAll', 'PrivacyValueAllowUsers', 'PrivacyValueDisallowContacts', 'PrivacyValueDisallowAll', 'PrivacyValueDisallowUsers', 'PrivacyValueAllowChatParticipants', 'PrivacyValueDisallowChatParticipants', 'PrivacyValueAllowCloseFriends', 'PrivacyValueAllowPremium', 'PrivacyValueAllowBots', 'PrivacyValueDisallowBots', 'AccountPrivacyRules', 'AccountDaysTtl', 'DocumentAttributeImageSize', 'DocumentAttributeAnimated', 'DocumentAttributeSticker', 'DocumentAttributeVideo', 'DocumentAttributeAudio', 'DocumentAttributeFilename', 'DocumentAttributeHasStickers', 'DocumentAttributeCustomEmoji', 'MessagesStickersNotModified', 'MessagesStickers', 'StickerPack', 'MessagesAllStickersNotModified', 'MessagesAllStickers', 'MessagesAffectedMessages', 'WebPageEmpty', 'WebPagePending', 'WebPage', 'WebPageNotModified', 'Authorization', 'AccountAuthorizations', 'AccountPassword', 'AccountPasswordSettings', 'AccountPasswordInputSettings', 'AuthPasswordRecovery', 'ReceivedNotifyMessage', 'ChatInviteExported', 'ChatInvitePublicJoinRequests', 'ChatInviteAlready', 'ChatInvite', 'ChatInvitePeek', 'InputStickerSetEmpty', 'InputStickerSetId', 'InputStickerSetShortName', 'InputStickerSetAnimatedEmoji', 'InputStickerSetDice', 'InputStickerSetAnimatedEmojiAnimations', 'InputStickerSetPremiumGifts', 'InputStickerSetEmojiGenericAnimations', 'InputStickerSetEmojiDefaultStatuses', 'InputStickerSetEmojiDefaultTopicIcons', 'InputStickerSetEmojiChannelDefaultStatuses', 'InputStickerSetTonGifts', 'StickerSet', 'MessagesStickerSet', 'MessagesStickerSetNotModified', 'BotCommand', 'BotInfo', 'KeyboardButton', 'KeyboardButtonUrl', 'KeyboardButtonCallback', 'KeyboardButtonRequestPhone', 'KeyboardButtonRequestGeoLocation', 'KeyboardButtonSwitchInline', 'KeyboardButtonGame', 'KeyboardButtonBuy', 'KeyboardButtonUrlAuth', 'InputKeyboardButtonUrlAuth', 'KeyboardButtonRequestPoll', 'InputKeyboardButtonUserProfile', 'KeyboardButtonUserProfile', 'KeyboardButtonWebView', 'KeyboardButtonSimpleWebView', 'KeyboardButtonRequestPeer', 'InputKeyboardButtonRequestPeer', 'KeyboardButtonCopy', 'KeyboardButtonRow', 'ReplyKeyboardHide', 'ReplyKeyboardForceReply', 'ReplyKeyboardMarkup', 'ReplyInlineMarkup', 'MessageEntityUnknown', 'MessageEntityMention', 'MessageEntityHashtag', 'MessageEntityBotCommand', 'MessageEntityUrl', 'MessageEntityEmail', 'MessageEntityBold', 'MessageEntityItalic', 'MessageEntityCode', 'MessageEntityPre', 'MessageEntityTextUrl', 'MessageEntityMentionName', 'InputMessageEntityMentionName', 'MessageEntityPhone', 'MessageEntityCashtag', 'MessageEntityUnderline', 'MessageEntityStrike', 'MessageEntityBankCard', 'MessageEntitySpoiler', 'MessageEntityCustomEmoji', 'MessageEntityBlockquote', 'MessageEntityFormattedDate', 'MessageEntityDiffInsert', 'MessageEntityDiffReplace', 'MessageEntityDiffDelete', 'InputChannelEmpty', 'InputChannel', 'InputChannelFromMessage', 'ContactsResolvedPeer', 'MessageRange', 'UpdatesChannelDifferenceEmpty', 'UpdatesChannelDifferenceTooLong', 'UpdatesChannelDifference', 'ChannelMessagesFilterEmpty', 'ChannelMessagesFilter', 'ChannelParticipant', 'ChannelParticipantSelf', 'ChannelParticipantCreator', 'ChannelParticipantAdmin', 'ChannelParticipantBanned', 'ChannelParticipantLeft', 'ChannelParticipantsRecent', 'ChannelParticipantsAdmins', 'ChannelParticipantsKicked', 'ChannelParticipantsBots', 'ChannelParticipantsBanned', 'ChannelParticipantsSearch', 'ChannelParticipantsContacts', 'ChannelParticipantsMentions', 'ChannelsChannelParticipants', 'ChannelsChannelParticipantsNotModified', 'ChannelsChannelParticipant', 'HelpTermsOfService', 'MessagesSavedGifsNotModified', 'MessagesSavedGifs', 'InputBotInlineMessageMediaAuto', 'InputBotInlineMessageText', 'InputBotInlineMessageMediaGeo', 'InputBotInlineMessageMediaVenue', 'InputBotInlineMessageMediaContact', 'InputBotInlineMessageGame', 'InputBotInlineMessageMediaInvoice', 'InputBotInlineMessageMediaWebPage', 'InputBotInlineMessageRichMessage', 'InputBotInlineResult', 'InputBotInlineResultPhoto', 'InputBotInlineResultDocument', 'InputBotInlineResultGame', 'BotInlineMessageMediaAuto', 'BotInlineMessageText', 'BotInlineMessageMediaGeo', 'BotInlineMessageMediaVenue', 'BotInlineMessageMediaContact', 'BotInlineMessageMediaInvoice', 'BotInlineMessageMediaWebPage', 'BotInlineMessageRichMessage', 'BotInlineResult', 'BotInlineMediaResult', 'MessagesBotResults', 'ExportedMessageLink', 'MessageFwdHeader', 'AuthCodeTypeSms', 'AuthCodeTypeCall', 'AuthCodeTypeFlashCall', 'AuthCodeTypeMissedCall', 'AuthCodeTypeFragmentSms', 'AuthSentCodeTypeApp', 'AuthSentCodeTypeSms', 'AuthSentCodeTypeCall', 'AuthSentCodeTypeFlashCall', 'AuthSentCodeTypeMissedCall', 'AuthSentCodeTypeEmailCode', 'AuthSentCodeTypeSetUpEmailRequired', 'AuthSentCodeTypeFragmentSms', 'AuthSentCodeTypeFirebaseSms', 'AuthSentCodeTypeSmsWord', 'AuthSentCodeTypeSmsPhrase', 'MessagesBotCallbackAnswer', 'MessagesMessageEditData', 'InputBotInlineMessageId', 'InputBotInlineMessageId64', 'InlineBotSwitchPm', 'MessagesPeerDialogs', 'TopPeer', 'TopPeerCategoryBotsPm', 'TopPeerCategoryBotsInline', 'TopPeerCategoryCorrespondents', 'TopPeerCategoryGroups', 'TopPeerCategoryChannels', 'TopPeerCategoryPhoneCalls', 'TopPeerCategoryForwardUsers', 'TopPeerCategoryForwardChats', 'TopPeerCategoryBotsApp', 'TopPeerCategoryBotsGuestChat', 'TopPeerCategoryPeers', 'ContactsTopPeersNotModified', 'ContactsTopPeers', 'ContactsTopPeersDisabled', 'DraftMessageEmpty', 'DraftMessage', 'MessagesFeaturedStickersNotModified', 'MessagesFeaturedStickers', 'MessagesRecentStickersNotModified', 'MessagesRecentStickers', 'MessagesArchivedStickers', 'MessagesStickerSetInstallResultSuccess', 'MessagesStickerSetInstallResultArchive', 'StickerSetCovered', 'StickerSetMultiCovered', 'StickerSetFullCovered', 'StickerSetNoCovered', 'MaskCoords', 'InputStickeredMediaPhoto', 'InputStickeredMediaDocument', 'Game', 'InputGameId', 'InputGameShortName', 'HighScore', 'MessagesHighScores', 'TextEmpty', 'TextPlain', 'TextBold', 'TextItalic', 'TextUnderline', 'TextStrike', 'TextFixed', 'TextUrl', 'TextEmail', 'TextConcat', 'TextSubscript', 'TextSuperscript', 'TextMarked', 'TextPhone', 'TextImage', 'TextAnchor', 'TextMath', 'TextCustomEmoji', 'TextSpoiler', 'TextMention', 'TextHashtag', 'TextBotCommand', 'TextCashtag', 'TextAutoUrl', 'TextAutoEmail', 'TextAutoPhone', 'TextBankCard', 'TextMentionName', 'TextDate', 'TextDiff', 'PageBlockUnsupported', 'PageBlockTitle', 'PageBlockSubtitle', 'PageBlockAuthorDate', 'PageBlockHeader', 'PageBlockSubheader', 'PageBlockParagraph', 'PageBlockPreformatted', 'PageBlockFooter', 'PageBlockDivider', 'PageBlockAnchor', 'PageBlockList', 'PageBlockBlockquote', 'PageBlockPullquote', 'PageBlockPhoto', 'PageBlockVideo', 'PageBlockCover', 'PageBlockEmbed', 'PageBlockEmbedPost', 'PageBlockCollage', 'PageBlockSlideshow', 'PageBlockChannel', 'PageBlockAudio', 'PageBlockKicker', 'PageBlockTable', 'PageBlockOrderedList', 'PageBlockDetails', 'PageBlockRelatedArticles', 'PageBlockMap', 'PageBlockHeading1', 'PageBlockHeading2', 'PageBlockHeading3', 'PageBlockHeading4', 'PageBlockHeading5', 'PageBlockHeading6', 'PageBlockMath', 'PageBlockThinking', 'InputPageBlockMap', 'PageBlockBlockquoteBlocks', 'PhoneCallDiscardReasonMissed', 'PhoneCallDiscardReasonDisconnect', 'PhoneCallDiscardReasonHangup', 'PhoneCallDiscardReasonBusy', 'PhoneCallDiscardReasonMigrateConferenceCall', 'DataJson', 'LabeledPrice', 'Invoice', 'PaymentCharge', 'PostAddress', 'PaymentRequestedInfo', 'PaymentSavedCredentialsCard', 'WebDocument', 'WebDocumentNoProxy', 'InputWebDocument', 'InputWebFileLocation', 'InputWebFileGeoPointLocation', 'InputWebFileAudioAlbumThumbLocation', 'UploadWebFile', 'PaymentsPaymentForm', 'PaymentsPaymentFormStars', 'PaymentsPaymentFormStarGift', 'PaymentsValidatedRequestedInfo', 'PaymentsPaymentResult', 'PaymentsPaymentVerificationNeeded', 'PaymentsPaymentReceipt', 'PaymentsPaymentReceiptStars', 'PaymentsSavedInfo', 'InputPaymentCredentialsSaved', 'InputPaymentCredentials', 'InputPaymentCredentialsApplePay', 'InputPaymentCredentialsGooglePay', 'AccountTmpPassword', 'ShippingOption', 'InputStickerSetItem', 'InputPhoneCall', 'PhoneCallEmpty', 'PhoneCallWaiting', 'PhoneCallRequested', 'PhoneCallAccepted', 'PhoneCall', 'PhoneCallDiscarded', 'PhoneConnection', 'PhoneConnectionWebrtc', 'PhoneCallProtocol', 'PhonePhoneCall', 'UploadCdnFileReuploadNeeded', 'UploadCdnFile', 'CdnPublicKey', 'CdnConfig', 'LangPackString', 'LangPackStringPluralized', 'LangPackStringDeleted', 'LangPackDifference', 'LangPackLanguage', 'ChannelAdminLogEventActionChangeTitle', 'ChannelAdminLogEventActionChangeAbout', 'ChannelAdminLogEventActionChangeUsername', 'ChannelAdminLogEventActionChangePhoto', 'ChannelAdminLogEventActionToggleInvites', 'ChannelAdminLogEventActionToggleSignatures', 'ChannelAdminLogEventActionUpdatePinned', 'ChannelAdminLogEventActionEditMessage', 'ChannelAdminLogEventActionDeleteMessage', 'ChannelAdminLogEventActionParticipantJoin', 'ChannelAdminLogEventActionParticipantLeave', 'ChannelAdminLogEventActionParticipantInvite', 'ChannelAdminLogEventActionParticipantToggleBan', 'ChannelAdminLogEventActionParticipantToggleAdmin', 'ChannelAdminLogEventActionChangeStickerSet', 'ChannelAdminLogEventActionTogglePreHistoryHidden', 'ChannelAdminLogEventActionDefaultBannedRights', 'ChannelAdminLogEventActionStopPoll', 'ChannelAdminLogEventActionChangeLinkedChat', 'ChannelAdminLogEventActionChangeLocation', 'ChannelAdminLogEventActionToggleSlowMode', 'ChannelAdminLogEventActionStartGroupCall', 'ChannelAdminLogEventActionDiscardGroupCall', 'ChannelAdminLogEventActionParticipantMute', 'ChannelAdminLogEventActionParticipantUnmute', 'ChannelAdminLogEventActionToggleGroupCallSetting', 'ChannelAdminLogEventActionParticipantJoinByInvite', 'ChannelAdminLogEventActionExportedInviteDelete', 'ChannelAdminLogEventActionExportedInviteRevoke', 'ChannelAdminLogEventActionExportedInviteEdit', 'ChannelAdminLogEventActionParticipantVolume', 'ChannelAdminLogEventActionChangeHistoryTtl', 'ChannelAdminLogEventActionParticipantJoinByRequest', 'ChannelAdminLogEventActionToggleNoForwards', 'ChannelAdminLogEventActionSendMessage', 'ChannelAdminLogEventActionChangeAvailableReactions', 'ChannelAdminLogEventActionChangeUsernames', 'ChannelAdminLogEventActionToggleForum', 'ChannelAdminLogEventActionCreateTopic', 'ChannelAdminLogEventActionEditTopic', 'ChannelAdminLogEventActionDeleteTopic', 'ChannelAdminLogEventActionPinTopic', 'ChannelAdminLogEventActionToggleAntiSpam', 'ChannelAdminLogEventActionChangePeerColor', 'ChannelAdminLogEventActionChangeProfilePeerColor', 'ChannelAdminLogEventActionChangeWallpaper', 'ChannelAdminLogEventActionChangeEmojiStatus', 'ChannelAdminLogEventActionChangeEmojiStickerSet', 'ChannelAdminLogEventActionToggleSignatureProfiles', 'ChannelAdminLogEventActionParticipantSubExtend', 'ChannelAdminLogEventActionToggleAutotranslation', 'ChannelAdminLogEventActionParticipantEditRank', 'ChannelAdminLogEvent', 'ChannelsAdminLogResults', 'ChannelAdminLogEventsFilter', 'PopularContact', 'MessagesFavedStickersNotModified', 'MessagesFavedStickers', 'RecentMeUrlUnknown', 'RecentMeUrlUser', 'RecentMeUrlChat', 'RecentMeUrlChatInvite', 'RecentMeUrlStickerSet', 'HelpRecentMeUrls', 'InputSingleMedia', 'WebAuthorization', 'AccountWebAuthorizations', 'InputMessageId', 'InputMessageReplyTo', 'InputMessagePinned', 'InputMessageCallbackQuery', 'InputDialogPeer', 'InputDialogPeerFolder', 'InputDialogPeerCommunity', 'DialogPeer', 'DialogPeerFolder', 'DialogPeerCommunity', 'MessagesFoundStickerSetsNotModified', 'MessagesFoundStickerSets', 'FileHash', 'InputClientProxy', 'HelpTermsOfServiceUpdateEmpty', 'HelpTermsOfServiceUpdate', 'InputSecureFileUploaded', 'InputSecureFile', 'SecureFileEmpty', 'SecureFile', 'SecureData', 'SecurePlainPhone', 'SecurePlainEmail', 'SecureValueTypePersonalDetails', 'SecureValueTypePassport', 'SecureValueTypeDriverLicense', 'SecureValueTypeIdentityCard', 'SecureValueTypeInternalPassport', 'SecureValueTypeAddress', 'SecureValueTypeUtilityBill', 'SecureValueTypeBankStatement', 'SecureValueTypeRentalAgreement', 'SecureValueTypePassportRegistration', 'SecureValueTypeTemporaryRegistration', 'SecureValueTypePhone', 'SecureValueTypeEmail', 'SecureValue', 'InputSecureValue', 'SecureValueHash', 'SecureValueErrorData', 'SecureValueErrorFrontSide', 'SecureValueErrorReverseSide', 'SecureValueErrorSelfie', 'SecureValueErrorFile', 'SecureValueErrorFiles', 'SecureValueError', 'SecureValueErrorTranslationFile', 'SecureValueErrorTranslationFiles', 'SecureCredentialsEncrypted', 'AccountAuthorizationForm', 'AccountSentEmailCode', 'HelpDeepLinkInfoEmpty', 'HelpDeepLinkInfo', 'SavedPhoneContact', 'AccountTakeout', 'PasswordKdfAlgoUnknown', 'PasswordKdfAlgoSha256Sha256Pbkdf2Hmacsha512iter100000Sha256ModPow', 'SecurePasswordKdfAlgoUnknown', 'SecurePasswordKdfAlgoPbkdf2Hmacsha512iter100000', 'SecurePasswordKdfAlgoSha512', 'SecureSecretSettings', 'InputCheckPasswordEmpty', 'InputCheckPasswordSrp', 'SecureRequiredType', 'SecureRequiredTypeOneOf', 'HelpPassportConfigNotModified', 'HelpPassportConfig', 'InputAppEvent', 'JsonObjectValue', 'JsonNull', 'JsonBool', 'JsonNumber', 'JsonString', 'JsonArray', 'JsonObject', 'PageTableCell', 'PageTableRow', 'PageCaption', 'PageListItemText', 'PageListItemBlocks', 'PageListOrderedItemText', 'PageListOrderedItemBlocks', 'PageRelatedArticle', 'Page', 'HelpSupportName', 'HelpUserInfoEmpty', 'HelpUserInfo', 'PollAnswer', 'InputPollAnswer', 'Poll', 'PollAnswerVoters', 'PollResults', 'ChatOnlines', 'StatsUrl', 'ChatAdminRights', 'ChatBannedRights', 'InputWallPaper', 'InputWallPaperSlug', 'InputWallPaperNoFile', 'AccountWallPapersNotModified', 'AccountWallPapers', 'CodeSettings', 'WallPaperSettings', 'AutoDownloadSettings', 'AccountAutoDownloadSettings', 'EmojiKeyword', 'EmojiKeywordDeleted', 'EmojiKeywordsDifference', 'EmojiUrl', 'EmojiLanguage', 'Folder', 'InputFolderPeer', 'FolderPeer', 'MessagesSearchCounter', 'UrlAuthResultRequest', 'UrlAuthResultAccepted', 'UrlAuthResultDefault', 'ChannelLocationEmpty', 'ChannelLocation', 'PeerLocated', 'PeerSelfLocated', 'RestrictionReason', 'InputTheme', 'InputThemeSlug', 'Theme', 'AccountThemesNotModified', 'AccountThemes', 'AuthLoginToken', 'AuthLoginTokenMigrateTo', 'AuthLoginTokenSuccess', 'AccountContentSettings', 'MessagesInactiveChats', 'BaseThemeClassic', 'BaseThemeDay', 'BaseThemeNight', 'BaseThemeTinted', 'BaseThemeArctic', 'InputThemeSettings', 'ThemeSettings', 'WebPageAttributeTheme', 'WebPageAttributeStory', 'WebPageAttributeStickerSet', 'WebPageAttributeUniqueStarGift', 'WebPageAttributeStarGiftCollection', 'WebPageAttributeStarGiftAuction', 'WebPageAttributeAiComposeTone', 'MessagesVotesList', 'BankCardOpenUrl', 'PaymentsBankCardData', 'DialogFilter', 'DialogFilterDefault', 'DialogFilterChatlist', 'DialogFilterSuggested', 'StatsDateRangeDays', 'StatsAbsValueAndPrev', 'StatsPercentValue', 'StatsGraphAsync', 'StatsGraphError', 'StatsGraph', 'StatsBroadcastStats', 'HelpPromoDataEmpty', 'HelpPromoData', 'VideoSize', 'VideoSizeEmojiMarkup', 'VideoSizeStickerMarkup', 'StatsGroupTopPoster', 'StatsGroupTopAdmin', 'StatsGroupTopInviter', 'StatsMegagroupStats', 'GlobalPrivacySettings', 'HelpCountryCode', 'HelpCountry', 'HelpCountriesListNotModified', 'HelpCountriesList', 'MessageViews', 'MessagesMessageViews', 'MessagesDiscussionMessage', 'MessageReplyHeader', 'MessageReplyStoryHeader', 'MessageReplies', 'PeerBlocked', 'StatsMessageStats', 'GroupCallDiscarded', 'GroupCall', 'InputGroupCall', 'InputGroupCallSlug', 'InputGroupCallInviteMessage', 'GroupCallParticipant', 'PhoneGroupCall', 'PhoneGroupParticipants', 'InlineQueryPeerTypeSameBotPm', 'InlineQueryPeerTypePm', 'InlineQueryPeerTypeChat', 'InlineQueryPeerTypeMegagroup', 'InlineQueryPeerTypeBroadcast', 'InlineQueryPeerTypeBotPm', 'MessagesHistoryImport', 'MessagesHistoryImportParsed', 'MessagesAffectedFoundMessages', 'ChatInviteImporter', 'MessagesExportedChatInvites', 'MessagesExportedChatInvite', 'MessagesExportedChatInviteReplaced', 'MessagesChatInviteImporters', 'ChatAdminWithInvites', 'MessagesChatAdminsWithInvites', 'MessagesCheckedHistoryImportPeer', 'PhoneJoinAsPeers', 'PhoneExportedGroupCallInvite', 'GroupCallParticipantVideoSourceGroup', 'GroupCallParticipantVideo', 'StickersSuggestedShortName', 'BotCommandScopeDefault', 'BotCommandScopeUsers', 'BotCommandScopeChats', 'BotCommandScopeChatAdmins', 'BotCommandScopePeer', 'BotCommandScopePeerAdmins', 'BotCommandScopePeerUser', 'AccountResetPasswordFailedWait', 'AccountResetPasswordRequestedWait', 'AccountResetPasswordOk', 'ChatTheme', 'ChatThemeUniqueGift', 'AccountChatThemesNotModified', 'AccountChatThemes', 'SponsoredMessage', 'MessagesSponsoredMessages', 'MessagesSponsoredMessagesEmpty', 'SearchResultsCalendarPeriod', 'MessagesSearchResultsCalendar', 'SearchResultPosition', 'MessagesSearchResultsPositions', 'ChannelsSendAsPeers', 'UsersUserFull', 'MessagesPeerSettings', 'AuthLoggedOut', 'ReactionCount', 'MessageReactions', 'MessagesMessageReactionsList', 'AvailableReaction', 'MessagesAvailableReactionsNotModified', 'MessagesAvailableReactions', 'MessagePeerReaction', 'GroupCallStreamChannel', 'PhoneGroupCallStreamChannels', 'PhoneGroupCallStreamRtmpUrl', 'AttachMenuBotIconColor', 'AttachMenuBotIcon', 'AttachMenuBot', 'AttachMenuBotsNotModified', 'AttachMenuBots', 'AttachMenuBotsBot', 'WebViewResultUrl', 'WebViewMessageSent', 'BotMenuButtonDefault', 'BotMenuButtonCommands', 'BotMenuButton', 'AccountSavedRingtonesNotModified', 'AccountSavedRingtones', 'NotificationSoundDefault', 'NotificationSoundNone', 'NotificationSoundLocal', 'NotificationSoundRingtone', 'AccountSavedRingtone', 'AccountSavedRingtoneConverted', 'AttachMenuPeerTypeSameBotPm', 'AttachMenuPeerTypeBotPm', 'AttachMenuPeerTypePm', 'AttachMenuPeerTypeChat', 'AttachMenuPeerTypeBroadcast', 'InputInvoiceMessage', 'InputInvoiceSlug', 'InputInvoicePremiumGiftCode', 'InputInvoiceStars', 'InputInvoiceChatInviteSubscription', 'InputInvoiceStarGift', 'InputInvoiceStarGiftUpgrade', 'InputInvoiceStarGiftTransfer', 'InputInvoicePremiumGiftStars', 'InputInvoiceBusinessBotTransferStars', 'InputInvoiceStarGiftResale', 'InputInvoiceStarGiftPrepaidUpgrade', 'InputInvoicePremiumAuthCode', 'InputInvoiceStarGiftDropOriginalDetails', 'InputInvoiceStarGiftAuctionBid', 'PaymentsExportedInvoice', 'MessagesTranscribedAudio', 'HelpPremiumPromo', 'InputStorePaymentPremiumSubscription', 'InputStorePaymentGiftPremium', 'InputStorePaymentPremiumGiftCode', 'InputStorePaymentPremiumGiveaway', 'InputStorePaymentStarsTopup', 'InputStorePaymentStarsGift', 'InputStorePaymentStarsGiveaway', 'InputStorePaymentAuthCode', 'PaymentFormMethod', 'EmojiStatusEmpty', 'EmojiStatus', 'EmojiStatusCollectible', 'InputEmojiStatusCollectible', 'AccountEmojiStatusesNotModified', 'AccountEmojiStatuses', 'ReactionEmpty', 'ReactionEmoji', 'ReactionCustomEmoji', 'ReactionPaid', 'ChatReactionsNone', 'ChatReactionsAll', 'ChatReactionsSome', 'MessagesReactionsNotModified', 'MessagesReactions', 'EmailVerifyPurposeLoginSetup', 'EmailVerifyPurposeLoginChange', 'EmailVerifyPurposePassport', 'EmailVerificationCode', 'EmailVerificationGoogle', 'EmailVerificationApple', 'AccountEmailVerified', 'AccountEmailVerifiedLogin', 'PremiumSubscriptionOption', 'SendAsPeer', 'MessageExtendedMediaPreview', 'MessageExtendedMedia', 'StickerKeyword', 'Username', 'ForumTopicDeleted', 'ForumTopic', 'MessagesForumTopics', 'DefaultHistoryTtl', 'ExportedContactToken', 'RequestPeerTypeUser', 'RequestPeerTypeChat', 'RequestPeerTypeBroadcast', 'RequestPeerTypeCreateBot', 'EmojiListNotModified', 'EmojiList', 'EmojiGroup', 'EmojiGroupGreeting', 'EmojiGroupPremium', 'MessagesEmojiGroupsNotModified', 'MessagesEmojiGroups', 'TextWithEntities', 'MessagesTranslateResult', 'AutoSaveSettings', 'AutoSaveException', 'AccountAutoSaveSettings', 'HelpAppConfigNotModified', 'HelpAppConfig', 'InputBotAppId', 'InputBotAppShortName', 'BotAppNotModified', 'BotApp', 'MessagesBotApp', 'InlineBotWebView', 'ReadParticipantDate', 'InputChatlistDialogFilter', 'ExportedChatlistInvite', 'ChatlistsExportedChatlistInvite', 'ChatlistsExportedInvites', 'ChatlistsChatlistInviteAlready', 'ChatlistsChatlistInvite', 'ChatlistsChatlistUpdates', 'BotsBotInfo', 'MessagePeerVote', 'MessagePeerVoteInputOption', 'MessagePeerVoteMultiple', 'StoryViews', 'StoryItemDeleted', 'StoryItemSkipped', 'StoryItem', 'StoriesAllStoriesNotModified', 'StoriesAllStories', 'StoriesStories', 'StoryView', 'StoryViewPublicForward', 'StoryViewPublicRepost', 'StoriesStoryViewsList', 'StoriesStoryViews', 'InputReplyToMessage', 'InputReplyToStory', 'InputReplyToMonoForum', 'InputReplyToEphemeralMessage', 'ExportedStoryLink', 'StoriesStealthMode', 'MediaAreaCoordinates', 'MediaAreaVenue', 'InputMediaAreaVenue', 'MediaAreaGeoPoint', 'MediaAreaSuggestedReaction', 'MediaAreaChannelPost', 'InputMediaAreaChannelPost', 'MediaAreaUrl', 'MediaAreaWeather', 'MediaAreaStarGift', 'PeerStories', 'StoriesPeerStories', 'MessagesWebPage', 'PremiumGiftCodeOption', 'PaymentsCheckedGiftCode', 'PaymentsGiveawayInfo', 'PaymentsGiveawayInfoResults', 'PrepaidGiveaway', 'PrepaidStarsGiveaway', 'Boost', 'PremiumBoostsList', 'MyBoost', 'PremiumMyBoosts', 'PremiumBoostsStatus', 'StoryFwdHeader', 'PostInteractionCountersMessage', 'PostInteractionCountersStory', 'StatsStoryStats', 'PublicForwardMessage', 'PublicForwardStory', 'StatsPublicForwards', 'PeerColor', 'PeerColorCollectible', 'InputPeerColorCollectible', 'HelpPeerColorSet', 'HelpPeerColorProfileSet', 'HelpPeerColorOption', 'HelpPeerColorsNotModified', 'HelpPeerColors', 'StoryReaction', 'StoryReactionPublicForward', 'StoryReactionPublicRepost', 'StoriesStoryReactionsList', 'SavedDialog', 'MonoForumDialog', 'MessagesSavedDialogs', 'MessagesSavedDialogsSlice', 'MessagesSavedDialogsNotModified', 'SavedReactionTag', 'MessagesSavedReactionTagsNotModified', 'MessagesSavedReactionTags', 'OutboxReadDate', 'SmsjobsEligibleToJoin', 'SmsjobsStatus', 'SmsJob', 'BusinessWeeklyOpen', 'BusinessWorkHours', 'BusinessLocation', 'InputBusinessRecipients', 'BusinessRecipients', 'BusinessAwayMessageScheduleAlways', 'BusinessAwayMessageScheduleOutsideWorkHours', 'BusinessAwayMessageScheduleCustom', 'InputBusinessGreetingMessage', 'BusinessGreetingMessage', 'InputBusinessAwayMessage', 'BusinessAwayMessage', 'Timezone', 'HelpTimezonesListNotModified', 'HelpTimezonesList', 'QuickReply', 'InputQuickReplyShortcut', 'InputQuickReplyShortcutId', 'MessagesQuickReplies', 'MessagesQuickRepliesNotModified', 'ConnectedBot', 'AccountConnectedBots', 'MessagesDialogFilters', 'Birthday', 'BotBusinessConnection', 'InputBusinessIntro', 'BusinessIntro', 'MessagesMyStickers', 'InputCollectibleUsername', 'InputCollectiblePhone', 'FragmentCollectibleInfo', 'InputBusinessBotRecipients', 'BusinessBotRecipients', 'ContactBirthday', 'ContactsContactBirthdays', 'MissingInvitee', 'MessagesInvitedUsers', 'InputBusinessChatLink', 'BusinessChatLink', 'AccountBusinessChatLinks', 'AccountResolvedBusinessChatLinks', 'RequestedPeerUser', 'RequestedPeerChat', 'RequestedPeerChannel', 'SponsoredMessageReportOption', 'ChannelsSponsoredMessageReportResultChooseOption', 'ChannelsSponsoredMessageReportResultAdsHidden', 'ChannelsSponsoredMessageReportResultReported', 'ReactionNotificationsFromContacts', 'ReactionNotificationsFromAll', 'ReactionsNotifySettings', 'AvailableEffect', 'MessagesAvailableEffectsNotModified', 'MessagesAvailableEffects', 'FactCheck', 'StarsTransactionPeerUnsupported', 'StarsTransactionPeerAppStore', 'StarsTransactionPeerPlayMarket', 'StarsTransactionPeerPremiumBot', 'StarsTransactionPeerFragment', 'StarsTransactionPeer', 'StarsTransactionPeerAds', 'StarsTransactionPeerApi', 'StarsTopupOption', 'StarsTransaction', 'PaymentsStarsStatus', 'FoundStory', 'StoriesFoundStories', 'GeoPointAddress', 'StarsRevenueStatus', 'PaymentsStarsRevenueStats', 'PaymentsStarsRevenueWithdrawalUrl', 'PaymentsStarsRevenueAdsAccountUrl', 'InputStarsTransaction', 'StarsGiftOption', 'BotsPopularAppBots', 'BotPreviewMedia', 'BotsPreviewInfo', 'StarsSubscriptionPricing', 'StarsSubscription', 'MessageReactor', 'StarsGiveawayOption', 'StarsGiveawayWinnersOption', 'StarGift', 'StarGiftUnique', 'PaymentsStarGiftsNotModified', 'PaymentsStarGifts', 'MessageReportOption', 'ReportResultChooseOption', 'ReportResultAddComment', 'ReportResultReported', 'MessagesBotPreparedInlineMessage', 'MessagesPreparedInlineMessage', 'BotAppSettings', 'StarRefProgram', 'ConnectedBotStarRef', 'PaymentsConnectedStarRefBots', 'PaymentsSuggestedStarRefBots', 'StarsAmount', 'StarsTonAmount', 'MessagesFoundStickersNotModified', 'MessagesFoundStickers', 'BotVerifierSettings', 'BotVerification', 'StarGiftAttributeModel', 'StarGiftAttributePattern', 'StarGiftAttributeBackdrop', 'StarGiftAttributeOriginalDetails', 'PaymentsStarGiftUpgradePreview', 'UsersUsers', 'UsersUsersSlice', 'PaymentsUniqueStarGift', 'MessagesWebPagePreview', 'SavedStarGift', 'PaymentsSavedStarGifts', 'InputSavedStarGiftUser', 'InputSavedStarGiftChat', 'InputSavedStarGiftSlug', 'PaymentsStarGiftWithdrawalUrl', 'PaidReactionPrivacyDefault', 'PaidReactionPrivacyAnonymous', 'PaidReactionPrivacyPeer', 'AccountPaidMessagesRevenue', 'RequirementToContactEmpty', 'RequirementToContactPremium', 'RequirementToContactPaidMessages', 'BusinessBotRights', 'DisallowedGiftsSettings', 'SponsoredPeer', 'ContactsSponsoredPeersEmpty', 'ContactsSponsoredPeers', 'StarGiftAttributeIdModel', 'StarGiftAttributeIdPattern', 'StarGiftAttributeIdBackdrop', 'StarGiftAttributeCounter', 'PaymentsResaleStarGifts', 'StoriesCanSendStoryCount', 'PendingSuggestion', 'TodoItem', 'TodoList', 'TodoCompletion', 'SuggestedPost', 'StarsRating', 'StarGiftCollection', 'PaymentsStarGiftCollectionsNotModified', 'PaymentsStarGiftCollections', 'StoryAlbum', 'StoriesAlbumsNotModified', 'StoriesAlbums', 'SearchPostsFlood', 'PaymentsUniqueStarGiftValueInfo', 'ProfileTabPosts', 'ProfileTabGifts', 'ProfileTabMedia', 'ProfileTabFiles', 'ProfileTabMusic', 'ProfileTabVoice', 'ProfileTabLinks', 'ProfileTabGifs', 'UsersSavedMusicNotModified', 'UsersSavedMusic', 'AccountSavedMusicIdsNotModified', 'AccountSavedMusicIds', 'PaymentsCheckCanSendGiftResultOk', 'PaymentsCheckCanSendGiftResultFail', 'InputChatThemeEmpty', 'InputChatTheme', 'InputChatThemeUniqueGift', 'StarGiftUpgradePrice', 'GroupCallMessage', 'GroupCallDonor', 'PhoneGroupCallStars', 'RecentStory', 'AuctionBidLevel', 'StarGiftAuctionStateNotModified', 'StarGiftAuctionState', 'StarGiftAuctionStateFinished', 'StarGiftAuctionUserState', 'PaymentsStarGiftAuctionState', 'StarGiftAuctionAcquiredGift', 'PaymentsStarGiftAuctionAcquiredGifts', 'StarGiftActiveAuctionState', 'PaymentsStarGiftActiveAuctionsNotModified', 'PaymentsStarGiftActiveAuctions', 'InputStarGiftAuction', 'InputStarGiftAuctionSlug', 'Passkey', 'AccountPasskeys', 'AccountPasskeyRegistrationOptions', 'AuthPasskeyLoginOptions', 'InputPasskeyResponseRegister', 'InputPasskeyResponseLogin', 'InputPasskeyCredentialPublicKey', 'InputPasskeyCredentialFirebasePnv', 'StarGiftBackground', 'StarGiftAuctionRound', 'StarGiftAuctionRoundExtendable', 'PaymentsStarGiftUpgradeAttributes', 'MessagesEmojiGameOutcome', 'MessagesEmojiGameUnavailable', 'MessagesEmojiGameDiceInfo', 'StarGiftAttributeRarity', 'StarGiftAttributeRarityUncommon', 'StarGiftAttributeRarityRare', 'StarGiftAttributeRarityEpic', 'StarGiftAttributeRarityLegendary', 'KeyboardButtonStyle', 'InputMessageReadMetric', 'BotsExportedBotToken', 'BotsRequestedButton', 'MessagesComposedMessageWithAi', 'StatsPollStats', 'InputAiComposeToneDefault', 'InputAiComposeToneId', 'InputAiComposeToneSlug', 'InputAiComposeToneSingleUse', 'AiComposeTone', 'AiComposeToneDefault', 'AicomposeTonesNotModified', 'AicomposeTones', 'AiComposeToneExample', 'BotsAccessSettings', 'MessagesChatInviteJoinResultOk', 'MessagesChatInviteJoinResultWebView', 'JoinChatBotResultApproved', 'JoinChatBotResultDeclined', 'JoinChatBotResultQueued', 'JoinChatBotResultWebView', 'WebDomainException', 'AccountWebBrowserSettingsNotModified', 'AccountWebBrowserSettings', 'InputRichFilePhoto', 'InputRichFileDocument', 'InputRichMessage', 'InputRichMessageHtml', 'InputRichMessageMarkdown', 'RichMessage', 'CommunityPeer', 'CommunityPeerRequest', 'CommunitiesPeerLinkRequests', 'EphemeralMessage', 'CommunitiesParticipantJoinedChats', 'MessagesTranslatedRichMessage', 'MessagesComposedRichMessageWithAi']

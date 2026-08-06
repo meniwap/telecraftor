@@ -219,7 +219,8 @@ def test_demote_admin_uses_edit_admin_with_no_rights() -> None:
     assert len(seen) == 1
     req = seen[0]
     assert getattr(req, "TL_NAME", None) == "channels.editAdmin"
-    assert getattr(req, "rank", None) == ""
+    assert getattr(req, "flags", None) == 0
+    assert getattr(req, "rank", "missing") is None
     rights = getattr(req, "admin_rights", None)
     assert rights is not None
     # All rights should be False

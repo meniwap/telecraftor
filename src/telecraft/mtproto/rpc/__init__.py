@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from telecraft.mtproto.rpc.sender import (
+    DcMigrateError,
     FloodWaitConfig,
     FloodWaitError,
     MtprotoEncryptedSender,
@@ -10,6 +11,7 @@ from telecraft.mtproto.rpc.sender import (
 )
 
 __all__ = [
+    "DcMigrateError",
     "FloodWaitConfig",
     "FloodWaitError",
     "MtprotoEncryptedSender",

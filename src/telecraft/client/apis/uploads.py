@@ -131,6 +131,7 @@ class UploadsAPI:
         cdn_supported: bool = False,
         timeout: float = 20.0,
     ) -> AsyncIterator[bytes]:
+        """Yield file chunks and fail instead of returning a silently truncated stream."""
         cur = int(offset)
         chunk_limit = max(1, int(limit))
         while True:
@@ -144,7 +145,14 @@ class UploadsAPI:
             )
             chunk = getattr(out, "bytes", None)
             if not isinstance(chunk, (bytes, bytearray)):
-                break
+                result_name = getattr(out, "TL_NAME", type(out).__name__)
+                if result_name == "upload.fileCdnRedirect":
+                    raise MediaError("uploads.iter_file: CDN redirect is not supported")
+                if result_name == "upload.file":
+                    raise MediaError("uploads.iter_file: upload.file.bytes missing/invalid")
+                raise MediaError(
+                    f"uploads.iter_file: unexpected upload.getFile result: {result_name}"
+                )
             data = bytes(chunk)
             if not data:
                 break

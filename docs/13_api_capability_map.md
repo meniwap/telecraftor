@@ -1,9 +1,15 @@
-# API Capability Map (V4.2)
+# API Capability Map
 
 Source of truth for method-level coverage/stability:
 - `tests/meta/v2_method_matrix.yaml`
 
 This is a namespace-level quick map for discoverability.
+
+The historical `introduced_in` values (`v2.x` through `v4.x`) in the matrix are internal facade
+development waves; they are not Telecraft package versions. Package releases use SemVer-style
+`0.2.x` identifiers, and the current unreleased package version is documented in `README.md` and
+`CHANGELOG.md`. The sync tool requires an explicit reviewed `--introduced-in` value so those two
+version domains cannot be confused silently.
 
 ## Support Tiers (Public Contract)
 
@@ -81,6 +87,15 @@ Those classifications document capability risk; they do not imply tracked live t
 
 - Changes are `Additive + Deprecation` only.
 - New methods must be registered in `tests/meta/v2_method_matrix.yaml`.
+- Stable method signatures and the primary public client constructors released in `0.2.0` are
+  pinned in `tests/meta/stable_api_0_2_0.json`; the compatibility gate permits additive optional parameters
+  but rejects removals, required additions, reordered positional parameters, and silent typing or
+  default changes. The sole dynamic default, `ClientInit.app_version`, must equal the package
+  version and is checked explicitly rather than frozen to the old release number. The snapshot
+  preserves both the original published commit ID and its release-tree ID, so provenance survives
+  an authorized history cleanup without pretending the rewritten commit was the published object.
+  Every stable release adds a snapshot-only candidate commit, and CI validates every snapshot, so
+  methods first released after `0.2.0` remain covered by later patch gates.
 - Support tier and live-gate policy are defined in `tests/meta/v2_support_contract.json`.
 - Stable deprecations are tracked in `tests/meta/v2_deprecations.json` (minimum window: 2 minors).
 - Required unit naming format: `test_<namespace>__<method>__<scenario>`.

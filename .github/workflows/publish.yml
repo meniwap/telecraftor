@@ -56,7 +56,7 @@ jobs:
           echo "tag_commit=$tag_commit" >> "$GITHUB_OUTPUT"
 
       - name: Install release tools
-        run: python -m pip install -e ".[dev]" "hatchling>=1.25"
+        run: python -m pip install -e ".[dev]" "hatchling>=1.26.3"
 
       - name: Verify live release evidence is bound to the candidate
         env:
@@ -100,17 +100,35 @@ jobs:
       - name: Repo hygiene
         run: python tools/check_repo_hygiene.py
 
+      - name: Repository history hygiene
+        run: python tools/check_repo_hygiene.py --history
+
+      - name: Credential scan
+        run: |
+          python tools/check_secrets.py
+          python tools/check_secrets.py --history
+
       - name: Ruff
         run: python -m ruff check src tests tools apps examples
+
+      - name: Ruff format
+        run: python -m ruff format --check src tests tools apps examples
 
       - name: Mypy
         run: python -m mypy src
 
+      - name: Audit project runtime dependencies
+        run: python -m pip_audit --strict .
+
       - name: Meta gates
         run: python -m pytest tests/meta -q
 
-      - name: Pytest non-live
-        run: python -m pytest -m "not live"
+      - name: Pytest non-live with coverage
+        run: >-
+          python -m pytest -m "not live"
+          --cov=telecraft
+          --cov-branch
+          --cov-report=term-missing
 
       - name: Live collect-only
         run: python -m pytest tests/live --collect-only -q

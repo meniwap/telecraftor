@@ -21,6 +21,8 @@ def make_admin_rights(
     edit_stories: bool = False,
     delete_stories: bool = False,
     manage_direct_messages: bool = False,
+    manage_ranks: bool = False,
+    manage_linked_peers: bool = False,
 ) -> ChatAdminRights:
     """
     Convenience builder for chatAdminRights.
@@ -45,6 +47,8 @@ def make_admin_rights(
         edit_stories=bool(edit_stories),
         delete_stories=bool(delete_stories),
         manage_direct_messages=bool(manage_direct_messages),
+        manage_ranks=bool(manage_ranks),
+        manage_linked_peers=bool(manage_linked_peers),
     )
 
 
@@ -70,6 +74,9 @@ def make_banned_rights(
     send_voices: bool = False,
     send_docs: bool = False,
     send_plain: bool = False,
+    edit_rank: bool = False,
+    send_reactions: bool = False,
+    manage_linked_peers: bool = False,
     until_date: int = 0,
 ) -> ChatBannedRights:
     """
@@ -100,6 +107,9 @@ def make_banned_rights(
         send_voices=bool(send_voices),
         send_docs=bool(send_docs),
         send_plain=bool(send_plain),
+        edit_rank=bool(edit_rank),
+        send_reactions=bool(send_reactions),
+        manage_linked_peers=bool(manage_linked_peers),
         until_date=int(until_date),
     )
 

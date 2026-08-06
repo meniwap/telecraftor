@@ -67,12 +67,13 @@ async def _prompt_secret(prompt: str) -> str:
 
 
 async def _resolve_bot_token(args: argparse.Namespace) -> str:
-    token = args.bot_token or os.environ.get("TELEGRAM_BOT_TOKEN")
+    _ = args
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         token = await _prompt_secret("Bot token: ")
     token = str(token).strip()
     if not token:
-        raise SystemExit("Missing bot token. Pass --bot-token or set TELEGRAM_BOT_TOKEN.")
+        raise SystemExit("Missing bot token. Set TELEGRAM_BOT_TOKEN or enter it at the prompt.")
     return token
 
 
@@ -218,7 +219,9 @@ async def _cmd_login(args: argparse.Namespace) -> int:
     api_id = _need_env_int("TELEGRAM_API_ID")
     api_hash = _need_env("TELEGRAM_API_HASH")
 
-    phone_number = args.phone or input("Phone number (international): ").strip()
+    phone_number = (
+        os.environ.get("TELEGRAM_PHONE") or input("Phone number (international): ").strip()
+    )
     session = ctx.session_path
 
     init = ClientInit(api_id=api_id, api_hash=api_hash)
@@ -254,7 +257,7 @@ async def _cmd_login(args: argparse.Namespace) -> int:
             phone_code_hash = sent.phone_code_hash
             if not isinstance(phone_code_hash, (str, bytes)):
                 raise RuntimeError("Telegram returned an invalid phone_code_hash")
-            code = args.code or await _prompt_with_keepalive(
+            code = os.environ.get("TELEGRAM_CODE") or await _prompt_with_keepalive(
                 client,
                 "Code: ",
                 timeout=args.timeout,
@@ -268,7 +271,7 @@ async def _cmd_login(args: argparse.Namespace) -> int:
                 )
             except RpcErrorException as e:
                 if e.message == "SESSION_PASSWORD_NEEDED":
-                    pw = args.password or os.environ.get("TELEGRAM_PASSWORD")
+                    pw = os.environ.get("TELEGRAM_PASSWORD")
                     if not pw:
                         pw = await _prompt_with_keepalive(
                             client,
@@ -897,7 +900,7 @@ async def _cmd_ban(args: argparse.Namespace) -> int:
         await client.close()
 
 
-def main() -> int:
+def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Telecraft simple runner")
 
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -940,15 +943,11 @@ def main() -> int:
 
     login = sub.add_parser("login", help="Login")
     add_common(login)
-    login.add_argument("--phone", type=str, default=None)
-    login.add_argument("--code", type=str, default=None)
-    login.add_argument("--password", type=str, default=None)
     login.add_argument("--first-name", type=str, default=None)
     login.add_argument("--last-name", type=str, default=None)
 
     login_bot = sub.add_parser("login-bot", help="Login bot account using bot token")
     add_common(login_bot, default_session_kind="bot")
-    login_bot.add_argument("--bot-token", type=str, default=None, help="Bot token from BotFather")
 
     me = sub.add_parser("me", help="Print current user")
     add_common(me)
@@ -1027,7 +1026,11 @@ def main() -> int:
     fwd.add_argument("--drop-captions", action="store_true", help="Remove captions from media")
     fwd.add_argument("--silent", action="store_true", help="Send without notification")
 
-    args = p.parse_args()
+    return p
+
+
+def main() -> int:
+    args = _build_parser().parse_args()
 
     try:
         if args.cmd == "login":

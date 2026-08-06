@@ -5,7 +5,12 @@ import subprocess
 
 import pytest
 
-from telecraft.mtproto.crypto.aes_ige import AesIge
+from telecraft.mtproto.crypto.aes_ige import (
+    AesIge,
+    AesIgeError,
+    _aes_ecb_decrypt_block,
+    _aes_ecb_encrypt_block,
+)
 
 
 def test_encrypt_decrypt_roundtrip() -> None:
@@ -16,6 +21,16 @@ def test_encrypt_decrypt_roundtrip() -> None:
     ct = aes.encrypt(data)
     pt = aes.decrypt(ct)
     assert pt == data
+
+
+@pytest.mark.parametrize(
+    "block",
+    [b"", b"\x00" * 15, b"\x00" * 17, b"\x00" * 32],
+)
+@pytest.mark.parametrize("transform", [_aes_ecb_encrypt_block, _aes_ecb_decrypt_block])
+def test_aes_ige_block_primitive_rejects_non_single_blocks(block, transform) -> None:
+    with pytest.raises(AesIgeError, match="requires exactly 16 bytes"):
+        transform(b"\x00" * 32, block)
 
 
 @pytest.mark.skipif(os.environ.get("CI") == "true", reason="Avoid OpenSSL dependency in CI.")
