@@ -2,8 +2,8 @@
   "schema_version": 2,
   "release": "0.2.2",
   "source_ref": "release-candidate/0.2.2",
-  "source_commit": "0bb97eb56be14575836174b386fcf688c9ac8349",
-  "source_tree": "1c58005791ca181a936ffd5b4d2e72e3d5176fef",
+  "source_commit": "87eab32136a8c3ab330ec8092d5184a93e5cc54a",
+  "source_tree": "dedfb2a81e9b3e1245907a583d3d1957c468072d",
   "dynamic_defaults": [
     "telecraft.client.ClientInit.app_version"
   ],
