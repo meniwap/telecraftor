@@ -16,6 +16,7 @@ from telecraft.mtproto.rpc.sender import (
     ReceivedMessage,
     RpcSenderError,
 )
+from telecraft.mtproto.session import load_session_file
 from telecraft.mtproto.updates.engine import UpdatesEngine
 from telecraft.mtproto.updates.state import UpdatesState
 from telecraft.mtproto.updates.storage import save_updates_state_file
@@ -24,7 +25,7 @@ from telecraft.tl.generated.types import MessageMediaPoll, Poll, TextWithEntitie
 from telecraft.tl.generated.types import UpdatesState as TlUpdatesState
 
 
-def _dc_option(dc_id: int, host: str, port: int, **flags: object) -> SimpleNamespace:
+def _dc_option(dc_id: int, host: str | bytes, port: int, **flags: object) -> SimpleNamespace:
     defaults: dict[str, object] = {
         "ipv6": False,
         "media_only": False,
@@ -42,7 +43,7 @@ def test_help_config_endpoints_replace_fallbacks_but_not_explicit_host() -> None
             _dc_option(2, "2001:db8::2", 443, ipv6=True),
             _dc_option(2, "203.0.113.2", 80),
             _dc_option(4, "203.0.113.40", 443, media_only=True),
-            _dc_option(4, "203.0.113.4", 443),
+            _dc_option(4, b"203.0.113.4", 443),
         ]
     )
 
@@ -55,6 +56,31 @@ def test_help_config_endpoints_replace_fallbacks_but_not_explicit_host() -> None
     explicit._ingest_dc_config(config)
     assert explicit._endpoint() == ("127.0.0.1", 9000)
     assert explicit._endpoint_for_dc(4) == ("203.0.113.4", 443)
+
+
+def test_binary_dc_option_host_roundtrips_through_session_as_plain_text(tmp_path) -> None:
+    async def run() -> None:
+        session_path = tmp_path / "binary-host.session.json"
+        client = MtprotoClient(
+            network="prod",
+            dc_id=2,
+            session_path=session_path,
+        )
+        client._state = SimpleNamespace(  # type: ignore[assignment]
+            auth_key=b"\x11" * 256,
+            auth_key_id=1,
+            server_salt=b"\x22" * 8,
+        )
+        client._ingest_dc_config(SimpleNamespace(dc_options=[_dc_option(2, b"203.0.113.2", 443)]))
+
+        await client._persist_session()
+        restored = load_session_file(session_path)
+
+        assert client._endpoint() == ("203.0.113.2", 443)
+        assert restored.host == "203.0.113.2"
+        assert not restored.host.startswith("b'")
+
+    asyncio.run(run())
 
 
 def test_update_config_refreshes_dynamic_endpoints_without_hiding_the_update() -> None:

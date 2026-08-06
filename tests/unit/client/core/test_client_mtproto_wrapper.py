@@ -27,6 +27,19 @@ def test_wrap_with_layer_init_shape() -> None:
     assert isinstance(wrapped.query.query, HelpGetConfig)
 
 
+def test_client_init_repr_omits_api_credentials() -> None:
+    api_id = 987654321
+    api_hash = "synthetic-api-hash"
+
+    rendered = repr(ClientInit(api_id=api_id, api_hash=api_hash, device_model="test-device"))
+
+    assert str(api_id) not in rendered
+    assert api_hash not in rendered
+    assert "api_id=" not in rendered
+    assert "api_hash=" not in rendered
+    assert "device_model='test-device'" in rendered
+
+
 def test_client_invoke_with_layer_requires_init() -> None:
     c = MtprotoClient()
     with pytest.raises(MtprotoClientError):

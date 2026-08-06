@@ -6,7 +6,7 @@ from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 from telecraft.client import Client
 
@@ -72,9 +72,41 @@ def resolve_live_audit_peer(ctx: Any) -> str | None:
     return peer
 
 
-def _is_prod_safe_profile(reporter: Any) -> bool:
+def _uses_step_health_probe(reporter: Any) -> bool:
     cfg = getattr(getattr(reporter, "ctx", None), "cfg", None)
-    return bool(cfg is not None and getattr(cfg, "live_profile", "default") == "prod_safe")
+    return bool(
+        cfg is not None
+        and getattr(cfg, "live_profile", "default") in {"prod_safe", "destructive_message"}
+    )
+
+
+def _redact_details(reporter: Any, value: object) -> str:
+    ctx = getattr(reporter, "ctx", None)
+    redactor = getattr(ctx, "redact", None)
+    if callable(redactor):
+        return str(redactor(value))
+    return str(value)
+
+
+def _redact_report_value(reporter: Any, value: object) -> object:
+    if isinstance(value, dict):
+        redacted_mapping: dict[Any, object] = {}
+        for key, item in value.items():
+            redacted_key = _redact_report_value(reporter, key)
+            redacted_mapping[redacted_key] = _redact_report_value(reporter, item)
+        return redacted_mapping
+    if isinstance(value, list):
+        return [_redact_report_value(reporter, item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact_report_value(reporter, item) for item in value)
+    if isinstance(value, str):
+        return _redact_details(reporter, value)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        rendered = str(value)
+        redacted_text = _redact_details(reporter, rendered)
+        if redacted_text != rendered:
+            return redacted_text
+    return value
 
 
 def _record_health_probe(reporter: Any, *, passed: bool) -> None:
@@ -116,9 +148,9 @@ async def run_step(
 ) -> None:
     await reporter.emit(client=client, status="START", step=name, details="")
     try:
-        details = await fn()
+        details = _redact_details(reporter, await fn())
         health_probe_status: str | None = None
-        if _is_prod_safe_profile(reporter):
+        if _uses_step_health_probe(reporter):
             try:
                 probe_details = await run_health_probe(client=client, reporter=reporter)
                 _record_health_probe(reporter, passed=True)
@@ -126,12 +158,16 @@ async def run_step(
             except Exception as probe_err:  # noqa: BLE001
                 _record_health_probe(reporter, passed=False)
                 error_class = classify_live_error(probe_err)
-                probe_details = f"{type(probe_err).__name__}: {probe_err}"
+                probe_details = _redact_details(
+                    reporter,
+                    f"{type(probe_err).__name__}: {probe_err}",
+                )
+                failure_details = f"{details} | health_probe={probe_details}"
                 results.append(
                     StepResult(
                         name=name,
                         status="FAIL_HEALTH",
-                        details=f"{details} | health_probe={probe_details}",
+                        details=failure_details,
                         error_class=error_class,
                         health_probe=f"FAIL: {probe_details}",
                     )
@@ -140,7 +176,7 @@ async def run_step(
                     client=client,
                     status="FAIL_HEALTH",
                     step=name,
-                    details=f"{details} | health_probe={probe_details}",
+                    details=failure_details,
                     error_class=error_class,
                 )
                 return
@@ -154,7 +190,7 @@ async def run_step(
         )
         await reporter.emit(client=client, status="PASS", step=name, details=details)
     except Exception as e:  # noqa: BLE001
-        details = f"{type(e).__name__}: {e}"
+        details = _redact_details(reporter, f"{type(e).__name__}: {e}")
         error_class = classify_live_error(e)
         results.append(
             StepResult(
@@ -181,7 +217,19 @@ async def finalize_run(
     results: list[StepResult],
     resource_ids: dict[str, object],
 ) -> dict[str, Any]:
-    cleanup_errors = await ctx.run_cleanups()
+    cleanup_errors = [_redact_details(reporter, error) for error in await ctx.run_cleanups()]
+    for result in results:
+        result.name = _redact_details(reporter, result.name)
+        result.status = _redact_details(reporter, result.status)
+        result.details = _redact_details(reporter, result.details)
+        if result.error_class is not None:
+            result.error_class = _redact_details(reporter, result.error_class)
+        if result.health_probe is not None:
+            result.health_probe = _redact_details(reporter, result.health_probe)
+    resource_ids = cast(
+        dict[str, object],
+        _redact_report_value(reporter, resource_ids),
+    )
     pass_count = len([r for r in results if r.status == "PASS"])
     fail_count = len([r for r in results if str(r.status).startswith("FAIL")])
     error_breakdown = dict(Counter(r.error_class for r in results if r.error_class))
@@ -217,6 +265,7 @@ async def finalize_run(
             for r in results
         ],
     }
+    summary = cast(dict[str, Any], _redact_report_value(reporter, summary))
     (ctx.run_dir / "artifacts.json").write_text(
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
@@ -226,9 +275,9 @@ async def finalize_run(
     lines = [
         "# Telecraft Live Report",
         "",
-        f"- run_id: `{ctx.run_id}`",
-        f"- source_commit: `{ctx.source_commit}`",
-        f"- source_tree_clean: `{ctx.source_tree_clean}`",
+        f"- run_id: `{summary['run_id']}`",
+        f"- source_commit: `{summary['source_commit']}`",
+        f"- source_tree_clean: `{summary['source_tree_clean']}`",
         f"- pass: `{pass_count}`",
         f"- fail: `{fail_count}`",
         f"- cleanup_errors: `{len(cleanup_errors)}`",
@@ -278,7 +327,10 @@ async def finalize_run(
             timeout=min(float(ctx.cfg.timeout), 10.0),
         )
     except Exception as exc:  # noqa: BLE001
-        close_error = f"client.close: {type(exc).__name__}: {exc}"
+        close_error = _redact_details(
+            reporter,
+            f"client.close: {type(exc).__name__}: {exc}",
+        )
         cleanup_errors.append(close_error)
         summary["cleanup_errors"] = len(cleanup_errors)
         (ctx.run_dir / "artifacts.json").write_text(

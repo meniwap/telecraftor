@@ -50,6 +50,40 @@ class _FakeReporter:
         return None
 
 
+def test_run_step__redacts_credentials_from_failure_details() -> None:
+    from tests.live import _suite_shared as shared
+
+    api_id = 987654321
+    api_hash = "synthetic-api-hash"
+    results: list[shared.StepResult] = []
+    reporter = _FakeReporter(live_profile="default")
+    reporter.ctx.redact = (
+        lambda value: str(value)
+        .replace(api_hash, "<redacted>")
+        .replace(
+            str(api_id),
+            "<redacted>",
+        )
+    )
+
+    async def _step() -> str:
+        raise RuntimeError(f"failed with {api_id} and {api_hash}")
+
+    asyncio.run(
+        shared.run_step(
+            name="redaction.fail",
+            fn=_step,
+            client=_FakeClient(),  # type: ignore[arg-type]
+            reporter=reporter,
+            results=results,
+        )
+    )
+
+    assert len(results) == 1
+    assert results[0].details == "RuntimeError: failed with <redacted> and <redacted>"
+    assert reporter.events[-1]["details"] == results[0].details
+
+
 def test_run_step__prod_safe__records_health_probe_pass() -> None:
     from tests.live import _suite_shared as shared
 
@@ -78,6 +112,30 @@ def test_run_step__prod_safe__records_health_probe_pass() -> None:
     assert probes["pass"] == 1
     assert probes["fail"] == 0
     assert [e["status"] for e in reporter.events] == ["START", "PASS"]
+
+
+def test_run_step__destructive_message__records_health_probe_pass() -> None:
+    from tests.live import _suite_shared as shared
+
+    results: list[shared.StepResult] = []
+    reporter = _FakeReporter(live_profile="destructive_message")
+
+    async def _step() -> str:
+        return "ok"
+
+    asyncio.run(
+        shared.run_step(
+            name="probe.destructive",
+            fn=_step,
+            client=_FakeClient(),  # type: ignore[arg-type]
+            reporter=reporter,
+            results=results,
+        )
+    )
+
+    assert results[0].status == "PASS"
+    assert results[0].health_probe == "PASS: profile.me id=12345"
+    assert reporter.ctx.artifacts["connection_health_probes"]["pass"] == 1
 
 
 def test_run_step__prod_safe__classifies_health_probe_failure_as_fail_health() -> None:
@@ -158,6 +216,81 @@ def test_finalize_run__writes_numeric_cleanup_error_count(tmp_path: Path) -> Non
     assert artifact["cleanup_errors"] == 0
     assert isinstance(artifact["cleanup_errors"], int)
     assert result["cleanup_errors"] == 0
+
+
+def test_finalize_run__recursively_redacts_credentials_from_raw_reports(tmp_path: Path) -> None:
+    from tests.live import _suite_shared as shared
+
+    api_id = 987654321
+    api_hash = "synthetic-api-hash"
+
+    class _Context:
+        run_id = "run-redacted"
+        run_dir = tmp_path
+        source_commit = "a" * 40
+        source_tree_clean = True
+        cfg = SimpleNamespace(timeout=1.0)
+        artifacts = {
+            "connection_health_probes": {
+                "enabled": True,
+                "probe": "profile.me",
+                "pass": 1,
+                "fail": 0,
+            }
+        }
+
+        def redact(self, value: object) -> str:
+            return (
+                str(value)
+                .replace(api_hash, "<redacted>")
+                .replace(
+                    str(api_id),
+                    "<redacted>",
+                )
+            )
+
+        async def run_cleanups(self) -> list[str]:
+            return [f"cleanup exposed {api_hash}"]
+
+    ctx = _Context()
+    reporter = _FakeReporter()
+    reporter.ctx = ctx
+    with pytest.raises(AssertionError, match="1 cleanup errors"):
+        asyncio.run(
+            shared.finalize_run(
+                client=_FakeClient(),  # type: ignore[arg-type]
+                ctx=ctx,
+                reporter=reporter,
+                results=[
+                    shared.StepResult(
+                        name="identity.profile",
+                        status="PASS",
+                        details=f"configured={api_id}",
+                    )
+                ],
+                resource_ids={
+                    "configured_api_id": api_id,
+                    "nested": {"configured_api_hash": api_hash},
+                    "sequence": [api_id, api_hash],
+                },
+            )
+        )
+
+    artifacts_text = (tmp_path / "artifacts.json").read_text(encoding="utf-8")
+    summary_text = (tmp_path / "summary.md").read_text(encoding="utf-8")
+    event_text = json.dumps(
+        [
+            {key: value for key, value in event.items() if key != "client"}
+            for event in reporter.events
+        ],
+        ensure_ascii=False,
+    )
+    for rendered in (artifacts_text, summary_text, event_text):
+        assert str(api_id) not in rendered
+        assert api_hash not in rendered
+    artifacts = json.loads(artifacts_text)
+    assert artifacts["resources"]["configured_api_id"] == "<redacted>"
+    assert artifacts["resources"]["nested"]["configured_api_hash"] == "<redacted>"
 
 
 def test_finalize_run__client_close_failure_blocks_release_evidence(tmp_path: Path) -> None:

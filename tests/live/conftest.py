@@ -25,6 +25,11 @@ from telecraft.client.runtime_isolation import (
     resolve_session_paths,
     validate_session_matches_network,
 )
+from tests.live._destructive_message import (
+    DESTRUCTIVE_MESSAGE_PROFILE,
+    DestructiveLiveGateError,
+    resolve_destructive_message_gate,
+)
 
 CleanupFn = Callable[[], Any]
 
@@ -38,8 +43,8 @@ def _env(name: str, default: str | None = None) -> str | None:
 
 @dataclass(slots=True)
 class LiveConfig:
-    api_id: int
-    api_hash: str
+    api_id: int = field(repr=False)
+    api_hash: str = field(repr=False)
     runtime: str
     live_profile: str
     network: str
@@ -47,6 +52,18 @@ class LiveConfig:
     timeout: float
     audit_peer: str
     report_root: Path
+    destructive_peer: str | None = None
+
+    def redact(self, value: object) -> str:
+        text = str(value)
+        credentials = sorted(
+            {credential for credential in (self.api_hash, str(self.api_id)) if credential},
+            key=len,
+            reverse=True,
+        )
+        for credential in credentials:
+            text = text.replace(credential, "<redacted>")
+        return text
 
 
 @dataclass(slots=True)
@@ -62,24 +79,34 @@ class LiveContext:
     def add_cleanup(self, fn: CleanupFn) -> None:
         self.cleanups.append(fn)
 
+    def redact(self, value: object) -> str:
+        return self.cfg.redact(value)
+
     async def run_cleanups(self) -> list[str]:
         errors: list[str] = []
-        timeout = min(float(self.cfg.timeout), 12.0)
+        timeout = (
+            40.0
+            if self.cfg.live_profile == DESTRUCTIVE_MESSAGE_PROFILE
+            else min(float(self.cfg.timeout), 12.0)
+        )
         for fn in reversed(self.cleanups):
             try:
                 out = fn()
                 if asyncio.iscoroutine(out):
                     await asyncio.wait_for(out, timeout=timeout)
             except Exception as e:  # noqa: BLE001
-                errors.append(f"{type(e).__name__}: {e}")
+                errors.append(self.redact(f"{type(e).__name__}: {e}"))
         return errors
 
 
 def _resolve_live_profile(raw: str) -> str:
     value = (raw or "default").strip().lower() or "default"
-    if value in {"default", "prod_safe"}:
+    if value in {"default", "prod_safe", DESTRUCTIVE_MESSAGE_PROFILE}:
         return value
-    raise ValueError(f"Unsupported --live-profile {raw!r}; expected 'default' or 'prod_safe'")
+    raise ValueError(
+        f"Unsupported --live-profile {raw!r}; expected 'default', 'prod_safe', "
+        f"or {DESTRUCTIVE_MESSAGE_PROFILE!r}"
+    )
 
 
 def _source_snapshot() -> tuple[str, bool]:
@@ -126,10 +153,15 @@ class AuditReporter:
         error_class: str | None = None,
         to_telegram: bool = True,
     ) -> None:
+        status = self.ctx.redact(status)
+        step = self.ctx.redact(step)
+        details = self.ctx.redact(details)
+        if error_class is not None:
+            error_class = self.ctx.redact(error_class)
         ts = datetime.now(timezone.utc).isoformat()
-        payload = {
+        payload: dict[str, object] = {
             "ts": ts,
-            "run_id": self.ctx.run_id,
+            "run_id": self.ctx.redact(self.ctx.run_id),
             "status": status,
             "step": step,
             "details": details,
@@ -138,6 +170,9 @@ class AuditReporter:
             payload["error_class"] = error_class
         self._write_event(payload)
         if not to_telegram:
+            return
+
+        if self.ctx.cfg.live_profile in {"prod_safe", DESTRUCTIVE_MESSAGE_PROFILE}:
             return
 
         target = self.audit_peer or self.ctx.cfg.audit_peer
@@ -175,7 +210,22 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--live-profile",
         action="store",
         default="default",
-        help="Live execution profile (default/prod_safe). Default: default",
+        help=("Live execution profile (default/prod_safe/destructive_message). Default: default"),
+    )
+    group.addoption(
+        "--allow-destructive-live",
+        action="store_true",
+        default=False,
+        help=(
+            "Allow the destructive message round-trip (also requires "
+            "TELECRAFT_ALLOW_DESTRUCTIVE_LIVE=1)"
+        ),
+    )
+    group.addoption(
+        "--live-destructive-peer",
+        action="store",
+        default="",
+        help="Explicit peer for the destructive message round-trip",
     )
     group.addoption(
         "--live-report-dir",
@@ -202,6 +252,10 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "unit: fast deterministic tests")
     config.addinivalue_line("markers", "live: live tests against Telegram")
     config.addinivalue_line("markers", "live_prod_safe: prod-safe live smoke tests")
+    config.addinivalue_line(
+        "markers",
+        "live_destructive: explicitly gated live tests that create and clean up resources",
+    )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -210,18 +264,52 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     except ValueError as e:
         raise pytest.UsageError(str(e)) from e
 
-    if config.getoption("--run-live"):
-        if live_profile != "prod_safe":
-            print(
-                "[telecraft-live] Warning: --live-profile prod_safe is recommended for "
-                "production smoke runs."
-            )
+    if not config.getoption("--run-live"):
+        skip_live = pytest.mark.skip(reason="Live tests require --run-live")
+        for item in items:
+            if "live" in item.keywords:
+                item.add_marker(skip_live)
         return
 
-    skip_live = pytest.mark.skip(reason="Live tests require --run-live")
+    if live_profile == DESTRUCTIVE_MESSAGE_PROFILE:
+        try:
+            resolve_destructive_message_gate(
+                live_profile=live_profile,
+                allow_flag=bool(config.getoption("--allow-destructive-live")),
+                env_allow=_env("TELECRAFT_ALLOW_DESTRUCTIVE_LIVE"),
+                cli_peer=str(config.getoption("--live-destructive-peer")),
+                env_peer=_env("TELECRAFT_DESTRUCTIVE_PEER"),
+                audit_peer=str(config.getoption("--live-audit-peer")),
+            )
+        except DestructiveLiveGateError as e:
+            raise pytest.UsageError(str(e)) from e
+        skip_other_live = pytest.mark.skip(
+            reason="destructive_message profile runs only live_destructive tests"
+        )
+        for item in items:
+            if "live" in item.keywords and "live_destructive" not in item.keywords:
+                item.add_marker(skip_other_live)
+        return
+
+    skip_destructive = pytest.mark.skip(
+        reason="Destructive live tests require --live-profile destructive_message"
+    )
+    skip_non_prod_safe = pytest.mark.skip(reason="prod_safe profile runs only live_prod_safe tests")
     for item in items:
-        if "live" in item.keywords:
-            item.add_marker(skip_live)
+        if "live_destructive" in item.keywords:
+            item.add_marker(skip_destructive)
+        elif (
+            live_profile == "prod_safe"
+            and "live" in item.keywords
+            and "live_prod_safe" not in item.keywords
+        ):
+            item.add_marker(skip_non_prod_safe)
+
+    if live_profile != "prod_safe":
+        print(
+            "[telecraft-live] Warning: --live-profile prod_safe is recommended for "
+            "production smoke runs."
+        )
 
 
 @pytest.fixture
@@ -279,6 +367,21 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
     report_root = resolve_report_root(report_root_base, runtime=runtime).resolve()
     report_root.mkdir(parents=True, exist_ok=True)
     audit_peer = str(pytestconfig.getoption("--live-audit-peer")).strip() or "auto"
+    destructive_peer: str | None = None
+    if live_profile == DESTRUCTIVE_MESSAGE_PROFILE:
+        try:
+            destructive_peer = resolve_destructive_message_gate(
+                live_profile=live_profile,
+                allow_flag=bool(pytestconfig.getoption("--allow-destructive-live")),
+                env_allow=_env("TELECRAFT_ALLOW_DESTRUCTIVE_LIVE"),
+                cli_peer=str(pytestconfig.getoption("--live-destructive-peer")),
+                env_peer=_env("TELECRAFT_DESTRUCTIVE_PEER"),
+                audit_peer=audit_peer,
+            )
+        except DestructiveLiveGateError as e:
+            raise pytest.UsageError(str(e)) from e
+    elif live_profile == "prod_safe":
+        audit_peer = "auto"
     print(
         "[telecraft-live] "
         f"runtime={runtime} profile={live_profile} network={network} "
@@ -294,6 +397,7 @@ def live_config(pytestconfig: pytest.Config) -> LiveConfig:
         timeout=float(pytestconfig.getoption("--live-timeout")),
         audit_peer=audit_peer,
         report_root=report_root,
+        destructive_peer=destructive_peer,
     )
 
 
@@ -309,9 +413,13 @@ def client_v2(live_config: LiveConfig) -> Client:
 @pytest.fixture
 def live_context(live_config: LiveConfig) -> LiveContext:
     source_commit, source_tree_clean = _source_snapshot()
-    if live_config.live_profile == "prod_safe" and not source_tree_clean:
+    if (
+        live_config.live_profile in {"prod_safe", DESTRUCTIVE_MESSAGE_PROFILE}
+        and not source_tree_clean
+    ):
         raise pytest.UsageError(
-            "prod_safe live evidence requires a clean source tree before the run starts"
+            f"{live_config.live_profile} live evidence requires a clean source tree before "
+            "the run starts"
         )
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
     run_dir = (live_config.report_root / run_id).resolve()

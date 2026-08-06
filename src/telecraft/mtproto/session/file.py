@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import ipaddress
 import json
 import os
 import socket
@@ -11,6 +12,21 @@ from pathlib import Path
 from telecraft._private_storage import atomic_write_private_text
 
 _SESSION_VERSION = 1
+
+
+def _repair_legacy_bytes_repr_host(host: str) -> str:
+    """Repair session hosts persisted after ``str(TL string bytes)``."""
+
+    if len(host) < 4 or host[0] != "b" or host[1] not in {"'", '"'}:
+        return host
+    quote = host[1]
+    if host[-1] != quote:
+        return host
+    candidate = host[2:-1]
+    try:
+        return str(ipaddress.IPv4Address(candidate))
+    except ValueError:
+        return host
 
 
 class SessionError(Exception):
@@ -155,7 +171,18 @@ class MtprotoSession:
             raise SessionError(f"Unsupported session version: {self.version}")
         if not isinstance(self.dc_id, int) or self.dc_id <= 0:
             raise SessionError("Invalid dc_id")
-        if not self.host:
+        if (
+            not isinstance(self.host, str)
+            or not self.host
+            or self.host != self.host.strip()
+            or any(ord(char) < 32 or char.isspace() for char in self.host)
+            or (
+                len(self.host) >= 3
+                and self.host[0] == "b"
+                and self.host[1] in {"'", '"'}
+                and self.host[-1] == self.host[1]
+            )
+        ):
             raise SessionError("Invalid host")
         if not isinstance(self.port, int) or not (0 < self.port < 65536):
             raise SessionError("Invalid port")
@@ -203,7 +230,7 @@ class MtprotoSession:
             host_obj = data["host"]
             if not isinstance(host_obj, str):
                 raise SessionError("Invalid host")
-            host = host_obj
+            host = _repair_legacy_bytes_repr_host(host_obj)
 
             port_obj = data["port"]
             if not isinstance(port_obj, (int, str)):

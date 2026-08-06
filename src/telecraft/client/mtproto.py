@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
 import math
 import time
 import types
 from collections.abc import AsyncIterator, Coroutine
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, cast
 
@@ -160,8 +161,8 @@ _UPDATES_IDLE_RECOVERY_SECONDS = 15 * 60
 
 @dataclass(slots=True)
 class ClientInit:
-    api_id: int
-    api_hash: str | None = None
+    api_id: int = field(repr=False)
+    api_hash: str | None = field(default=None, repr=False)
     device_model: str = "telecraft"
     system_version: str = "telecraft"
     app_version: str = __version__
@@ -458,9 +459,16 @@ class MtprotoClient:
                 continue
             try:
                 option_dc = int(getattr(option, "id"))
-                option_host = str(getattr(option, "ip_address"))
+                option_host_obj = getattr(option, "ip_address")
+                if isinstance(option_host_obj, str):
+                    option_host = option_host_obj
+                elif isinstance(option_host_obj, (bytes, bytearray)):
+                    option_host = bytes(option_host_obj).decode("ascii")
+                else:
+                    continue
+                option_host = str(ipaddress.IPv4Address(option_host))
                 option_port = int(getattr(option, "port"))
-            except (AttributeError, TypeError, ValueError):
+            except (AttributeError, TypeError, UnicodeDecodeError, ValueError):
                 continue
             if option_dc <= 0 or not option_host or not (0 < option_port < 65536):
                 continue

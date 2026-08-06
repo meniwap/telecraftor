@@ -47,6 +47,9 @@ Production hardening release under development. This version has not been tagged
 
 ### Fixed
 
+- Decoded binary `help.getConfig` DC addresses before caching and persistence, and repaired the
+  narrowly identifiable legacy `b'<IPv4>'` session form so a successful connection cannot poison
+  the next process restart.
 - Prevented a saturated updates queue from blocking the shared RPC receive loop; overflow now
   schedules authoritative difference recovery instead of silently losing protocol continuity.
 - Prevented lifecycle-serialized `start_updates()` and `log_out()` calls from deadlocking when
@@ -65,6 +68,8 @@ Production hardening release under development. This version has not been tagged
 
 ### Security
 
+- Redacted configured Telegram API credentials from client/live-fixture representations, live step
+  failures, cleanup errors, audit events, and recursively generated raw report structures.
 - Excluded `cryptography` versions affected by CVE-2026-69247 / GHSA-g6cj-pr64-35w5 from the
   supported dependency range, even though Telecraft is not known to exercise the affected PKCS#7
   decryption path.

@@ -38,6 +38,36 @@ def test_session_file_roundtrip(tmp_path) -> None:
     assert loaded.updates_state_auth_key_id_alias == "0123456789abcdef"
 
 
+def test_session_file_repairs_legacy_bytes_repr_host() -> None:
+    sess = MtprotoSession(
+        dc_id=2,
+        host="203.0.113.2",
+        port=443,
+        framing="intermediate",
+        auth_key=b"\x11" * 256,
+        server_salt=b"\x22" * 8,
+    )
+    payload = sess.to_json_dict()
+    payload["host"] = "b'203.0.113.2'"
+
+    loaded = MtprotoSession.from_json_dict(payload)
+
+    assert loaded.host == "203.0.113.2"
+
+
+@pytest.mark.parametrize("host", [" b.example", "b.example\n", "b'not-an-ip'"])
+def test_session_file_rejects_unsafe_or_unrepaired_host(host: str) -> None:
+    with pytest.raises(SessionError, match="Invalid host"):
+        MtprotoSession(
+            dc_id=2,
+            host=host,
+            port=443,
+            framing="intermediate",
+            auth_key=b"\x11" * 256,
+            server_salt=b"\x22" * 8,
+        ).validate()
+
+
 def test_session_file_rejects_invalid_salt() -> None:
     with pytest.raises(SessionError):
         MtprotoSession(
