@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "version": "0.2.2",
+  "release_type": "stable",
+  "tested_commit": "9b62f74c117f41c15a4a93ee84d9eb8fde247109",
+  "is_public_release_line": true,
+  "checks": {
+    "pyproject_version_match": true,
+    "changelog_entry": true,
+    "support_contract_valid": true,
+    "deprecations_valid": true,
+    "public_release_line": true,
+    "prod_safe_gate_required": true
+  },
+  "prod_safe_runs": {
+    "core": {
+      "run_id": "20260806T160545Z-9d21c1cc",
+      "source_commit": "9b62f74c117f41c15a4a93ee84d9eb8fde247109",
+      "source_tree_clean": true,
+      "artifact_sha256": "f8cfffc444c3a57fe7b825fede3f9a18aac800034785c01aa23404b23a790a24",
+      "fail_count": 0,
+      "cleanup_errors": 0,
+      "pass_count": 3,
+      "steps": [
+        "identity.profile",
+        "help.config",
+        "dialogs.readonly"
+      ],
+      "connection_health_probes": {
+        "enabled": true,
+        "probe": "profile.me",
+        "pass": 3,
+        "fail": 0
+      }
+    },
+    "baseline": {
+      "run_id": "20260806T160547Z-d58ba585",
+      "source_commit": "9b62f74c117f41c15a4a93ee84d9eb8fde247109",
+      "source_tree_clean": true,
+      "artifact_sha256": "c48f2277911abf52d67316aff6654b702178e9d02e953b9280be050af4d68d60",
+      "fail_count": 0,
+      "cleanup_errors": 0,
+      "pass_count": 7,
+      "steps": [
+        "identity.profile",
+        "dialogs.readonly",
+        "messages.discovery",
+        "stickers.reactions",
+        "saved.surface",
+        "account.appearance",
+        "help.config"
+      ],
+      "connection_health_probes": {
+        "enabled": true,
+        "probe": "profile.me",
+        "pass": 7,
+        "fail": 0
+      }
+    }
+  },
+  "blockers": []
+}
