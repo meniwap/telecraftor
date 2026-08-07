@@ -2,7 +2,7 @@
   "schema_version": 1,
   "version": "0.2.2",
   "release_type": "stable",
-  "tested_commit": "ab7401bc7f8abfa337a2a63cb8d02159f1791f7b",
+  "tested_commit": "63e5a3a0997e4d81e2cb12905a8b1cb80ff21d2d",
   "is_public_release_line": true,
   "checks": {
     "pyproject_version_match": true,
@@ -14,10 +14,10 @@
   },
   "prod_safe_runs": {
     "core": {
-      "run_id": "20260807T105348Z-a095cf74",
-      "source_commit": "ab7401bc7f8abfa337a2a63cb8d02159f1791f7b",
+      "run_id": "20260807T110327Z-cd02c395",
+      "source_commit": "63e5a3a0997e4d81e2cb12905a8b1cb80ff21d2d",
       "source_tree_clean": true,
-      "artifact_sha256": "5ff9b0aa5bd98f8fd7b11eb6f5ea27d3365dc92a2664e2fd05e2af83e48c11b2",
+      "artifact_sha256": "84b53629420d32ec4d9e90df6363f563620d9280b54ff1bd5555f1842306a020",
       "fail_count": 0,
       "cleanup_errors": 0,
       "pass_count": 3,
@@ -34,10 +34,10 @@
       }
     },
     "baseline": {
-      "run_id": "20260807T105357Z-7d4131db",
-      "source_commit": "ab7401bc7f8abfa337a2a63cb8d02159f1791f7b",
+      "run_id": "20260807T110335Z-2faed1a9",
+      "source_commit": "63e5a3a0997e4d81e2cb12905a8b1cb80ff21d2d",
       "source_tree_clean": true,
-      "artifact_sha256": "288a12c8075b66c86a7c4c7c0331331d041ff0e8b8def2c7023e1e9537b049a8",
+      "artifact_sha256": "30e25070d622ec599dbee6b106fdd9f17dbacd3be2584d0eb51ec77f72b4d8f1",
       "fail_count": 0,
       "cleanup_errors": 0,
       "pass_count": 7,
