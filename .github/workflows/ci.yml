@@ -86,7 +86,7 @@ jobs:
 
       - name: Install dependency and build-backend floors
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip "setuptools>=83.0.0"
           python -m pip install \
             "build>=1.2" \
             "hatchling==1.26.3" \
