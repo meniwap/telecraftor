@@ -57,8 +57,8 @@ def test_run_step__redacts_credentials_from_failure_details() -> None:
     api_hash = "synthetic-api-hash"
     results: list[shared.StepResult] = []
     reporter = _FakeReporter(live_profile="default")
-    reporter.ctx.redact = (
-        lambda value: str(value)
+    reporter.ctx.redact = lambda value: (
+        str(value)
         .replace(api_hash, "<redacted>")
         .replace(
             str(api_id),

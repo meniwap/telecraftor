@@ -7,9 +7,9 @@ This is a namespace-level quick map for discoverability.
 
 The historical `introduced_in` values (`v2.x` through `v4.x`) in the matrix are internal facade
 development waves; they are not Telecraft package versions. Package releases use SemVer-style
-`0.2.x` identifiers, and the current unreleased package version is documented in `README.md` and
-`CHANGELOG.md`. The sync tool requires an explicit reviewed `--introduced-in` value so those two
-version domains cannot be confused silently.
+`0.2.x` identifiers, and the current package version and release status are documented in
+`README.md` and `CHANGELOG.md`. The sync tool requires an explicit reviewed `--introduced-in`
+value so those two version domains cannot be confused silently.
 
 ## Support Tiers (Public Contract)
 

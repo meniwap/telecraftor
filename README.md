@@ -23,10 +23,10 @@ It supports:
 - high-level client namespaces for messages, dialogs, media, bots, admin helpers, and more
 - an experimental reusable event stack for MTProto update routing with `Router` and `Dispatcher`
 
-Current development version: `0.2.2` (unreleased).
+Current stable version: `0.2.2`.
 
-The latest version published to PyPI is `0.2.0`. Development version `0.2.1` was never tagged or
-published; its changes are included in the upcoming `0.2.2` release.
+Development version `0.2.1` was never tagged or published; its changes are included in the
+`0.2.2` release.
 
 Telecraft does **not** implement the HTTP Telegram Bot API. Bot accounts are supported
 through MTProto, so you still need Telegram API credentials plus a bot token from BotFather.
@@ -59,11 +59,10 @@ python -m pip install telecraft
 From GitHub at the latest published stable tag:
 
 ```bash
-python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.0"
+python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.2"
 ```
 
-The unreleased `0.2.2` source should be evaluated from a local clone until its immutable release
-tag exists.
+The immutable `v0.2.2` tag identifies the source used to build the published release artifacts.
 
 For local development from a clone:
 
@@ -94,8 +93,7 @@ Local sessions contain Telegram auth keys. Treat `.sessions/` like passwords and
 
 ## Login
 
-The `telecraft` command in the unreleased `0.2.2` source handles login and session operations. It
-is not included in the currently published `0.2.0` wheel.
+The `telecraft` command included in `0.2.2` handles login and session operations.
 Production access is intentionally double-gated:
 
 ```bash

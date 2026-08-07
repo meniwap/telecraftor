@@ -51,12 +51,13 @@ def test_release_workflows_enforce_quality_gates() -> None:
     assert '"cryptography==50.0.0"' in ci
 
 
-def test_unreleased_development_version_is_explicit() -> None:
+def test_stable_release_version_is_explicit() -> None:
     version = _project_version()
     readme = README_PATH.read_text(encoding="utf-8")
     changelog = CHANGELOG_PATH.read_text(encoding="utf-8")
 
-    assert f"Current development version: `{version}` (unreleased)." in readme
-    assert f"Current stable version: `{version}`" not in readme
-    assert f"@v{version}" not in readme
-    assert f"## [{version}] - Unreleased" in changelog
+    assert f"Current stable version: `{version}`." in readme
+    assert f"Current development version: `{version}` (unreleased)." not in readme
+    assert f"@v{version}" in readme
+    assert f"## [{version}] - Unreleased" not in changelog
+    assert re.search(rf"(?m)^## \[{re.escape(version)}\] - \d{{4}}-\d{{2}}-\d{{2}}$", changelog)

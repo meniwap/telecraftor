@@ -12,9 +12,9 @@ The format follows a simplified Keep a Changelog style:
 
 ## [Unreleased]
 
-## [0.2.2] - Unreleased
+## [0.2.2] - 2026-08-07
 
-Production hardening release under development. This version has not been tagged or published.
+Production hardening release.
 
 ### Added
 
@@ -36,8 +36,8 @@ Production hardening release under development. This version has not been tagged
 
 - Raised the minimum supported `cryptography` version to `50.0.0` and the minimum supported
   Hatchling build backend to `1.26.3`.
-- Corrected public version status: `0.2.0` remains the latest PyPI release, unpublished `0.2.1`
-  changes roll into `0.2.2`, and `0.2.2` remains unreleased until its release gates complete.
+- Corrected public version status: unpublished `0.2.1` changes roll into the stable `0.2.2`
+  release.
 - Clarified the package boundary: wheels/source archives contain the library, not runnable bots,
   apps, examples, local operator configuration, or captures. The raw protocol method surface and
   reusable `telecraft.bot` primitives remain experimental beyond their explicitly pinned stable
