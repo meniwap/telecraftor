@@ -1939,8 +1939,8 @@ class MtprotoClient:
 
         res = await self.invoke_api(UsersGetUsers(id=[InputUserSelf()]), timeout=timeout)
         users = _users_from_result(res)
-        # Some codecs currently decode top-level Vector<T> as a generic "vector" object.
-        # Fallback to users.getFullUser, which returns a structured wrapper with users list.
+        # An empty users.getUsers result can occur for an unavailable/self identity;
+        # fall back to the structured users.getFullUser response before returning None.
         if not users:
             full = await self.invoke_api(UsersGetFullUser(id=InputUserSelf()), timeout=timeout)
             users = _users_from_result(full)
