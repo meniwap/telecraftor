@@ -69,6 +69,12 @@ async def run_forever(
                     logger.exception("on_error hook failed; ignoring")
             logger.info("App run failed (attempt=%s): %s", attempt, type(ex).__name__, exc_info=ex)
 
+            # Protocol circuit-breaker errors explicitly mark themselves as
+            # non-retryable. Reopening the same bot in an unbounded outer loop
+            # would otherwise recreate the systemd-style crash loop that the
+            # bounded MTProto recovery is designed to stop.
+            if getattr(ex, "retryable", True) is False:
+                raise
             if not pol.enabled:
                 raise
             if pol.max_attempts is not None and attempt >= int(pol.max_attempts):

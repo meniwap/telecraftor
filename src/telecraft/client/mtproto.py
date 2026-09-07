@@ -6,7 +6,7 @@ import logging
 import math
 import time
 import types
-from collections.abc import AsyncIterator, Coroutine
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -38,6 +38,7 @@ from telecraft.mtproto.rpc.sender import (
     MtprotoEncryptedSender,
     ReceivedMessage,
     ReceiverTerminated,
+    RpcDecodeError,
     RpcErrorException,
     RpcSenderError,
     UpdatesRecoveryRequired,
@@ -140,6 +141,47 @@ class MtprotoClientError(Exception):
     pass
 
 
+class UpdatesRecoveryExhaustedError(MtprotoClientError):
+    """A poisoned update stream repeated after bounded fresh-connection recovery."""
+
+    retryable = False
+
+    def __init__(
+        self,
+        *,
+        constructor_id: int | None,
+        expected_type: str | None,
+        path: str | None,
+        position: int | None,
+        attempts: int,
+        repeat_count: int,
+        consecutive_failure_count: int,
+        last_error: BaseException | None = None,
+    ) -> None:
+        self.constructor_id = constructor_id
+        self.expected_type = expected_type
+        self.path = path
+        self.position = position
+        self.attempts = int(attempts)
+        self.repeat_count = int(repeat_count)
+        self.consecutive_failure_count = int(consecutive_failure_count)
+        self.last_error = last_error
+        constructor = (
+            f"0x{constructor_id & 0xFFFFFFFF:08x}" if constructor_id is not None else "unknown"
+        )
+        location = path or "<unknown TL path>"
+        super().__init__(
+            "Telegram repeatedly returned an undecodable constructor after "
+            f"{attempts} fresh TCP/session/layer recovery attempts "
+            f"(constructor={constructor}, path={location}, repeats={repeat_count}, "
+            f"consecutive_unknown_failures={consecutive_failure_count}). "
+            "The updates checkpoint was preserved; update the Telecraft schema/decoder "
+            "before restarting this stream."
+        )
+        if last_error is not None:
+            self.__cause__ = last_error
+
+
 TEST_DCS: dict[int, tuple[str, int]] = {
     1: ("149.154.175.10", 443),
     2: ("149.154.167.40", 443),
@@ -157,6 +199,10 @@ PROD_DCS: dict[int, tuple[str, int]] = {
 }
 
 _UPDATES_IDLE_RECOVERY_SECONDS = 15 * 60
+_UNKNOWN_CONSTRUCTOR_RECOVERY_MAX_ATTEMPTS = 3
+_UNKNOWN_CONSTRUCTOR_RECOVERY_INITIAL_BACKOFF_SECONDS = 0.25
+_UNKNOWN_CONSTRUCTOR_RECOVERY_MAX_BACKOFF_SECONDS = 2.0
+_UNKNOWN_CONSTRUCTOR_ACTIVE_DRAIN_GRACE_SECONDS = 0.1
 
 
 @dataclass(slots=True)
@@ -169,6 +215,18 @@ class ClientInit:
     system_lang_code: str = "en"
     lang_pack: str = ""
     lang_code: str = "en"
+
+
+@dataclass(frozen=True, slots=True)
+class _UnknownConstructorReconnectSnapshot:
+    sender: MtprotoEncryptedSender
+    transport: TcpTransport
+    auth_key: bytes
+    server_salt: bytes
+    msg_id_gen: MsgIdGenerator
+    host: str
+    port: int
+    framing: Framing
 
 
 def _make_framing(name: str) -> Framing:
@@ -273,6 +331,10 @@ class MtprotoClient:
         self._invoke_condition = asyncio.Condition()
         self._active_invocations = 0
         self._migration_in_progress = False
+        self._unknown_constructor_fingerprint: tuple[int, str] | None = None
+        self._unknown_constructor_repeat_count = 0
+        self._unknown_constructor_consecutive_failure_count = 0
+        self._unknown_constructor_reconnect_attempt_count = 0
         self._deferred_cleanup_tasks: set[asyncio.Task[Any]] = set()
         self._deferred_cleanup_resources: list[Any] = []
         self._deferred_cleanup_task_resources: dict[asyncio.Task[Any], Any] = {}
@@ -399,6 +461,40 @@ class MtprotoClient:
         self._deferred_cleanup_task_resources[task] = resource
         return task
 
+    def _track_resource_cleanup_after_tasks(
+        self,
+        resource: Any,
+        *,
+        tasks: tuple[asyncio.Task[Any], ...],
+        label: str,
+    ) -> asyncio.Task[Any]:
+        """Close ``resource`` again after late candidate operations have settled.
+
+        Recovery candidates are deliberately abandoned at a hard deadline even
+        when a buggy transport coroutine suppresses cancellation.  The immediate
+        close issued by the caller unblocks ordinary I/O, but a late ``connect``
+        may publish a writer *after* that close.  Retaining a second cleanup owner
+        closes anything installed by such a late completion without extending the
+        recovery caller's wall-clock deadline.
+        """
+
+        self._retain_deferred_cleanup_resource(resource)
+
+        async def close_after_tasks() -> None:
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+            try:
+                await resource.close()
+            except BaseException:
+                self._retain_deferred_cleanup_resource(resource)
+                raise
+            else:
+                self._release_deferred_cleanup_resource(resource)
+
+        task = self._track_background_task(close_after_tasks(), label=label)
+        self._deferred_cleanup_task_resources[task] = resource
+        return task
+
     async def _retry_deferred_cleanup_resources(
         self,
         *,
@@ -479,6 +575,417 @@ class MtprotoClient:
         self._dc_endpoints.update(discovered)
         if not self._host_is_explicit and int(self._dc_id) in discovered:
             self._host, self._port = discovered[int(self._dc_id)]
+
+    @staticmethod
+    def _recovery_signal_from_decode_error(error: RpcDecodeError) -> UpdatesRecoveryRequired:
+        return UpdatesRecoveryRequired.from_decode_error(error)
+
+    def _record_unknown_constructor_failure(
+        self,
+        signal: UpdatesRecoveryRequired,
+    ) -> int:
+        fingerprint = signal.fingerprint
+        if fingerprint is None:
+            # ``requires_reconnect`` is reserved for structured unknown-constructor
+            # failures.  Keep a stable fallback so a malformed internal signal still
+            # cannot defeat the process-wide circuit breaker.
+            fingerprint = (-1, signal.path or "<unknown TL path>")
+        self._unknown_constructor_consecutive_failure_count += 1
+        if fingerprint == self._unknown_constructor_fingerprint:
+            self._unknown_constructor_repeat_count += 1
+        else:
+            self._unknown_constructor_fingerprint = fingerprint
+            self._unknown_constructor_repeat_count = 1
+        return self._unknown_constructor_repeat_count
+
+    def _clear_unknown_constructor_failures(self) -> None:
+        self._unknown_constructor_fingerprint = None
+        self._unknown_constructor_repeat_count = 0
+        self._unknown_constructor_consecutive_failure_count = 0
+        self._unknown_constructor_reconnect_attempt_count = 0
+
+    def _recovery_exhausted(
+        self,
+        signal: UpdatesRecoveryRequired,
+        *,
+        attempts: int,
+        last_error: BaseException | None,
+    ) -> UpdatesRecoveryExhaustedError:
+        return UpdatesRecoveryExhaustedError(
+            constructor_id=signal.constructor_id,
+            expected_type=signal.expected_type,
+            path=signal.path,
+            position=signal.position,
+            attempts=attempts,
+            repeat_count=self._unknown_constructor_repeat_count,
+            consecutive_failure_count=self._unknown_constructor_consecutive_failure_count,
+            last_error=last_error,
+        )
+
+    def _unknown_constructor_reconnect_snapshot(
+        self,
+    ) -> _UnknownConstructorReconnectSnapshot:
+        state = self._state
+        sender = self._sender
+        transport = self._transport
+        if state is None or sender is None or transport is None:
+            raise MtprotoClientError("Cannot recover unknown constructor while disconnected")
+        msg_id_gen = self._msg_id_gen or state.msg_id_gen
+        host, port = self._endpoint()
+        return _UnknownConstructorReconnectSnapshot(
+            sender=sender,
+            transport=transport,
+            auth_key=bytes(state.auth_key),
+            server_salt=bytes(state.server_salt),
+            msg_id_gen=msg_id_gen,
+            host=host,
+            port=port,
+            framing=_make_framing(self._framing_name),
+        )
+
+    def _begin_unknown_constructor_disconnect(
+        self,
+        snapshot: _UnknownConstructorReconnectSnapshot,
+    ) -> None:
+        """Poison synchronously and start both closes without waiting for them."""
+
+        snapshot.sender.invalidate(
+            RpcSenderError("MTProto connection invalidated after unknown constructor")
+        )
+        self._spawn_resource_cleanup(
+            snapshot.sender,
+            label="unknown-constructor-old-sender",
+        )
+        self._spawn_resource_cleanup(
+            snapshot.transport,
+            label="unknown-constructor-old-transport",
+        )
+
+    async def _perform_unknown_constructor_reconnect(
+        self,
+        *,
+        snapshot: _UnknownConstructorReconnectSnapshot,
+        timeout: float,
+    ) -> None:
+        """Connect and layer-initialize a private candidate before atomic adoption."""
+
+        if self._init is None:
+            raise MtprotoClientError(
+                "ClientInit(api_id=...) is required for unknown-constructor recovery"
+            )
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise asyncio.TimeoutError
+
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+
+        def remaining() -> float:
+            value = deadline - loop.time()
+            if value <= 0:
+                raise asyncio.TimeoutError
+            return value
+
+        candidate_transport: TcpTransport | None = None
+        candidate_sender: MtprotoEncryptedSender | None = None
+        candidate_operation_tasks: list[asyncio.Task[Any]] = []
+        adopted = False
+        try:
+            candidate_transport = TcpTransport(
+                endpoint=Endpoint(host=snapshot.host, port=snapshot.port),
+                framing=snapshot.framing,
+            )
+            connect_task = self._track_background_task(
+                candidate_transport.connect(),
+                label="unknown-constructor-candidate-connect",
+            )
+            candidate_operation_tasks.append(connect_task)
+            await self._await_task_hard_bounded(connect_task, timeout=remaining())
+
+            candidate_state = MtprotoState(
+                auth_key=snapshot.auth_key,
+                server_salt=snapshot.server_salt,
+                msg_id_gen=snapshot.msg_id_gen,
+                # A new session id is mandatory: the previous session consumed an
+                # undecodable envelope and must never be resumed.
+                session_id=b"",
+            )
+            candidate_incoming: asyncio.Queue[
+                ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired
+            ] = asyncio.Queue(maxsize=2048)
+            candidate_sender = MtprotoEncryptedSender(
+                candidate_transport,
+                state=candidate_state,
+                msg_id_gen=snapshot.msg_id_gen,
+                incoming_queue=candidate_incoming,
+                flood_wait_config=self._flood_wait_config,
+            )
+
+            # Invoke directly on the private candidate. Calling self.invoke() while
+            # migration is announced would deadlock on _invoke_condition. A stubborn
+            # transport cannot extend this hard wall-clock deadline.
+            bootstrap_task = self._track_background_task(
+                candidate_sender.invoke_tl(
+                    wrap_with_layer_init(query=HelpGetConfig(), init=self._init),
+                    timeout=remaining(),
+                    flood_wait_config=self._flood_wait_config,
+                ),
+                label="unknown-constructor-candidate-layer-init",
+            )
+            candidate_operation_tasks.append(bootstrap_task)
+            candidate_config = await self._await_task_hard_bounded(
+                bootstrap_task,
+                timeout=remaining(),
+            )
+
+            # Transactional adoption: no await occurs while connection ownership is
+            # transferred, so cancellation cannot expose a half-published sender.
+            self._transport = candidate_transport
+            self._sender = candidate_sender
+            self._state = candidate_state
+            self._msg_id_gen = snapshot.msg_id_gen
+            self._incoming = candidate_incoming
+            self.config = candidate_config
+            self._did_init_connection = True
+            adopted = True
+            self._ingest_dc_config(candidate_config)
+
+            # The auth key is unchanged; persisting a newly learned salt/endpoint is
+            # useful but not required for protocol correctness.
+            try:
+                await self._persist_session()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.warning(
+                    "Failed to persist the replacement MTProto connection metadata",
+                    exc_info=True,
+                )
+        finally:
+            if not adopted:
+                # Request cancellation, but never await acknowledgement on the
+                # recovery path: a coroutine may suppress it.  Both tasks remain
+                # owned until their done callbacks consume the outcome.
+                for operation_task in candidate_operation_tasks:
+                    if not operation_task.done():
+                        operation_task.cancel()
+                if candidate_sender is not None:
+                    candidate_sender.invalidate(
+                        RpcSenderError("Unsuccessful MTProto recovery candidate")
+                    )
+                    self._spawn_resource_cleanup(
+                        candidate_sender,
+                        label="unknown-constructor-candidate-sender-cleanup",
+                    )
+                    self._track_resource_cleanup_after_tasks(
+                        candidate_sender,
+                        tasks=tuple(candidate_operation_tasks),
+                        label="unknown-constructor-candidate-sender-final-cleanup",
+                    )
+                if candidate_transport is not None:
+                    # Close transport immediately. A connect/bootstrap coroutine
+                    # that suppresses cancellation may be blocked on this exact I/O;
+                    # waiting for it first creates a cleanup deadlock.
+                    self._spawn_resource_cleanup(
+                        candidate_transport,
+                        label="unknown-constructor-candidate-transport-cleanup",
+                    )
+                    self._track_resource_cleanup_after_tasks(
+                        candidate_transport,
+                        tasks=tuple(candidate_operation_tasks),
+                        label="unknown-constructor-candidate-transport-final-cleanup",
+                    )
+
+    async def _reconnect_for_unknown_constructor(
+        self,
+        *,
+        timeout: float,
+        poisoned_sender: MtprotoEncryptedSender | None = None,
+    ) -> None:
+        """Serialize same-DC socket replacement without deadlocking old RPCs."""
+
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+
+        def remaining() -> float:
+            value = deadline - loop.time()
+            if value <= 0:
+                raise asyncio.TimeoutError
+            return value
+
+        async with self._lifecycle_serialized(timeout=remaining()):
+            await asyncio.wait_for(self._migration_lock.acquire(), timeout=remaining())
+            migration_announced = False
+            try:
+                # Another concurrent next-call recovery may already have replaced
+                # exactly the sender observed by this caller.
+                if poisoned_sender is not None and self._sender is not poisoned_sender:
+                    return
+                snapshot = self._unknown_constructor_reconnect_snapshot()
+                async with self._invoke_condition:
+                    self._migration_in_progress = True
+                    migration_announced = True
+
+                # Poison and initiate TCP close before waiting on invocations. This
+                # wakes FloodWait retries synchronously and releases blocked sends as
+                # soon as transport.close starts.
+                self._begin_unknown_constructor_disconnect(snapshot)
+                await asyncio.sleep(0)
+
+                drain_deadline = min(
+                    deadline,
+                    loop.time() + _UNKNOWN_CONSTRUCTOR_ACTIVE_DRAIN_GRACE_SECONDS,
+                )
+                async with self._invoke_condition:
+                    while self._active_invocations:
+                        drain_remaining = drain_deadline - loop.time()
+                        if drain_remaining <= 0:
+                            logger.warning(
+                                "Proceeding with fresh MTProto connection while %d poisoned "
+                                "invocation(s) finish on the isolated old sender",
+                                self._active_invocations,
+                            )
+                            break
+                        try:
+                            await asyncio.wait_for(
+                                self._invoke_condition.wait(),
+                                timeout=drain_remaining,
+                            )
+                        except asyncio.TimeoutError:
+                            logger.warning(
+                                "Proceeding with fresh MTProto connection while %d poisoned "
+                                "invocation(s) finish on the isolated old sender",
+                                self._active_invocations,
+                            )
+                            break
+
+                await self._perform_unknown_constructor_reconnect(
+                    snapshot=snapshot,
+                    timeout=remaining(),
+                )
+            finally:
+                if migration_announced:
+                    async with self._invoke_condition:
+                        self._migration_in_progress = False
+                        self._invoke_condition.notify_all()
+                self._migration_lock.release()
+
+    async def _run_after_unknown_constructor(
+        self,
+        signal: UpdatesRecoveryRequired,
+        *,
+        operation: Callable[[], Awaitable[Any]],
+        restore_checkpoint: Callable[[], None] | None,
+        timeout: float,
+    ) -> Any:
+        """Run an update operation only after bounded fresh-connection recovery."""
+
+        if not signal.requires_reconnect:
+            return await operation()
+
+        current_signal = signal
+        repeat_count = self._record_unknown_constructor_failure(current_signal)
+        # A prior exhausted run on this client is a global circuit breaker. This
+        # matters for bot runners that reconnect the same client object forever.
+        if (
+            repeat_count > _UNKNOWN_CONSTRUCTOR_RECOVERY_MAX_ATTEMPTS
+            or self._unknown_constructor_consecutive_failure_count
+            > _UNKNOWN_CONSTRUCTOR_RECOVERY_MAX_ATTEMPTS
+        ):
+            if restore_checkpoint is not None:
+                restore_checkpoint()
+            raise self._recovery_exhausted(
+                current_signal,
+                attempts=self._unknown_constructor_reconnect_attempt_count,
+                last_error=None,
+            )
+
+        last_error: BaseException | None = None
+        while True:
+            if restore_checkpoint is not None:
+                restore_checkpoint()
+            if (
+                self._unknown_constructor_reconnect_attempt_count
+                >= _UNKNOWN_CONSTRUCTOR_RECOVERY_MAX_ATTEMPTS
+                or self._unknown_constructor_consecutive_failure_count
+                > _UNKNOWN_CONSTRUCTOR_RECOVERY_MAX_ATTEMPTS
+            ):
+                raise self._recovery_exhausted(
+                    current_signal,
+                    attempts=self._unknown_constructor_reconnect_attempt_count,
+                    last_error=last_error,
+                )
+            attempt = self._unknown_constructor_reconnect_attempt_count + 1
+            attempt_poisoned_sender = self._sender
+            delay = (
+                0.0
+                if attempt == 1
+                else min(
+                    _UNKNOWN_CONSTRUCTOR_RECOVERY_MAX_BACKOFF_SECONDS,
+                    _UNKNOWN_CONSTRUCTOR_RECOVERY_INITIAL_BACKOFF_SECONDS * (2 ** (attempt - 2)),
+                )
+            )
+            if delay > 0:
+                await asyncio.sleep(delay)
+            logger.warning(
+                "Recovering poisoned MTProto update stream on a fresh connection "
+                "(attempt=%d/%d, constructor=%s, path=%s)",
+                attempt,
+                _UNKNOWN_CONSTRUCTOR_RECOVERY_MAX_ATTEMPTS,
+                (
+                    f"0x{current_signal.constructor_id & 0xFFFFFFFF:08x}"
+                    if current_signal.constructor_id is not None
+                    else "unknown"
+                ),
+                current_signal.path,
+            )
+            self._unknown_constructor_reconnect_attempt_count = attempt
+
+            try:
+                await self._reconnect_for_unknown_constructor(
+                    timeout=timeout,
+                    poisoned_sender=attempt_poisoned_sender,
+                )
+            except asyncio.CancelledError:
+                raise
+            except RpcDecodeError as exc:
+                if not exc.requires_reconnect:
+                    raise
+                last_error = exc
+                current_signal = self._recovery_signal_from_decode_error(exc)
+                self._record_unknown_constructor_failure(current_signal)
+                continue
+            except Exception as exc:  # connection/bootstrap failures are retryable here
+                last_error = exc
+                logger.warning(
+                    "Fresh MTProto connection initialization failed during unknown-"
+                    "constructor recovery",
+                    exc_info=True,
+                )
+                continue
+
+            try:
+                result = await operation()
+            except asyncio.CancelledError:
+                raise
+            except RpcDecodeError as exc:
+                if not exc.requires_reconnect:
+                    raise
+                last_error = exc
+                current_signal = self._recovery_signal_from_decode_error(exc)
+                self._record_unknown_constructor_failure(current_signal)
+                continue
+            except RpcSenderError as exc:
+                sender = self._sender
+                if sender is not None and sender.is_healthy:
+                    raise
+                last_error = exc
+                logger.warning(
+                    "Replacement MTProto connection terminated during updates recovery",
+                    exc_info=True,
+                )
+                continue
+            else:
+                return result
 
     async def connect(self, *, timeout: float = 30.0) -> None:
         async with self._lifecycle_serialized():
@@ -899,7 +1406,28 @@ class MtprotoClient:
             ),
         )
         initial_state = self._load_updates_state()
-        await updates_engine.initialize(initial_state=initial_state)
+
+        async def initialize() -> UpdatesState:
+            return await updates_engine.initialize(initial_state=initial_state)
+
+        try:
+            await initialize()
+        except RpcDecodeError as exc:
+            if not exc.requires_reconnect:
+                raise
+            # Startup catch-up runs before the consumer is published. Recover it
+            # synchronously so a poisoned sender is never returned by start_updates,
+            # and retry from the exact durable checkpoint supplied above.
+            await self._run_after_unknown_constructor(
+                self._recovery_signal_from_decode_error(exc),
+                operation=initialize,
+                restore_checkpoint=(
+                    (lambda: updates_engine.restore(initial_state))
+                    if initial_state is not None
+                    else None
+                ),
+                timeout=timeout,
+            )
         initial_catch_up = updates_engine.take_initial_catch_up()
         self._updates_out = updates_out
         self._updates_terminal = updates_terminal
@@ -1028,6 +1556,13 @@ class MtprotoClient:
                         await self._persist_session()
                     except asyncio.CancelledError:
                         raise
+                    except RpcDecodeError as exc:
+                        if exc.requires_reconnect:
+                            raise
+                        logger.warning(
+                            "Failed to decode Telegram DC config after updateConfig",
+                            exc_info=True,
+                        )
                     except Exception:
                         # Endpoint refresh is operational metadata.  A transient
                         # failure must not discard or permanently stall the
@@ -1052,10 +1587,100 @@ class MtprotoClient:
                 updates_engine.restore(checkpoint)
                 raise
 
+        def cursor_progressed(before: UpdatesState, after: UpdatesState) -> bool:
+            # ``date`` is merely the next difference query timestamp. Telegram can
+            # advance it in an empty response while immediately repeating the same
+            # poisoned live update, so date-only movement is not health evidence.
+            return bool(
+                before.pts != after.pts
+                or before.qts != after.qts
+                or before.seq != after.seq
+                or before.channel_pts != after.channel_pts
+            )
+
+        def clear_circuit_after_success(
+            *,
+            checkpoint: UpdatesState,
+            applied: AppliedUpdates,
+            independently_healthy_live_input: bool,
+        ) -> None:
+            if (
+                self._unknown_constructor_fingerprint is None
+                or not independently_healthy_live_input
+            ):
+                return
+            has_payload = bool(applied.new_messages or applied.updates)
+            live_cursor_progress = cursor_progressed(
+                checkpoint,
+                updates_engine.checkpoint(),
+            )
+            # Difference output—even nonempty output—is part of recovery and can
+            # be followed immediately by the same poisoned live envelope. Reset
+            # only after an independently received live input was decoded, its
+            # payload was delivered/persisted, and a durable non-date cursor moved.
+            if has_payload and live_cursor_progress:
+                self._clear_unknown_constructor_failures()
+
+        async def recover_poisoned_connection(
+            *,
+            signal: UpdatesRecoveryRequired,
+            checkpoint: UpdatesState,
+        ) -> None:
+            async def recover_and_dispatch() -> None:
+                applied = await updates_engine.recover()
+                await dispatch(checkpoint=checkpoint, applied=applied)
+
+            await self._run_after_unknown_constructor(
+                signal,
+                operation=recover_and_dispatch,
+                restore_checkpoint=lambda: updates_engine.restore(checkpoint),
+                timeout=config_refresh_timeout,
+            )
+
+        async def apply_and_dispatch_with_poison_recovery(
+            *,
+            operation: Callable[[], Awaitable[AppliedUpdates]],
+            checkpoint: UpdatesState,
+            independently_healthy_live_input: bool = False,
+        ) -> None:
+            try:
+                applied = await operation()
+                await dispatch(checkpoint=checkpoint, applied=applied)
+                clear_circuit_after_success(
+                    checkpoint=checkpoint,
+                    applied=applied,
+                    independently_healthy_live_input=independently_healthy_live_input,
+                )
+            except RpcDecodeError as exc:
+                updates_engine.restore(checkpoint)
+                if not exc.requires_reconnect:
+                    raise
+                await recover_poisoned_connection(
+                    signal=self._recovery_signal_from_decode_error(exc),
+                    checkpoint=checkpoint,
+                )
+            except BaseException:
+                updates_engine.restore(checkpoint)
+                raise
+
         try:
             if initial_catch_up is not None:
                 checkpoint, applied = initial_catch_up
-                await dispatch(checkpoint=checkpoint, applied=applied)
+                try:
+                    await dispatch(checkpoint=checkpoint, applied=applied)
+                    clear_circuit_after_success(
+                        checkpoint=checkpoint,
+                        applied=applied,
+                        independently_healthy_live_input=False,
+                    )
+                except RpcDecodeError as exc:
+                    updates_engine.restore(checkpoint)
+                    if not exc.requires_reconnect:
+                        raise
+                    await recover_poisoned_connection(
+                        signal=self._recovery_signal_from_decode_error(exc),
+                        checkpoint=checkpoint,
+                    )
 
             while True:
                 try:
@@ -1069,32 +1694,45 @@ class MtprotoClient:
                 except asyncio.TimeoutError:
                     logger.info("No updates received for 15 minutes; fetching difference")
                     checkpoint = updates_engine.checkpoint()
-                    try:
-                        applied = await updates_engine.recover()
-                        await dispatch(checkpoint=checkpoint, applied=applied)
-                    except BaseException:
-                        updates_engine.restore(checkpoint)
-                        raise
+                    await apply_and_dispatch_with_poison_recovery(
+                        operation=updates_engine.recover,
+                        checkpoint=checkpoint,
+                    )
                     continue
 
                 if isinstance(msg, ReceiverTerminated):
+                    if isinstance(msg.error, RpcDecodeError) and msg.error.requires_reconnect:
+                        checkpoint = updates_engine.checkpoint()
+                        await recover_poisoned_connection(
+                            signal=self._recovery_signal_from_decode_error(msg.error),
+                            checkpoint=checkpoint,
+                        )
+                        continue
                     self._finish_updates(msg.error)
                     return
 
                 checkpoint = updates_engine.checkpoint()
-                try:
-                    if isinstance(msg, UpdatesRecoveryRequired):
-                        logger.info(
-                            "Updates recovery requested: %s",
-                            msg.reason,
+                if isinstance(msg, UpdatesRecoveryRequired):
+                    logger.info(
+                        "Updates recovery requested: %s",
+                        msg.reason,
+                    )
+                    if msg.requires_reconnect:
+                        await recover_poisoned_connection(
+                            signal=msg,
+                            checkpoint=checkpoint,
                         )
-                        applied = await updates_engine.recover()
                     else:
-                        applied = await updates_engine.apply(msg.obj)
-                    await dispatch(checkpoint=checkpoint, applied=applied)
-                except BaseException:
-                    updates_engine.restore(checkpoint)
-                    raise
+                        await apply_and_dispatch_with_poison_recovery(
+                            operation=updates_engine.recover,
+                            checkpoint=checkpoint,
+                        )
+                else:
+                    await apply_and_dispatch_with_poison_recovery(
+                        operation=lambda: updates_engine.apply(msg.obj),
+                        checkpoint=checkpoint,
+                        independently_healthy_live_input=True,
+                    )
         except asyncio.CancelledError:
             raise
         except BaseException as exc:

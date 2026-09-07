@@ -4,6 +4,8 @@ These files are pinned inputs for code generation:
 
 - `api.tl`: Telegram Core API schema (layered)
 - `mtproto.tl`: MTProto schema
+- `legacy_api.tl`: a minimal, reviewed set of historical constructors accepted
+  on inbound payloads only; these never replace the current outbound schema
 
 Refresh/pin them with:
 
@@ -21,3 +23,6 @@ Notes:
   from a moving branch or tag.
 - `provenance.json` records the upstream commit, URLs, layer, and SHA-256 of both inputs. CI verifies
   that it matches the committed schema exactly.
+- `legacy_provenance.json` pins the official Telegram Android source files used
+  to transcribe and review each inbound-only layout. Legacy additions require
+  an immutable upstream commit and focused byte-level decoding tests.

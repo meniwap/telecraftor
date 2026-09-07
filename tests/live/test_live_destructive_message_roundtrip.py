@@ -8,11 +8,15 @@ from uuid import uuid4
 import pytest
 
 from telecraft.client import Client
+from telecraft.client.mtproto import MtprotoClientError
 from tests.live._destructive_message import (
     DESTRUCTIVE_MESSAGE_PROFILE,
+    MessageUpdateNotObserved,
+    ObservedMessageUpdate,
     extract_sent_message_id,
     find_exact_message,
     message_id_and_text,
+    wait_for_exact_message_update,
 )
 from tests.live._suite_shared import finalize_run, run_step
 
@@ -23,6 +27,96 @@ pytestmark = [pytest.mark.live, pytest.mark.live_destructive]
 class _MessageState:
     send_attempted: bool = False
     message_id: int | None = None
+
+
+async def _observe_exact_message_update(
+    *,
+    client: Client,
+    expected_text: str,
+    expected_id: int | None,
+    timeout: float,
+) -> ObservedMessageUpdate:
+    """Observe the sent update, forcing one bounded startup catch-up when needed."""
+
+    async def observe() -> ObservedMessageUpdate:
+        observer = asyncio.create_task(
+            wait_for_exact_message_update(
+                client.updates.recv,
+                expected_text=expected_text,
+                expected_id=expected_id,
+                timeout=timeout,
+            )
+        )
+        try:
+            # Give a server-pushed update a short opportunity first. If Telegram
+            # returns the update only as the originating RPC result, restarting
+            # from the pre-send checkpoint forces updates.getDifference instead.
+            done, _ = await asyncio.wait(
+                {observer},
+                timeout=min(1.0, timeout / 4),
+            )
+            if observer in done:
+                try:
+                    return observer.result()
+                except MessageUpdateNotObserved:
+                    pass
+
+            await client.updates.stop()
+
+            observed_before_restart: ObservedMessageUpdate | None = None
+            try:
+                # stop() terminates an empty receiver, but recv_update drains
+                # every already accepted queue item before surfacing that
+                # intentional terminal condition.
+                observed_before_restart = await observer
+            except MtprotoClientError as exc:
+                if str(exc) != "Updates stopped":
+                    raise
+            except MessageUpdateNotObserved:
+                pass
+
+            await client.updates.start(timeout=timeout)
+            if observed_before_restart is not None:
+                return observed_before_restart
+            return await wait_for_exact_message_update(
+                client.updates.recv,
+                expected_text=expected_text,
+                expected_id=expected_id,
+                timeout=timeout,
+            )
+        finally:
+            if not observer.done():
+                observer.cancel()
+                try:
+                    await observer
+                except asyncio.CancelledError:
+                    pass
+
+    try:
+        return await asyncio.wait_for(observe(), timeout=timeout)
+    except asyncio.TimeoutError as exc:
+        raise MessageUpdateNotObserved(
+            f"Exact test-message update was not observed within {float(timeout):.1f}s"
+        ) from exc
+
+
+async def _assert_update_stream_healthy(client: Client, *, dwell: float = 0.25) -> None:
+    """Fail on an already-terminal update stream without logging any queued payload."""
+
+    if not client.is_connected:
+        raise AssertionError("MTProto connection became unhealthy during update validation")
+    waiter = asyncio.create_task(client.updates.recv())
+    try:
+        done, _ = await asyncio.wait({waiter}, timeout=dwell)
+        if waiter in done:
+            _ = waiter.result()
+    finally:
+        if not waiter.done():
+            waiter.cancel()
+            try:
+                await waiter
+            except asyncio.CancelledError:
+                pass
 
 
 def _exact_message_id(
@@ -99,9 +193,11 @@ async def _run_destructive_message_roundtrip(
         "message_token": token,
         "destructive_peer": peer,
         "cleanup_revoke": "pending",
+        "updates_engine": "pending",
     }
     rpc_timeout = min(float(ctx.cfg.timeout), 10.0)
     cleanup_timeout = min(float(ctx.cfg.timeout), 4.0)
+    update_timeout = min(float(ctx.cfg.timeout), 15.0)
 
     async def cleanup_created_message() -> None:
         if not state.send_attempted:
@@ -171,6 +267,28 @@ async def _run_destructive_message_roundtrip(
     try:
         await client.connect(timeout=ctx.cfg.timeout)
 
+        async def step_start_updates() -> str:
+            await asyncio.wait_for(
+                client.updates.start(timeout=rpc_timeout),
+                timeout=rpc_timeout,
+            )
+            if not client.is_connected:
+                raise AssertionError("MTProto connection is unhealthy after update startup")
+            resource_ids["updates_engine"] = "started"
+            return "updates engine initialized on a healthy connection"
+
+        await run_step(
+            name="updates.destructive.start",
+            fn=step_start_updates,
+            client=client,
+            reporter=reporter,
+            results=results,
+        )
+        if not results or results[-1].status != "PASS":
+            # Starting the updates engine is a prerequisite for this write. Do
+            # not send a test message when the validation path is unavailable.
+            return
+
         async def step_send() -> str:
             state.send_attempted = True
             response = await client.messages.send(
@@ -200,6 +318,31 @@ async def _run_destructive_message_roundtrip(
         await run_step(
             name="messages.destructive.send",
             fn=step_send,
+            client=client,
+            reporter=reporter,
+            results=results,
+        )
+
+        async def step_observe_update() -> str:
+            observed = await _observe_exact_message_update(
+                client=client,
+                expected_text=initial_text,
+                expected_id=state.message_id,
+                timeout=update_timeout,
+            )
+            if state.message_id is None:
+                state.message_id = observed.message_id
+                resource_ids["message_id"] = observed.message_id
+            await _assert_update_stream_healthy(client)
+            resource_ids["observed_update_kind"] = observed.update_kind
+            return (
+                f"observed exact test-message update id={observed.message_id} "
+                f"kind={observed.update_kind} inspected={observed.inspected_updates}"
+            )
+
+        await run_step(
+            name="updates.destructive.observe_send",
+            fn=step_observe_update,
             client=client,
             reporter=reporter,
             results=results,

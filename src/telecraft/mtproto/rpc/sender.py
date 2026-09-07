@@ -12,7 +12,14 @@ from typing import Any, Protocol, cast
 from telecraft.mtproto.core.msg_id import MsgIdGenerator
 from telecraft.mtproto.core.state import MtprotoState
 from telecraft.mtproto.gzip_utils import decompress_limited
-from telecraft.tl.codec import MsgContainer, RpcResult, TLCodecError, loads
+from telecraft.tl.codec import (
+    MsgContainer,
+    RpcResult,
+    TLCodecError,
+    UnknownConstructorError,
+    UnsafeTLPayloadError,
+    loads,
+)
 from telecraft.tl.generated.types import (
     BadMsgNotification,
     BadServerSalt,
@@ -74,6 +81,80 @@ class DcMigrateError(RpcErrorException):
 class RpcDecodeError(RpcSenderError):
     """Raised when a response payload cannot be decoded into TL objects."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        constructor_id: int | None = None,
+        expected_type: str | None = None,
+        path: str | None = None,
+        position: int | None = None,
+        requires_reconnect: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.constructor_id = constructor_id
+        self.expected_type = expected_type
+        self.path = path
+        self.position = position
+        self.requires_reconnect = bool(requires_reconnect)
+        # A failed RPC may have executed before its response became undecodable.
+        # Outer bot runners must never replay it automatically.
+        self.retryable = not self.requires_reconnect
+
+    @classmethod
+    def from_decode_failure(
+        cls,
+        error: Exception,
+        *,
+        outer_msg_id: int | None,
+        default_path: str = "root",
+    ) -> RpcDecodeError:
+        constructor_id = getattr(error, "constructor_id", None)
+        expected_type = getattr(error, "expected_type", None)
+        path = getattr(error, "path", None)
+        if not isinstance(path, str):
+            path = default_path
+        position = getattr(error, "position", None)
+        envelope = (
+            f"outer_msg_id={outer_msg_id}"
+            if outer_msg_id is not None
+            else "outer_msg_id=unavailable"
+        )
+        return cls(
+            "The MTProto connection returned an undecodable authenticated protocol payload and "
+            "cannot "
+            f"continue ({envelope}): {error}",
+            constructor_id=int(constructor_id) if isinstance(constructor_id, int) else None,
+            expected_type=str(expected_type) if isinstance(expected_type, str) else None,
+            path=str(path) if isinstance(path, str) else None,
+            position=int(position) if isinstance(position, int) else None,
+            requires_reconnect=True,
+        )
+
+    @classmethod
+    def from_unsafe_payload(
+        cls,
+        error: UnsafeTLPayloadError,
+        *,
+        outer_msg_id: int,
+    ) -> RpcDecodeError:
+        return cls.from_decode_failure(error, outer_msg_id=outer_msg_id)
+
+    @classmethod
+    def from_unknown_constructor(
+        cls,
+        error: UnknownConstructorError,
+        *,
+        outer_msg_id: int,
+    ) -> RpcDecodeError:
+        return cls.from_unsafe_payload(error, outer_msg_id=outer_msg_id)
+
+    @property
+    def fingerprint(self) -> tuple[int, str] | None:
+        if self.constructor_id is None or self.path is None:
+            return None
+        return int(self.constructor_id), str(self.path)
+
 
 def parse_flood_wait_seconds(message: str) -> int | None:
     """
@@ -99,12 +180,58 @@ class ReceiverTerminated:
 
     error: RpcSenderError
 
+    @property
+    def requires_reconnect(self) -> bool:
+        return bool(getattr(self.error, "requires_reconnect", False))
+
+    @property
+    def constructor_id(self) -> int | None:
+        value = getattr(self.error, "constructor_id", None)
+        return int(value) if isinstance(value, int) else None
+
+    @property
+    def expected_type(self) -> str | None:
+        value = getattr(self.error, "expected_type", None)
+        return str(value) if isinstance(value, str) else None
+
+    @property
+    def path(self) -> str | None:
+        value = getattr(self.error, "path", None)
+        return str(value) if isinstance(value, str) else None
+
+    @property
+    def position(self) -> int | None:
+        value = getattr(self.error, "position", None)
+        return int(value) if isinstance(value, int) else None
+
 
 @dataclass(frozen=True, slots=True)
 class UpdatesRecoveryRequired:
     """Signal that the updates consumer must recover with ``updates.getDifference``."""
 
     reason: str
+    requires_reconnect: bool = False
+    constructor_id: int | None = None
+    expected_type: str | None = None
+    path: str | None = None
+    position: int | None = None
+
+    @classmethod
+    def from_decode_error(cls, error: RpcDecodeError) -> UpdatesRecoveryRequired:
+        return cls(
+            reason="unknown_constructor",
+            requires_reconnect=error.requires_reconnect,
+            constructor_id=error.constructor_id,
+            expected_type=error.expected_type,
+            path=error.path,
+            position=error.position,
+        )
+
+    @property
+    def fingerprint(self) -> tuple[int, str] | None:
+        if self.constructor_id is None or self.path is None:
+            return None
+        return int(self.constructor_id), str(self.path)
 
 
 def _parse_inner_message(inner: bytes) -> tuple[int, int, bytes]:
@@ -308,6 +435,7 @@ class MtprotoEncryptedSender:
         self._send_lock = asyncio.Lock()
         self._recv_task: asyncio.Task[None] | None = None
         self._close_lock = asyncio.Lock()
+        self._closed_event = asyncio.Event()
         self._pending: dict[int, _PendingCall] = {}
         self._sent: dict[int, tuple[int, bytes]] = {}  # msg_id -> (seqno, body)
         self._closed = False
@@ -348,7 +476,9 @@ class MtprotoEncryptedSender:
             except asyncio.QueueEmpty:
                 break
 
-        if isinstance(item, ReceiverTerminated):
+        if isinstance(item, ReceiverTerminated) or (
+            isinstance(item, UpdatesRecoveryRequired) and item.requires_reconnect
+        ):
             replacement: ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired = item
         else:
             replacement = UpdatesRecoveryRequired(reason="incoming_queue_overflow")
@@ -377,10 +507,21 @@ class MtprotoEncryptedSender:
     def terminal_error(self) -> RpcSenderError | None:
         return self._terminal_error
 
+    def invalidate(self, error: RpcSenderError | None = None) -> RpcSenderError:
+        """Synchronously prevent new/retried sends and wake FloodWait sleepers."""
+
+        terminal = self._terminal_error
+        if terminal is None:
+            terminal = error or RpcSenderError("Sender is closed")
+            self._terminal_error = terminal
+        self._closed = True
+        self._closed_event.set()
+        self._fail_all_pending(terminal)
+        return terminal
+
     async def close(self) -> None:
         async with self._close_lock:
-            self._closed = True
-            self._fail_all_pending(RpcSenderError("Sender is closed"))
+            self.invalidate(RpcSenderError("Sender is closed"))
             task = self._recv_task
             if task is not None:
                 task.cancel()
@@ -394,10 +535,10 @@ class MtprotoEncryptedSender:
             # this method returns; waiting for that same send would deadlock close.
 
     def _raise_if_unavailable(self) -> None:
-        if self._closed:
-            raise RpcSenderError("Sender is closed")
         if self._terminal_error is not None:
             raise self._terminal_error
+        if self._closed:
+            raise RpcSenderError("Sender is closed")
 
     def _ensure_recv_task(self) -> None:
         self._raise_if_unavailable()
@@ -405,7 +546,7 @@ class MtprotoEncryptedSender:
             self._recv_task = asyncio.create_task(self._recv_loop())
         elif self._recv_task.done():
             error = RpcSenderError("Receiver loop stopped unexpectedly")
-            self._terminal_error = error
+            self.invalidate(error)
             raise error
 
     async def invoke_tl(
@@ -489,7 +630,15 @@ class MtprotoEncryptedSender:
                     flood_retries,
                     fw_config.max_retries,
                 )
-                await asyncio.sleep(wait_secs)
+                try:
+                    await asyncio.wait_for(
+                        self._closed_event.wait(),
+                        timeout=float(wait_secs),
+                    )
+                except asyncio.TimeoutError:
+                    pass
+                else:
+                    self._raise_if_unavailable()
                 continue
 
             return result
@@ -611,6 +760,31 @@ class MtprotoEncryptedSender:
                 call.future.set_exception(error)
         self._pending.clear()
         self._sent.clear()
+
+    def _poison_for_decode_failure(
+        self,
+        error: Exception,
+        *,
+        outer_msg_id: int | None,
+        default_path: str = "root",
+    ) -> RpcDecodeError:
+        """Make an undecodable connection terminal without acknowledging its payload.
+
+        An unknown nested object or trailing data at a bounded object boundary
+        means the envelope cannot be classified safely. Telegram's recovery
+        contract requires a fresh TCP/session/layer handshake before fetching the
+        difference; acknowledging it could make a lost update look committed.
+        """
+
+        decode_error = RpcDecodeError.from_decode_failure(
+            error,
+            outer_msg_id=outer_msg_id,
+            default_path=default_path,
+        )
+        self.invalidate(decode_error)
+        if self._incoming_queue is not None:
+            self._forward_incoming(ReceiverTerminated(error=decode_error))
+        return decode_error
 
     def _fail_decode_for_req_ids(
         self,
@@ -976,8 +1150,25 @@ class MtprotoEncryptedSender:
         try:
             while True:
                 packet = await self._transport.recv()
+                # decrypt_packet validates auth_key_id/msg_key before returning.
+                # Failures here have not crossed the authenticated TL boundary and
+                # intentionally remain terminal crypto/transport errors in the
+                # outer handler, rather than being mislabeled RpcDecodeError.
                 inner_resp = self._state.decrypt_packet(packet, from_server=True)
-                outer_msg_id, outer_seqno, body = _parse_inner_message(inner_resp)
+                try:
+                    outer_msg_id, outer_seqno, body = _parse_inner_message(inner_resp)
+                except RpcSenderError as e:
+                    decode_error = self._poison_for_decode_failure(
+                        e,
+                        outer_msg_id=None,
+                        default_path="mtproto.inner_message",
+                    )
+                    logger.error(
+                        "Malformed authenticated MTProto inner message poisoned the connection; "
+                        "the envelope was not acknowledged and all pending calls failed",
+                        exc_info=decode_error,
+                    )
+                    return
 
                 now = int(self._msg_id_gen.now())
                 floor = min(self._received_msg_ids) if self._received_msg_ids else None
@@ -998,35 +1189,29 @@ class MtprotoEncryptedSender:
                     )
                     continue
 
-                _validate_nested_message_lengths(body)
-
                 try:
+                    _validate_nested_message_lengths(body)
                     obj = loads(body)
-                except TLCodecError as e:
-                    accepted_ids = self._accept_server_msg_ids([outer_msg_id], now=now)
-                    if outer_msg_id not in accepted_ids:
-                        continue
-                    self._msg_id_gen.observe(outer_msg_id)
-                    req_msg_ids = extract_req_msg_ids_from_payload(body)
-                    logger.exception(
-                        "Failed to decode incoming TL payload; failing only related requests "
-                        "(outer_msg_id=%s, req_msg_ids=%s)",
-                        outer_msg_id,
-                        sorted(req_msg_ids),
-                    )
-                    self._fail_decode_for_req_ids(
-                        req_msg_ids=req_msg_ids,
+                except (TLCodecError, RpcSenderError) as e:
+                    decode_error = self._poison_for_decode_failure(
+                        e,
                         outer_msg_id=outer_msg_id,
-                        error=e,
                     )
-                    if self._incoming_queue is not None:
-                        # Telegram requires getDifference after an update payload
-                        # cannot be deserialized. The raw payload may be an RPC
-                        # result, an update, or a container containing both, so a
-                        # recovery request is the only safe classification here.
-                        self._forward_incoming(UpdatesRecoveryRequired(reason="tl_decode_failure"))
-                    await self._send_ack([outer_msg_id])
-                    continue
+                    constructor_id = getattr(e, "constructor_id", None)
+                    logger.error(
+                        "Undecodable authenticated TL payload poisoned the MTProto connection; "
+                        "the payload was not acknowledged and all pending calls failed "
+                        "(failure=%s, path=%s, outer_msg_id=%s)",
+                        (
+                            f"0x{constructor_id & 0xFFFFFFFF:08x}"
+                            if isinstance(constructor_id, int)
+                            else "trailing-data"
+                        ),
+                        getattr(e, "path", None),
+                        outer_msg_id,
+                        exc_info=decode_error,
+                    )
+                    return
 
                 clock_correction_ids: set[int] = set()
                 if time_rejection:
@@ -1081,8 +1266,7 @@ class MtprotoEncryptedSender:
             logger.exception("Receiver loop crashed; failing all pending calls")
             error = RpcSenderError(f"Receiver loop crashed ({type(exc).__name__}: {exc})")
             error.__cause__ = exc
-            self._terminal_error = error
-            self._fail_all_pending(error)
+            self.invalidate(error)
             if self._incoming_queue is not None:
                 self._forward_incoming(ReceiverTerminated(error=error))
 

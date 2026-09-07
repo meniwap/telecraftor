@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.26.3"]
+requires = ["hatchling==1.26.3"]
 build-backend = "hatchling.build"
 
 [project]
 name = "telecraft"
-version = "0.2.2"
+version = "0.2.3"
 description = "Async MTProto-first Telegram client library for user and bot sessions."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -66,6 +66,7 @@ markers = [
   "unit: fast deterministic tests",
   "live: live tests against Telegram",
   "live_prod_safe: prod-safe live smoke tests",
+  "live_recovery_fault: prod-safe synthetic signal exercising live connection recovery",
   "live_destructive: gated live tests that create and clean up controlled resources",
 ]
 

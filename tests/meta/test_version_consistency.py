@@ -31,7 +31,7 @@ def test_project_version_matches_package_version() -> None:
 def test_release_dependency_floors_are_pinned_in_project_metadata() -> None:
     raw = PYPROJECT_PATH.read_text(encoding="utf-8")
 
-    assert 'requires = ["hatchling>=1.26.3"]' in raw
+    assert 'requires = ["hatchling==1.26.3"]' in raw
     assert '"cryptography>=50.0.0"' in raw
     assert '"pip-audit>=2.10"' in raw
     assert "fail_under = 70" in raw
@@ -46,8 +46,10 @@ def test_release_workflows_enforce_quality_gates() -> None:
         assert "python -m pip_audit --strict ." in raw, path
         assert "--cov=telecraft" in raw, path
 
+    for path, raw in workflows.items():
+        assert '"hatchling==1.26.3"' in raw, path
+        assert '"hatchling>=1.26.3"' not in raw, path
     ci = workflows[Path(".github/workflows/ci.yml")]
-    assert '"hatchling==1.26.3"' in ci
     assert '"cryptography==50.0.0"' in ci
 
 

@@ -128,13 +128,28 @@ class UpdatesEngine:
             self.state = self._copy_state(initial_state)
             self._channel_pts = dict(initial_state.channel_pts)
             checkpoint = self.checkpoint()
-            applied = await self._fetch_difference()
+            try:
+                applied = await self._fetch_difference()
+            except BaseException:
+                # A difference can advance through several slices before a
+                # later response fails to decode.  Startup must remain anchored
+                # to the durable state supplied by the caller so reconnecting
+                # never resumes from an uncommitted in-memory cursor.
+                self.restore(checkpoint)
+                raise
             self._initial_catch_up = (checkpoint, applied)
             return self.state
-        res = await self._invoke_api(UpdatesGetState())
-        self.state = UpdatesState.from_tl(res)
-        self._channel_pts.clear()
-        return self.state
+        previous_state = self._copy_state(self.state) if self.state is not None else None
+        previous_channel_pts = dict(self._channel_pts)
+        try:
+            res = await self._invoke_api(UpdatesGetState())
+            self.state = UpdatesState.from_tl(res)
+            self._channel_pts.clear()
+            return self.state
+        except BaseException:
+            self.state = previous_state
+            self._channel_pts = previous_channel_pts
+            raise
 
     def take_initial_catch_up(self) -> tuple[UpdatesState, AppliedUpdates] | None:
         """Return the startup catch-up batch exactly once."""

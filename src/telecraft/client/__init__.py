@@ -17,7 +17,7 @@ from .client import Client
 from .folders import FolderAssignment
 from .gifts import GiftRef
 from .messages import ReplyToMessageRef, ReplyToStoryRef
-from .mtproto import ClientInit
+from .mtproto import ClientInit, UpdatesRecoveryExhaustedError
 from .notifications import NotifyTarget
 from .passkeys import PasskeyCredential, PasskeyRef
 from .payments import InvoiceRef, StarsAmountRef
@@ -40,6 +40,7 @@ __all__ = [
     "ChatlistRef",
     "Client",
     "ClientInit",
+    "UpdatesRecoveryExhaustedError",
     "DocumentRef",
     "FileLocationRef",
     "GiftRef",

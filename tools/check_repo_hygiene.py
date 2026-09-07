@@ -71,6 +71,16 @@ REFERENCE_SCAN_EXCLUDES = {
     "docs/20_history_cleanup_record.md",
     "tools/check_repo_hygiene.py",
 }
+REQUIRED_WHEEL_MEMBERS = frozenset(
+    {
+        "telecraft/py.typed",
+        "telecraft/schema/sources/legacy_api.tl",
+        "telecraft/schema/sources/legacy_provenance.json",
+        "telecraft/tl/generated/_legacy_normalizers.py",
+        "telecraft/tl/generated/_legacy_types.py",
+    }
+)
+REQUIRED_SDIST_MEMBERS = frozenset(f"src/{member}" for member in REQUIRED_WHEEL_MEMBERS)
 
 
 def _git_ls_files() -> list[str]:
@@ -227,13 +237,24 @@ def _artifact_members(path: Path) -> list[str]:
     raise ValueError(f"Unsupported artifact type: {path}")
 
 
+def _required_artifact_members(path: Path) -> frozenset[str]:
+    if path.suffix == ".whl":
+        return REQUIRED_WHEEL_MEMBERS
+    if path.name.endswith(".tar.gz"):
+        return REQUIRED_SDIST_MEMBERS
+    raise ValueError(f"Unsupported artifact type: {path}")
+
+
 def _check_artifacts(paths: list[Path]) -> list[str]:
     errors: list[str] = []
     for artifact in paths:
         if not artifact.exists():
             errors.append(f"{artifact}: artifact does not exist")
             continue
-        for member in _artifact_members(artifact):
+        members = _artifact_members(artifact)
+        for required in sorted(_required_artifact_members(artifact).difference(members)):
+            errors.append(f"{artifact.name}:{required}: required package member is missing")
+        for member in members:
             reason = _forbidden_artifact_reason(member)
             if reason:
                 errors.append(f"{artifact.name}:{member}: {reason}")

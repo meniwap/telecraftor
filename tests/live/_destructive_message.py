@@ -1,13 +1,42 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+import asyncio
+from collections.abc import Awaitable, Callable, Iterable
+from dataclasses import dataclass
 from typing import Any
 
 DESTRUCTIVE_MESSAGE_PROFILE = "destructive_message"
 
+_MESSAGE_WRAPPER_UPDATES = frozenset(
+    {
+        "updateNewMessage",
+        "updateNewChannelMessage",
+        "updateEditMessage",
+        "updateEditChannelMessage",
+    }
+)
+_DIRECT_MESSAGE_UPDATES = frozenset(
+    {
+        "message",
+        "updateShortMessage",
+        "updateShortChatMessage",
+    }
+)
+
 
 class DestructiveLiveGateError(ValueError):
     """Raised when any destructive-live authorization gate is missing or inconsistent."""
+
+
+class MessageUpdateNotObserved(AssertionError):
+    """Raised without embedding message content when a bounded update wait expires."""
+
+
+@dataclass(frozen=True, slots=True)
+class ObservedMessageUpdate:
+    message_id: int
+    update_kind: str
+    inspected_updates: int
 
 
 def normalize_peer(value: object) -> str:
@@ -81,6 +110,85 @@ def message_id_and_text(message: object) -> tuple[int, str] | None:
     if message_id is None or text is None:
         return None
     return message_id, text
+
+
+def match_exact_message_update(
+    update: object,
+    *,
+    expected_text: str,
+    expected_id: int | None,
+) -> tuple[int, str] | None:
+    """Match only known message-bearing update shapes without rendering their payload."""
+
+    update_kind = str(getattr(update, "TL_NAME", ""))
+    if update_kind in _MESSAGE_WRAPPER_UPDATES:
+        candidate = getattr(update, "message", None)
+    elif update_kind in _DIRECT_MESSAGE_UPDATES:
+        candidate = update
+    elif update_kind == "updateShortSentMessage":
+        # This short result intentionally carries no message text. It is safe to
+        # accept only after the send response supplied the exact positive ID.
+        if expected_id is None:
+            return None
+        message_id = _positive_message_id(getattr(update, "id", None))
+        if message_id != expected_id:
+            return None
+        return message_id, update_kind
+    else:
+        return None
+
+    identity = message_id_and_text(candidate)
+    if identity is None:
+        return None
+    message_id, text = identity
+    if text != expected_text or (expected_id is not None and message_id != expected_id):
+        return None
+    return message_id, update_kind
+
+
+async def wait_for_exact_message_update(
+    recv_update: Callable[[], Awaitable[Any]],
+    *,
+    expected_text: str,
+    expected_id: int | None,
+    timeout: float,
+    max_updates: int = 512,
+) -> ObservedMessageUpdate:
+    """Consume updates until the exact test message is found, under one hard deadline."""
+
+    if timeout <= 0:
+        raise ValueError("timeout must be positive")
+    if max_updates <= 0:
+        raise ValueError("max_updates must be positive")
+
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + float(timeout)
+    for inspected in range(1, max_updates + 1):
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            break
+        try:
+            update = await asyncio.wait_for(recv_update(), timeout=remaining)
+        except asyncio.TimeoutError as exc:
+            raise MessageUpdateNotObserved(
+                f"Exact test-message update was not observed within {float(timeout):.1f}s"
+            ) from exc
+        match = match_exact_message_update(
+            update,
+            expected_text=expected_text,
+            expected_id=expected_id,
+        )
+        if match is not None:
+            message_id, update_kind = match
+            return ObservedMessageUpdate(
+                message_id=message_id,
+                update_kind=update_kind,
+                inspected_updates=inspected,
+            )
+
+    raise MessageUpdateNotObserved(
+        f"Exact test-message update was not observed after inspecting {max_updates} updates"
+    )
 
 
 def find_exact_message(

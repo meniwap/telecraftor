@@ -58,8 +58,10 @@ Run the non-live gate:
 ./.venv/bin/python -m pytest tests/live --collect-only -q
 ```
 
-The configured coverage floor is 70%. CI must additionally prove that the package builds with
-exactly Hatchling `1.26.3` and that the non-live suite passes with exactly
+The configured coverage floor is 70%. The PEP 517 build backend and every release workflow are
+pinned to exactly Hatchling `1.26.3`; do not broaden that pin without proving that the resulting
+Core Metadata version passes the pinned release gates. CI must additionally prove that the package
+builds with that exact backend and that the non-live suite passes with exactly
 `cryptography==50.0.0`; a green latest-dependency matrix does not replace this floor check.
 The credential scanner's behavior and incident-response boundary are documented in
 [`19_credential_scanning.md`](19_credential_scanning.md).
@@ -85,8 +87,10 @@ test "$(git diff --name-only "$CODE_COMMIT" HEAD)" = "$SNAPSHOT"
 
 Run the full non-live gate again on the snapshot commit and include both commits in review. CI
 loads every `stable_api_*.json` baseline, so the newest stable methods become cumulative contract
-coverage for later patches. If the release is abandoned, remove its unreleased snapshot in a
-reviewed change; never edit a snapshot after its release.
+coverage for later patches. Schema-v2 snapshots can also freeze public class and exception
+contracts in their optional `symbols` map; older snapshots without that map remain valid. If the
+release is abandoned, remove its unreleased snapshot in a reviewed change; never edit a snapshot
+after its release.
 
 ## 2. Test the exact candidate commit
 
@@ -164,8 +168,9 @@ rm -rf dist build
 ./.venv/bin/python tools/check_repo_hygiene.py --artifacts
 ```
 
-Require exactly one wheel and one source archive with the target version. Inspect their member
-lists, license, metadata, and `py.typed`, and confirm that no app, test, workflow, report, database,
+Require exactly one wheel and one source archive with the target version. The artifact hygiene gate
+requires `py.typed` plus the legacy decoder, schema, and provenance files in both artifacts. Inspect
+their member lists, license, metadata, and confirm that no app, test, workflow, report, database,
 session, environment file, or local runtime artifact is present. Install the wheel in a fresh
 environment and verify both `importlib.metadata.version("telecraft")` and
 `telecraft.__version__` equal `$VERSION`.

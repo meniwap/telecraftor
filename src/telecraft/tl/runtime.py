@@ -14,6 +14,7 @@ class TLObject:
 
     TL_ID: ClassVar[int]
     TL_NAME: ClassVar[str]
+    TL_INBOUND_ONLY: ClassVar[bool] = False
 
 
 @dataclass(slots=True)

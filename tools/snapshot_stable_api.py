@@ -13,6 +13,7 @@ SOURCE_PATH = os.environ.get("TELECRAFT_SNAPSHOT_SOURCE", str(ROOT / "src"))
 if SOURCE_PATH not in sys.path:
     sys.path.insert(0, SOURCE_PATH)
 
+from telecraft.client import UpdatesRecoveryExhaustedError  # noqa: E402
 from telecraft.client.client import Client  # noqa: E402
 from telecraft.client.mtproto import ClientInit, MtprotoClient  # noqa: E402
 
@@ -20,6 +21,9 @@ PUBLIC_CONSTRUCTORS = {
     "telecraft.client.Client": Client,
     "telecraft.client.ClientInit": ClientInit,
     "telecraft.client.mtproto.MtprotoClient": MtprotoClient,
+}
+PUBLIC_SYMBOLS = {
+    "telecraft.client.UpdatesRecoveryExhaustedError": UpdatesRecoveryExhaustedError,
 }
 DYNAMIC_DEFAULTS = ("telecraft.client.ClientInit.app_version",)
 
@@ -100,6 +104,19 @@ def _signature_record(value: Any) -> dict[str, Any]:
     }
 
 
+def _symbol_record(value: Any) -> dict[str, Any]:
+    if not inspect.isclass(value):
+        raise TypeError(f"stable public symbol must be a class, got {value!r}")
+    return {
+        "kind": "class",
+        "module": value.__module__,
+        "qualname": value.__qualname__,
+        "is_exception": issubclass(value, Exception),
+        "retryable": getattr(value, "retryable", None),
+        "constructor": _signature_record(value),
+    }
+
+
 def build_snapshot(
     *,
     matrix_path: Path,
@@ -138,6 +155,7 @@ def build_snapshot(
         "constructors": {
             name: _signature_record(value) for name, value in sorted(PUBLIC_CONSTRUCTORS.items())
         },
+        "symbols": {name: _symbol_record(value) for name, value in sorted(PUBLIC_SYMBOLS.items())},
         "methods": dict(sorted(methods.items())),
     }
 
