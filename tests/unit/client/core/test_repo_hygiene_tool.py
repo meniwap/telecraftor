@@ -68,6 +68,54 @@ def test_repo_hygiene__artifact_allow_list_is_fail_closed() -> None:
     assert mod._unexpected_artifact_member_reason(sdist, "apps/env.sh")
 
 
+def test_repo_hygiene__artifacts_require_legacy_runtime_and_typing_members(
+    tmp_path, monkeypatch
+) -> None:
+    mod = _load_hygiene_module()
+    wheel = tmp_path / "telecraft-0.2.3-py3-none-any.whl"
+    sdist = tmp_path / "telecraft-0.2.3.tar.gz"
+    wheel.touch()
+    sdist.touch()
+
+    expected_by_name = {
+        wheel.name: mod.REQUIRED_WHEEL_MEMBERS,
+        sdist.name: mod.REQUIRED_SDIST_MEMBERS,
+    }
+    monkeypatch.setattr(
+        mod,
+        "_artifact_members",
+        lambda artifact: sorted(expected_by_name[artifact.name]),
+    )
+
+    assert mod._check_artifacts([wheel, sdist]) == []
+
+
+def test_repo_hygiene__artifacts_fail_when_required_member_is_missing(
+    tmp_path, monkeypatch
+) -> None:
+    mod = _load_hygiene_module()
+    wheel = tmp_path / "telecraft-0.2.3-py3-none-any.whl"
+    sdist = tmp_path / "telecraft-0.2.3.tar.gz"
+    wheel.touch()
+    sdist.touch()
+    missing_wheel = "telecraft/tl/generated/_legacy_types.py"
+    missing_sdist = "src/telecraft/schema/sources/legacy_provenance.json"
+    members_by_name = {
+        wheel.name: mod.REQUIRED_WHEEL_MEMBERS - {missing_wheel},
+        sdist.name: mod.REQUIRED_SDIST_MEMBERS - {missing_sdist},
+    }
+    monkeypatch.setattr(
+        mod,
+        "_artifact_members",
+        lambda artifact: sorted(members_by_name[artifact.name]),
+    )
+
+    assert mod._check_artifacts([wheel, sdist]) == [
+        f"{wheel.name}:{missing_wheel}: required package member is missing",
+        f"{sdist.name}:{missing_sdist}: required package member is missing",
+    ]
+
+
 def test_repo_hygiene__history_record_may_name_exact_purge_paths(tmp_path, monkeypatch) -> None:
     mod = _load_hygiene_module()
     record = tmp_path / "docs" / "20_history_cleanup_record.md"

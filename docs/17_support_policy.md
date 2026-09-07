@@ -59,12 +59,18 @@ Released stable signatures are recorded in versioned snapshots under `tests/meta
 current facade with those immutable baselines instead of trusting a matrix edited in the same
 change.
 
-For the `0.2.2` line, this stable signature contract covers the Client facade plus `Client`,
-`ClientInit`, and the raw `MtprotoClient` constructor. The exported `telecraft.bot` surface,
-including `Router`, `Dispatcher`, filters, schedulers, and retained groupbot primitives, is
-experimental and is not yet covered by the stable compatibility snapshot. It remains tested
-library code, but may change between `0.x` releases. Runnable bot applications are never part of
-the package.
+For the `0.2.3` line, this stable contract covers the Client facade; the `Client`, `ClientInit`,
+and raw `MtprotoClient` constructors; and the public
+`telecraft.client.UpdatesRecoveryExhaustedError` exception. Its class identity, non-retryable
+marker, and constructor signature are frozen alongside the callable APIs. The exported
+`telecraft.bot` surface, including `Router`, `Dispatcher`, filters, schedulers, and retained
+groupbot primitives, is experimental and is not yet covered by the stable compatibility snapshot.
+It remains tested library code, but may change between `0.x` releases. Runnable bot applications
+are never part of the package.
+
+Schema-v2 snapshots may include a `symbols` map for stable public classes and exceptions. Older
+schema-v2 snapshots that omit `symbols` remain valid and are interpreted as having no frozen public
+symbols.
 
 The raw `telecraft.client.mtproto.MtprotoClient` constructor is compatibility-pinned because it is
 the supported injection/configuration boundary. Its individual protocol methods are experimental

@@ -31,6 +31,11 @@ def _load_baselines() -> list[dict[str, Any]]:
             "telecraft.client.ClientInit",
             "telecraft.client.mtproto.MtprotoClient",
         }
+        symbols = value.get("symbols", {})
+        assert isinstance(symbols, dict)
+        assert all(
+            isinstance(name, str) and isinstance(record, dict) for name, record in symbols.items()
+        )
         assert value["dynamic_defaults"] == ["telecraft.client.ClientInit.app_version"]
         values.append(value)
     return values
@@ -108,6 +113,129 @@ def _signature_errors(
     return errors
 
 
+def _symbol_errors(
+    name: str,
+    baseline: dict[str, Any],
+    current: dict[str, Any],
+) -> list[str]:
+    errors = [
+        f"{name}: {field} changed from {expected!r} to {current.get(field)!r}"
+        for field, expected in baseline.items()
+        if field != "constructor"
+        if current.get(field) != expected
+    ]
+    old_constructor = baseline.get("constructor")
+    if old_constructor is not None:
+        new_constructor = current.get("constructor")
+        if new_constructor is None:
+            errors.append(f"{name}: released public constructor contract was removed")
+        else:
+            errors.extend(
+                _signature_errors(
+                    f"{name}.__init__",
+                    old_constructor,
+                    new_constructor,
+                    dynamic_defaults=set(),
+                )
+            )
+    return errors
+
+
+def test_stable_api__schema_v2_records_public_recovery_exception() -> None:
+    current = build_snapshot(
+        matrix_path=MATRIX_PATH,
+        release=__version__,
+        source_ref="working-tree",
+        source_commit="0" * 40,
+        source_tree="0" * 40,
+    )
+
+    assert current["schema_version"] == 2
+    recovery_error = current["symbols"]["telecraft.client.UpdatesRecoveryExhaustedError"]
+    assert {
+        field: recovery_error[field]
+        for field in ("kind", "module", "qualname", "is_exception", "retryable")
+    } == {
+        "kind": "class",
+        "module": "telecraft.client.mtproto",
+        "qualname": "UpdatesRecoveryExhaustedError",
+        "is_exception": True,
+        "retryable": False,
+    }
+    assert [parameter["name"] for parameter in recovery_error["constructor"]["parameters"]] == [
+        "constructor_id",
+        "expected_type",
+        "path",
+        "position",
+        "attempts",
+        "repeat_count",
+        "consecutive_failure_count",
+        "last_error",
+    ]
+
+
+def test_stable_api__older_schema_v2_snapshots_may_omit_symbols() -> None:
+    old_releases = {"0.2.0", "0.2.2"}
+    baselines = [item for item in _load_baselines() if item["release"] in old_releases]
+
+    assert {item["release"] for item in baselines} == old_releases
+    assert all(item.get("symbols", {}) == {} for item in baselines)
+
+
+def test_stable_api__symbol_contract_detects_regression() -> None:
+    baseline = {
+        "kind": "class",
+        "module": "telecraft.client.mtproto",
+        "qualname": "UpdatesRecoveryExhaustedError",
+        "is_exception": True,
+        "retryable": False,
+    }
+
+    assert (
+        _symbol_errors("telecraft.client.UpdatesRecoveryExhaustedError", baseline, baseline) == []
+    )
+    assert _symbol_errors(
+        "telecraft.client.UpdatesRecoveryExhaustedError",
+        baseline,
+        {**baseline, "retryable": True},
+    ) == ["telecraft.client.UpdatesRecoveryExhaustedError: retryable changed from False to True"]
+
+
+def test_stable_api__symbol_constructor_uses_signature_compatibility_rules() -> None:
+    current = build_snapshot(
+        matrix_path=MATRIX_PATH,
+        release=__version__,
+        source_ref="working-tree",
+        source_commit="0" * 40,
+        source_tree="0" * 40,
+    )["symbols"]["telecraft.client.UpdatesRecoveryExhaustedError"]
+    baseline = json.loads(json.dumps(current))
+    additive = json.loads(json.dumps(current))
+    additive["constructor"]["parameters"].append(
+        {
+            "name": "diagnostic",
+            "kind": "KEYWORD_ONLY",
+            "annotation": "str | None",
+            "has_default": True,
+            "default_repr": "None",
+        }
+    )
+    regressed = json.loads(json.dumps(current))
+    regressed["constructor"]["parameters"] = [
+        parameter
+        for parameter in regressed["constructor"]["parameters"]
+        if parameter["name"] != "attempts"
+    ]
+
+    name = "telecraft.client.UpdatesRecoveryExhaustedError"
+    assert _symbol_errors(name, baseline, additive) == []
+    assert f"{name}.__init__: removed parameter 'attempts'" in _symbol_errors(
+        name,
+        baseline,
+        regressed,
+    )
+
+
 def test_stable_api__every_released_snapshot_remains_compatible() -> None:
     baselines = _load_baselines()
     current = build_snapshot(
@@ -136,6 +264,14 @@ def test_stable_api__every_released_snapshot_remains_compatible() -> None:
                     dynamic_defaults=dynamic_defaults,
                 )
             )
+
+        current_symbols = current["symbols"]
+        for name, old_contract in baseline.get("symbols", {}).items():
+            new_contract = current_symbols.get(name)
+            if new_contract is None:
+                baseline_errors.append(f"{name}: released public symbol was removed")
+                continue
+            baseline_errors.extend(_symbol_errors(name, old_contract, new_contract))
 
         current_methods = current["methods"]
         for name, old_signature in baseline["methods"].items():

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import os
 import struct
+from collections.abc import Callable
 from dataclasses import dataclass, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from telecraft.mtproto.gzip_utils import decompress_limited
 
@@ -18,8 +19,9 @@ _MSG_CONTAINER_CONSTRUCTOR_ID = 1945237724  # 0x73F1F8DC
 _GZIP_PACKED_CONSTRUCTOR_ID = 812830625  # 0x3072CFA1
 _POLL_CONSTRUCTOR_ID = -1771164225  # 0x9662A35F (layer 228)
 _POLL_RESULTS_CONSTRUCTOR_ID = -1166298786  # 0xBA2C595E (layer 228)
-_ACCOUNT_THEMES_CONSTRUCTOR_ID = -1707242387  # 0x9A3D8C8D
-_THEME_CONSTRUCTOR_ID = -1609668650  # 0xA00E67D6
+_LEGACY_POLL_CONSTRUCTOR_ID = 1484026161  # 0x58747131
+_LEGACY_POLL_RESULTS_CONSTRUCTOR_ID = 2061444128  # 0x7ADF2420
+_MESSAGE_MEDIA_POLL_CONSTRUCTOR_ID = 2000637542  # 0x773F4E66 (layer 228)
 
 
 @dataclass(slots=True)
@@ -40,16 +42,48 @@ class MsgContainer:
     messages: list[ContainerMessage]
 
 
-@dataclass(slots=True)
-class UnknownTLObject:
-    cid: int | None
-    expected_type: str | None
-    path: str
-    raw: bytes
-
-
 class TLCodecError(Exception):
     pass
+
+
+class UnsafeTLPayloadError(TLCodecError):
+    """A bounded TL payload cannot be acknowledged or parsed further safely."""
+
+
+class TrailingTLDataError(UnsafeTLPayloadError):
+    def __init__(self, *, path: str, position: int, trailing_bytes: int) -> None:
+        self.path = str(path)
+        self.position = int(position)
+        self.trailing_bytes = int(trailing_bytes)
+        self.constructor_id: int | None = None
+        self.expected_type: str | None = None
+        super().__init__(
+            f"Trailing bytes after bounded TL object at {path} "
+            f"(pos={position}, trailing={trailing_bytes})"
+        )
+
+
+class UnknownConstructorError(UnsafeTLPayloadError):
+    """A TL object cannot be bounded safely because its wire layout is unknown."""
+
+    def __init__(
+        self,
+        *,
+        constructor_id: int,
+        expected_type: str | None,
+        path: str,
+        position: int,
+    ) -> None:
+        self.constructor_id = int(constructor_id)
+        self.expected_type = expected_type
+        self.path = path
+        self.position = int(position)
+        unsigned_id = self.constructor_id & 0xFFFFFFFF
+        type_note = f" for {expected_type}" if expected_type else ""
+        super().__init__(
+            f"Unknown constructor id: {self.constructor_id} (0x{unsigned_id:08x})"
+            f"{type_note} at {path} (pos={position})"
+        )
 
 
 def _pad4(n: int) -> int:
@@ -112,6 +146,11 @@ class TLWriter:
 
     def write_object(self, obj: Any) -> None:
         # TLObject/TLRequest both have TL_ID/TL_PARAMS as ClassVar.
+        if bool(getattr(obj, "TL_INBOUND_ONLY", False)):
+            raise TLCodecError(
+                f"Inbound-only TL constructor cannot be serialized: "
+                f"{getattr(obj, 'TL_NAME', type(obj).__name__)}"
+            )
         tl_id = getattr(obj, "TL_ID", None)
         if not isinstance(tl_id, int) or tl_id == 0:
             raise TLCodecError(f"Object has invalid TL_ID: {obj!r}")
@@ -250,6 +289,15 @@ class TLReader:
     def _remaining(self) -> int:
         return len(self._data) - self._pos
 
+    def ensure_eof(self, *, path: str) -> None:
+        trailing = self._remaining()
+        if trailing:
+            raise TrailingTLDataError(
+                path=path,
+                position=self._pos,
+                trailing_bytes=trailing,
+            )
+
     def _peek_int(self) -> int:
         if self._remaining() < 4:
             raise TLCodecError("Unexpected EOF")
@@ -321,6 +369,9 @@ class TLReader:
 
         start = self._pos
         cid = self.read_int()
+        if cid == _LEGACY_POLL_CONSTRUCTOR_ID:
+            self._pos = start
+            return self.read_object(path=path, expected_type="Poll")
         if cid != _POLL_CONSTRUCTOR_ID:
             self._pos = start
             return self.read_object(path=path, expected_type="Poll")
@@ -434,16 +485,19 @@ class TLReader:
         )
 
     def _read_poll_results_for_message_media_poll(self, *, path: str) -> Any:
-        start = self._pos
-
-        try:
-            cid = self.read_int()
-            if cid != _POLL_RESULTS_CONSTRUCTOR_ID:
-                raise TLCodecError(f"Unexpected pollResults constructor id: {cid}")
+        candidate = self._peek_int()
+        if candidate == _POLL_RESULTS_CONSTRUCTOR_ID:
+            self.read_int()
             return self._read_poll_results_bare(path=path)
-        except TLCodecError:
-            self._pos = start
+        if candidate == _LEGACY_POLL_RESULTS_CONSTRUCTOR_ID:
+            return self.read_object(path=path, expected_type="PollResults")
+        if 0 <= candidate <= ((1 << 8) - 1):
+            # Compatibility with captured legacy payloads where pollResults was
+            # encoded bare. Only the complete known flags mask is ambiguous with
+            # a constructor id; every other value must take the structured object
+            # path so UnknownConstructorError is never swallowed or downgraded.
             return self._read_poll_results_bare(path=path)
+        return self.read_object(path=path, expected_type="PollResults")
 
     def _read_message_media_poll(self, *, path: str) -> Any:
         from telecraft.tl.generated.types import MessageMediaPoll
@@ -451,7 +505,11 @@ class TLReader:
         # Layer 228 added flags and optional attached media. Preserve support for
         # the older captured payload shape, where the Poll constructor followed
         # messageMediaPoll immediately.
-        flags = 0 if self._peek_int() == _POLL_CONSTRUCTOR_ID else self.read_int()
+        flags = (
+            0
+            if self._peek_int() in {_POLL_CONSTRUCTOR_ID, _LEGACY_POLL_CONSTRUCTOR_ID}
+            else self.read_int()
+        )
         poll = self._read_poll_for_message_media_poll(path=f"{path}.poll")
         results = self._read_poll_results_for_message_media_poll(path=f"{path}.results")
         attached_media = (
@@ -464,72 +522,9 @@ class TLReader:
             attached_media=attached_media,
         )
 
-    def _find_next_theme_resync_pos(self, *, start: int) -> int | None:
-        marker = struct.pack("<i", _THEME_CONSTRUCTOR_ID)
-        search_from = start + 1
-        while True:
-            candidate = self._data.find(marker, search_from)
-            if candidate < 0:
-                return None
-
-            saved_pos = self._pos
-            try:
-                self._pos = candidate
-                obj = self.read_object(path="root.account.themes.resync", expected_type="Theme")
-                if getattr(obj, "TL_NAME", None) == "theme":
-                    return candidate
-            except TLCodecError:
-                pass
-            finally:
-                self._pos = saved_pos
-            search_from = candidate + 1
-
-    def _read_account_themes_resilient(self, *, path: str) -> Any:
-        from telecraft.tl.generated.types import AccountThemes
-
-        hash_value = self.read_long()
-        vector_cid = self.read_int()
-        if vector_cid != VECTOR_CONSTRUCTOR_ID:
-            raise TLCodecError(f"Invalid vector constructor id: {vector_cid}")
-        count = self.read_int()
-        if count < 0:
-            raise TLCodecError("Negative account.themes count")
-
-        themes: list[Any] = []
-        for idx in range(count):
-            element_path = f"{path}.themes[{idx}]"
-            element_start = self._pos
-            try:
-                theme_obj = self.read_object(path=element_path, expected_type="Theme")
-                themes.append(theme_obj)
-                continue
-            except TLCodecError:
-                self._pos = element_start
-
-            next_pos = self._find_next_theme_resync_pos(start=element_start)
-            if next_pos is None:
-                if idx < count - 1:
-                    raise
-                next_pos = len(self._data)
-
-            raw = bytes(self._data[element_start:next_pos])
-            cid: int | None = None
-            if len(raw) >= 4:
-                cid = int(struct.unpack("<i", raw[:4])[0])
-            themes.append(
-                UnknownTLObject(
-                    cid=cid,
-                    expected_type="Theme",
-                    path=element_path,
-                    raw=raw,
-                )
-            )
-            self._pos = next_pos
-
-        return AccountThemes(hash=hash_value, themes=themes)
-
     def read_object(self, *, path: str = "root", expected_type: str | None = None) -> Any:
-        from telecraft.tl.generated.registry import CONSTRUCTORS_BY_ID, METHODS_BY_ID
+        from telecraft.tl.generated._legacy_normalizers import LEGACY_NORMALIZERS_BY_ID
+        from telecraft.tl.generated.registry import INBOUND_CONSTRUCTORS_BY_ID, METHODS_BY_ID
 
         cid_pos = self._pos
         cid = self.read_int()
@@ -553,7 +548,9 @@ class TLReader:
                     raise TLCodecError("Negative msg_container message length")
                 payload = self._read(ln)
                 inner = TLReader(payload)
-                obj = inner.read_object(path=f"{path}.msg_container[{idx}]")
+                inner_path = f"{path}.msg_container[{idx}]"
+                obj = inner.read_object(path=inner_path)
+                inner.ensure_eof(path=inner_path)
                 messages.append(ContainerMessage(msg_id=msg_id, seqno=seqno, obj=obj))
             return MsgContainer(messages=messages)
 
@@ -563,32 +560,35 @@ class TLReader:
                 unpacked = decompress_limited(packed)
             except Exception as e:  # noqa: BLE001
                 raise TLCodecError("Failed to decompress gzip_packed payload") from e
-            return TLReader(unpacked).read_object(path=f"{path}.gzip_packed")
+            inner = TLReader(unpacked)
+            inner_path = f"{path}.gzip_packed"
+            obj = inner.read_object(path=inner_path)
+            inner.ensure_eof(path=inner_path)
+            return obj
 
-        cls = CONSTRUCTORS_BY_ID.get(cid) or METHODS_BY_ID.get(cid)
+        cls = INBOUND_CONSTRUCTORS_BY_ID.get(cid) or METHODS_BY_ID.get(cid)
         if cls is None:
-            type_note = f" for {expected_type}" if expected_type else ""
-            raise TLCodecError(
-                f"Unknown constructor id: {cid}{type_note} at {path} (pos={cid_pos})"
+            raise UnknownConstructorError(
+                constructor_id=cid,
+                expected_type=expected_type,
+                path=path,
+                position=cid_pos,
             )
 
-        if cid == _ACCOUNT_THEMES_CONSTRUCTOR_ID:
-            return self._read_account_themes_resilient(path=path)
-        if getattr(cls, "TL_NAME", None) == "messageMediaPoll":
+        if cid == _MESSAGE_MEDIA_POLL_CONSTRUCTOR_ID:
             return self._read_message_media_poll(path=path)
 
         tl_params = getattr(cls, "TL_PARAMS", ())
         kwargs: dict[str, Any] = {}
 
-        # Pre-read any flags int(s) so optional params can check bits.
+        # Flag words appear in declaration order. Most constructors place them
+        # first, but valid layouts such as ``poll`` serialize ``id`` before
+        # ``flags``; reading every flag word up front would shift the cursor.
         flags_values: dict[str, int] = {}
         for field, type_expr in tl_params:
             if type_expr == "#":
                 flags_values[field] = self.read_int()
                 kwargs[field] = flags_values[field]
-
-        for field, type_expr in tl_params:
-            if type_expr == "#":
                 continue
             field_path = f"{path}.{getattr(cls, 'TL_NAME', cls.__name__)}.{field}"
             if "?" in type_expr and "." in type_expr.split("?", 1)[0]:
@@ -610,7 +610,12 @@ class TLReader:
 
             kwargs[field] = self.read_value(type_expr, path=field_path)
 
-        return cls(**kwargs)
+        decoded = cls(**kwargs)
+        normalizer = cast(
+            Callable[[Any], Any] | None,
+            LEGACY_NORMALIZERS_BY_ID.get(cid),
+        )
+        return normalizer(decoded) if normalizer is not None else decoded
 
 
 def dumps(obj: Any) -> bytes:
@@ -619,10 +624,12 @@ def dumps(obj: Any) -> bytes:
     return w.to_bytes()
 
 
-def loads(data: bytes) -> Any:
+def loads(data: bytes, *, allow_trailing: bool = False) -> Any:
     r = TLReader(data)
     try:
         obj = r.read_object(path="root")
+        if not allow_trailing:
+            r.ensure_eof(path="root")
     except TLCodecError:
         _debug_dump_bad_tl_payload(data)
         raise

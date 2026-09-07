@@ -10,6 +10,19 @@ from typing import Type
 from .types import *  # noqa: F403
 from .functions import *  # noqa: F403
 
+from ._legacy_types import (
+    _LegacyMessage9815CEC8,
+    _LegacyMessageB92F76CF,
+    _LegacyMessageReplyHeader6917560B,
+    _LegacyMessageMediaPhoto695150D7,
+    _LegacyMessageMediaPoll4BD6E798,
+    _LegacyMessageMediaDice3F7EE58B,
+    _LegacyPoll58747131,
+    _LegacyPollResults7ADF2420,
+    _LegacyPollAnswerFF16E2CA,
+    _LegacyPollAnswerVoters3B6DDAD2,
+)
+
 TLObjectType = Type[object]
 
 CONSTRUCTORS_BY_ID: dict[int, TLObjectType] = {
@@ -1696,6 +1709,24 @@ CONSTRUCTORS_BY_ID: dict[int, TLObjectType] = {
     -1921494742: CommunitiesParticipantJoinedChats,
     1107532175: MessagesTranslatedRichMessage,
     1279604680: MessagesComposedRichMessageWithAi,
+}
+
+LEGACY_CONSTRUCTORS_BY_ID: dict[int, TLObjectType] = {
+    -1743401272: _LegacyMessage9815CEC8,
+    -1188071729: _LegacyMessageB92F76CF,
+    1763137035: _LegacyMessageReplyHeader6917560B,
+    1766936791: _LegacyMessageMediaPhoto695150D7,
+    1272375192: _LegacyMessageMediaPoll4BD6E798,
+    1065280907: _LegacyMessageMediaDice3F7EE58B,
+    1484026161: _LegacyPoll58747131,
+    2061444128: _LegacyPollResults7ADF2420,
+    -15277366: _LegacyPollAnswerFF16E2CA,
+    997055186: _LegacyPollAnswerVoters3B6DDAD2,
+}
+
+INBOUND_CONSTRUCTORS_BY_ID: dict[int, TLObjectType] = {
+    **CONSTRUCTORS_BY_ID,
+    **LEGACY_CONSTRUCTORS_BY_ID,
 }
 
 METHODS_BY_ID: dict[int, TLObjectType] = {

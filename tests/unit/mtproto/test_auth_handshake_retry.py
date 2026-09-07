@@ -33,7 +33,9 @@ def _decrypt_client_inner(request: SetClientDhParams) -> ClientDhInnerData:
     encrypted = request.encrypted_data
     assert isinstance(encrypted, bytes)
     plain = AesIge(key=key, iv=iv).decrypt(encrypted)
-    inner = loads(plain[20:])
+    # Client-DH encrypted data is padded with random bytes to an AES block;
+    # this is the one audited TL boundary where trailing bytes are expected.
+    inner = loads(plain[20:], allow_trailing=True)
     assert isinstance(inner, ClientDhInnerData)
     return inner
 

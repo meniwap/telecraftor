@@ -187,7 +187,10 @@ def decrypt_server_dh_inner(server_dh: ServerDhParamsOk, *, new_nonce: bytes) ->
     # server_DH_inner_data is serialized as: sha1(inner_data) + inner_data + random_padding
     answer_with_padding = dec[20:]
     try:
-        inner = loads(answer_with_padding)
+        # This is the one audited TL boundary that intentionally carries random
+        # AES padding after the object. Canonical reserialization below validates
+        # the exact object length and the permitted 0..15 padding bytes.
+        inner = loads(answer_with_padding, allow_trailing=True)
     except TLCodecError as e:
         raise AuthHandshakeError("Invalid decrypted server DH inner data") from e
     if not isinstance(inner, ServerDhInnerData):

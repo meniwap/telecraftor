@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import pytest
 
 from telecraft.mtproto.core.msg_id import MsgIdGenerator
+from telecraft.mtproto.core.state import MtprotoStateError
 from telecraft.mtproto.gzip_utils import MAX_GZIP_UNPACKED_SIZE
 from telecraft.mtproto.rpc.sender import (
     MtprotoEncryptedSender,
@@ -23,11 +24,14 @@ from telecraft.mtproto.rpc.sender import (
     _validate_nested_message_lengths,
     extract_req_msg_ids_from_payload,
 )
-from telecraft.tl.codec import dumps
+from telecraft.tl.codec import TLWriter, dumps
 from telecraft.tl.generated.types import (
     BadMsgNotification,
     BadServerSalt,
+    MessageMediaPoll,
+    Poll,
     Pong,
+    TextWithEntities,
     UpdateConfig,
 )
 
@@ -207,24 +211,21 @@ def test_sender__extract_req_msg_ids__ignores_malformed_gzip() -> None:
     assert extract_req_msg_ids_from_payload(body) == set()
 
 
-def test_sender__decode_error__loop_continues_and_next_call_succeeds() -> None:
+def test_sender__unknown_constructor__poisons_connection_and_fails_all_pending() -> None:
     async def _run() -> None:
         req1 = 101
         req2 = 202
 
         bad_body = _rpc_result_body(req1, struct.pack("<i", 6))
-        good_body = _rpc_result_body(req2, dumps(Pong(msg_id=req2, ping_id=4040)))
-
-        transport = _FakeTransport(
-            [
-                _make_inner_packet(_server_msg_id(low_bits=1), bad_body),
-                _make_inner_packet(_server_msg_id(low_bits=5), good_body),
-            ]
+        transport = _FakeTransport([_make_inner_packet(_server_msg_id(low_bits=1), bad_body)])
+        incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired] = (
+            asyncio.Queue()
         )
         sender = MtprotoEncryptedSender(
             transport,
             state=_FakeState(),
             msg_id_gen=_FakeMsgIdGen(),
+            incoming_queue=incoming,
         )
 
         loop = asyncio.get_running_loop()
@@ -238,18 +239,245 @@ def test_sender__decode_error__loop_continues_and_next_call_succeeds() -> None:
         sender._pending[req2] = call2
         sender._sent[req2] = (1, b"req2")
 
-        task = asyncio.create_task(sender._recv_loop())
-        try:
-            with pytest.raises(RpcDecodeError):
-                await asyncio.wait_for(call1.future, timeout=1.0)
+        await asyncio.wait_for(sender._recv_loop(), timeout=1.0)
 
-            result = await asyncio.wait_for(call2.future, timeout=1.0)
-            assert isinstance(result, Pong)
-            assert int(result.ping_id) == 4040
-        finally:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
+        for future in (call1.future, call2.future):
+            with pytest.raises(RpcDecodeError) as raised:
+                await future
+            assert raised.value.requires_reconnect is True
+            assert raised.value.constructor_id == 6
+            assert raised.value.path == "root.rpc_result"
+        signal = incoming.get_nowait()
+        assert isinstance(signal, ReceiverTerminated)
+        assert signal.requires_reconnect is True
+        assert signal.constructor_id == 6
+        assert signal.path == "root.rpc_result"
+        assert transport.sent == [], "an undecodable envelope must not be acknowledged"
+        assert sender.is_healthy is False
+
+    asyncio.run(_run())
+
+
+def test_sender__nested_poll_unknown_preserves_path_and_requires_reconnect() -> None:
+    async def _run() -> None:
+        writer = TLWriter()
+        writer.write_int(MessageMediaPoll.TL_ID)
+        writer.write_object(
+            Poll(
+                id=777,
+                flags=0,
+                closed=False,
+                public_voters=False,
+                multiple_choice=False,
+                quiz=False,
+                open_answers=False,
+                revoting_disabled=False,
+                shuffle_answers=False,
+                hide_results_until_close=False,
+                creator=False,
+                subscribers_only=False,
+                question=TextWithEntities(text=b"Question", entities=[]),
+                answers=[],
+                close_period=None,
+                close_date=None,
+                countries_iso2=None,
+                hash=0,
+            )
+        )
+        writer.write_uint(0x12345678)
+        transport = _FakeTransport(
+            [_make_inner_packet(_server_msg_id(low_bits=1), writer.to_bytes())]
+        )
+        incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired] = (
+            asyncio.Queue()
+        )
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=_FakeMsgIdGen(),
+            incoming_queue=incoming,
+        )
+
+        await asyncio.wait_for(sender._recv_loop(), timeout=1.0)
+
+        terminal = incoming.get_nowait()
+        assert isinstance(terminal, ReceiverTerminated)
+        assert isinstance(terminal.error, RpcDecodeError)
+        assert terminal.error.requires_reconnect is True
+        assert terminal.error.constructor_id == 0x12345678
+        assert terminal.error.expected_type == "PollResults"
+        assert terminal.error.path == "root.results"
+        assert terminal.error.retryable is False
+        assert transport.sent == []
+
+    asyncio.run(_run())
+
+
+def test_sender__trailing_bounded_tl_data_poison_is_not_acknowledged() -> None:
+    async def _run() -> None:
+        body = dumps(Pong(msg_id=1, ping_id=2)) + b"\x00\x00\x00\x00"
+        transport = _FakeTransport([_make_inner_packet(_server_msg_id(low_bits=1), body)])
+        incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired] = (
+            asyncio.Queue()
+        )
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=_FakeMsgIdGen(),
+            incoming_queue=incoming,
+        )
+
+        await asyncio.wait_for(sender._recv_loop(), timeout=1.0)
+
+        terminal = incoming.get_nowait()
+        assert isinstance(terminal, ReceiverTerminated)
+        assert isinstance(terminal.error, RpcDecodeError)
+        assert terminal.error.requires_reconnect is True
+        assert terminal.error.constructor_id is None
+        assert terminal.error.path == "root"
+        assert transport.sent == []
+
+    asyncio.run(_run())
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param(dumps(Pong(msg_id=1, ping_id=2))[:-4], id="truncated-known-constructor"),
+        pytest.param(
+            struct.pack("<i", _GZIP_PACKED_CONSTRUCTOR_ID) + _tl_bytes(b"not gzip"),
+            id="malformed-gzip",
+        ),
+    ],
+)
+def test_sender__any_authenticated_tl_decode_failure_poison_is_terminal(
+    body: bytes,
+) -> None:
+    async def _run() -> None:
+        transport = _FakeTransport([_make_inner_packet(_server_msg_id(low_bits=1), body)])
+        incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired] = (
+            asyncio.Queue()
+        )
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=_FakeMsgIdGen(),
+            incoming_queue=incoming,
+        )
+
+        loop = asyncio.get_running_loop()
+        pending: list[_PendingCall] = []
+        for req_msg_id in (101, 202):
+            call = _PendingCall(
+                req_bytes=f"req-{req_msg_id}".encode(),
+                future=loop.create_future(),
+            )
+            call.msg_ids.add(req_msg_id)
+            sender._pending[req_msg_id] = call
+            sender._sent[req_msg_id] = (1, call.req_bytes)
+            pending.append(call)
+
+        await asyncio.wait_for(sender._recv_loop(), timeout=1.0)
+
+        failures: list[RpcDecodeError] = []
+        for call in pending:
+            with pytest.raises(RpcDecodeError) as raised:
+                await call.future
+            failures.append(raised.value)
+            assert raised.value.requires_reconnect is True
+            assert raised.value.retryable is False
+            assert raised.value.path == "root"
+
+        terminal = incoming.get_nowait()
+        assert isinstance(terminal, ReceiverTerminated)
+        assert terminal.error is failures[0]
+        assert all(failure is terminal.error for failure in failures)
+        assert terminal.requires_reconnect is True
+        assert transport.sent == [], "a malformed authenticated envelope must never be ACKed"
+        assert sender.is_healthy is False
+        assert sender._pending == {}
+        assert sender._sent == {}
+
+    asyncio.run(_run())
+
+
+def test_sender__authenticated_inner_length_failure_is_terminal_decode_poison() -> None:
+    async def _run() -> None:
+        # decrypt_packet has returned successfully, but the declared body length
+        # crosses the authenticated inner-message boundary.
+        malformed_inner = (
+            struct.pack("<qii", _server_msg_id(low_bits=1), 1, 8) + b"\x00\x00\x00\x00"
+        )
+        transport = _FakeTransport([malformed_inner])
+        incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired] = (
+            asyncio.Queue()
+        )
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=_FakeMsgIdGen(),
+            incoming_queue=incoming,
+        )
+        loop = asyncio.get_running_loop()
+        calls: list[_PendingCall] = []
+        for req_msg_id in (101, 202):
+            call = _PendingCall(req_bytes=b"request", future=loop.create_future())
+            call.msg_ids.add(req_msg_id)
+            sender._pending[req_msg_id] = call
+            sender._sent[req_msg_id] = (1, call.req_bytes)
+            calls.append(call)
+
+        await asyncio.wait_for(sender._recv_loop(), timeout=1.0)
+
+        failures: list[RpcDecodeError] = []
+        for call in calls:
+            with pytest.raises(RpcDecodeError) as raised:
+                await call.future
+            failures.append(raised.value)
+            assert raised.value.requires_reconnect is True
+            assert raised.value.retryable is False
+            assert raised.value.path == "mtproto.inner_message"
+            assert "outer_msg_id=unavailable" in str(raised.value)
+
+        terminal = incoming.get_nowait()
+        assert isinstance(terminal, ReceiverTerminated)
+        assert terminal.error is failures[0]
+        assert all(failure is terminal.error for failure in failures)
+        assert terminal.requires_reconnect is True
+        assert transport.sent == []
+        assert sender.is_healthy is False
+
+    asyncio.run(_run())
+
+
+def test_sender__unauthenticated_decrypt_failure_is_not_mislabeled_tl_decode() -> None:
+    class RejectingState(_FakeState):
+        def decrypt_packet(self, packet: bytes, *, from_server: bool) -> bytes:
+            _ = packet, from_server
+            raise MtprotoStateError("msg_key mismatch after decryption")
+
+    async def _run() -> None:
+        transport = _FakeTransport([b"unauthenticated"])
+        incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired] = (
+            asyncio.Queue()
+        )
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=RejectingState(),
+            msg_id_gen=_FakeMsgIdGen(),
+            incoming_queue=incoming,
+        )
+
+        await asyncio.wait_for(sender._recv_loop(), timeout=1.0)
+
+        terminal = incoming.get_nowait()
+        assert isinstance(terminal, ReceiverTerminated)
+        assert isinstance(terminal.error, RpcSenderError)
+        assert not isinstance(terminal.error, RpcDecodeError)
+        assert terminal.requires_reconnect is False
+        assert isinstance(terminal.error.__cause__, MtprotoStateError)
+        assert transport.sent == []
+        assert sender.is_healthy is False
 
     asyncio.run(_run())
 

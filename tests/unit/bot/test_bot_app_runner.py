@@ -6,6 +6,7 @@ import pytest
 
 from telecraft.bot.app import ReconnectPolicy, run_forever, run_userbot
 from telecraft.bot.router import Router
+from telecraft.mtproto.rpc.sender import RpcDecodeError
 
 
 def test_run_forever_no_reconnect_propagates() -> None:
@@ -35,6 +36,32 @@ def test_run_forever_retries_until_success() -> None:
     )
     asyncio.run(run_forever(_run_once, reconnect=pol))
     assert attempts == 3
+
+
+def test_run_forever_does_not_retry_explicit_circuit_breaker_error() -> None:
+    attempts = 0
+
+    class CircuitOpenError(RuntimeError):
+        retryable = False
+
+    async def _run_once() -> None:
+        nonlocal attempts
+        attempts += 1
+        raise CircuitOpenError("update stream is poisoned")
+
+    with pytest.raises(CircuitOpenError, match="poisoned"):
+        asyncio.run(
+            run_forever(
+                _run_once,
+                reconnect=ReconnectPolicy(
+                    enabled=True,
+                    initial_delay_seconds=0.0,
+                    max_attempts=None,
+                ),
+            )
+        )
+
+    assert attempts == 1
 
 
 def test_run_forever_stop_event_exits() -> None:
@@ -77,5 +104,52 @@ def test_run_userbot_closes_client_when_startup_hook_fails() -> None:
             )
         )
 
+    assert client.connect_calls == 1
+    assert client.close_calls == 1
+
+
+def test_run_userbot_does_not_replay_startup_after_connection_poison() -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.connect_calls = 0
+            self.close_calls = 0
+
+        async def connect(self) -> None:
+            self.connect_calls += 1
+
+        async def close(self) -> None:
+            self.close_calls += 1
+
+    client = Client()
+    startup_calls = 0
+
+    async def poisoned_startup(_client: object) -> None:
+        nonlocal startup_calls
+        startup_calls += 1
+        raise RpcDecodeError(
+            "unknown response after possibly executed startup RPC",
+            constructor_id=123,
+            path="root.rpc_result",
+            position=12,
+            requires_reconnect=True,
+        )
+
+    with pytest.raises(RpcDecodeError) as raised:
+        asyncio.run(
+            run_userbot(
+                client=client,
+                router=Router(),
+                reconnect=ReconnectPolicy(
+                    enabled=True,
+                    initial_delay_seconds=0.0,
+                    max_attempts=None,
+                ),
+                on_startup=poisoned_startup,
+            )
+        )
+
+    assert raised.value.requires_reconnect is True
+    assert raised.value.retryable is False
+    assert startup_calls == 1
     assert client.connect_calls == 1
     assert client.close_calls == 1

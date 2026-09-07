@@ -11,7 +11,7 @@ Telecraft is an async, MTProto-first Telegram client library for Python.
 The distribution is library-only: wheels and source distributions include `src/telecraft` plus
 package metadata, but do not ship `apps/`, `examples/`, operator configuration, or runnable bot
 deployments. Reusable routing and bot-session primitives remain part of the library API.
-For `0.2.2`, the stable compatibility contract covers the Client facade and primary client
+For `0.2.3`, the stable compatibility contract covers the Client facade and primary client
 constructors. The `telecraft.bot` routing/groupbot primitives are retained as experimental library
 components, and the raw `MtprotoClient` method surface remains protocol-level experimental beyond
 its versioned constructor contract. Runnable bots remain outside release artifacts.
@@ -23,7 +23,7 @@ It supports:
 - high-level client namespaces for messages, dialogs, media, bots, admin helpers, and more
 - an experimental reusable event stack for MTProto update routing with `Router` and `Dispatcher`
 
-Current stable version: `0.2.2`.
+Current stable version: `0.2.3`.
 
 Development version `0.2.1` was never tagged or published; its changes are included in the
 `0.2.2` release.
@@ -35,6 +35,14 @@ through MTProto, so you still need Telegram API credentials plus a bot token fro
 
 - MTProto auth-key exchange uses the known-working raw RSA padding flow. RSA-PAD helpers are
   retained for a future dc-aware handshake update.
+- Outbound API objects use the current pinned Layer 228 schema. Inbound decoding additionally
+  recognizes the verified historical `message#9815cec8` (Layer 216) and
+  `message#b92f76cf` (Layer 220) wire layouts and normalizes them to the current public `Message`
+  type.
+- With the updates engine running, an unknown or structurally unsafe inbound TL payload is never
+  acknowledged or skipped. Telecraft replaces the TCP connection and MTProto session, repeats
+  `invokeWithLayer(initConnection(...))`, and resumes `getDifference` from the last committed
+  checkpoint with bounded backoff.
 
 ## Known Limitations
 
@@ -44,6 +52,10 @@ through MTProto, so you still need Telegram API credentials plus a bot token fro
 - HTTP Bot API is intentionally not included; bot sessions use MTProto.
 - Secret chats, calls, and full TDLib parity are not in scope for this release.
 - Media downloads redirected through Telegram's CDN are not yet supported.
+- Historical inbound compatibility is deliberately allowlisted rather than a complete snapshot
+  of every constructor from Layers 216 and 220. An unlisted nested legacy layout fails closed and
+  may end the update stream with `UpdatesRecoveryExhaustedError` after three fresh-connection
+  attempts. Raw RPC calls that fail before the updates engine starts are not replayed automatically.
 
 ## Install
 
@@ -59,10 +71,10 @@ python -m pip install telecraft
 From GitHub at the latest published stable tag:
 
 ```bash
-python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.2"
+python -m pip install "telecraft @ git+https://github.com/meniwap/telecraftor.git@v0.2.3"
 ```
 
-The immutable `v0.2.2` tag identifies the source used to build the published release artifacts.
+The immutable `v0.2.3` tag identifies the source used to build the published release artifacts.
 
 For local development from a clone:
 
@@ -93,7 +105,7 @@ Local sessions contain Telegram auth keys. Treat `.sessions/` like passwords and
 
 ## Login
 
-The `telecraft` command included in `0.2.2` handles login and session operations.
+The `telecraft` command included in `0.2.3` handles login and session operations.
 Production access is intentionally double-gated:
 
 ```bash
@@ -213,3 +225,4 @@ Live tests are opt-in, production-gated, and documented in `docs/11_live_runbook
 - Release process: `docs/18_release_process.md`
 - Credential scanning: `docs/19_credential_scanning.md`
 - History cleanup provenance: `docs/20_history_cleanup_record.md`
+- Legacy constructor recovery: `docs/21_legacy_constructor_recovery.md`

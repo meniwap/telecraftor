@@ -254,6 +254,10 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "live_prod_safe: prod-safe live smoke tests")
     config.addinivalue_line(
         "markers",
+        "live_recovery_fault: prod-safe synthetic signal exercising live connection recovery",
+    )
+    config.addinivalue_line(
+        "markers",
         "live_destructive: explicitly gated live tests that create and clean up resources",
     )
 
@@ -411,7 +415,7 @@ def client_v2(live_config: LiveConfig) -> Client:
 
 
 @pytest.fixture
-def live_context(live_config: LiveConfig) -> LiveContext:
+def live_source_snapshot(live_config: LiveConfig) -> tuple[str, bool]:
     source_commit, source_tree_clean = _source_snapshot()
     if (
         live_config.live_profile in {"prod_safe", DESTRUCTIVE_MESSAGE_PROFILE}
@@ -421,6 +425,15 @@ def live_context(live_config: LiveConfig) -> LiveContext:
             f"{live_config.live_profile} live evidence requires a clean source tree before "
             "the run starts"
         )
+    return source_commit, source_tree_clean
+
+
+@pytest.fixture
+def live_context(
+    live_config: LiveConfig,
+    live_source_snapshot: tuple[str, bool],
+) -> LiveContext:
+    source_commit, source_tree_clean = live_source_snapshot
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
     run_dir = (live_config.report_root / run_id).resolve()
     run_dir.mkdir(parents=True, exist_ok=True)

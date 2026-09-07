@@ -12,6 +12,65 @@ The format follows a simplified Keep a Changelog style:
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-09-08
+
+Legacy Telegram constructor and update-stream recovery patch.
+
+### Added
+
+- Added private, inbound-only decoders for `message#9815cec8` (Layer 216) and
+  `message#b92f76cf` (Layer 220), plus the reviewed legacy reply, photo, dice, and poll
+  dependencies needed by the covered wire graphs. Decoded values are normalized to the current
+  public generated types; outbound serialization always uses the Layer 228 constructors.
+- Added immutable Telegram Android source provenance for every compatibility constructor and
+  byte-level regression fixtures covering direct updates, gzip payloads, channel history results,
+  nested media, and exact object boundaries.
+- Added the public non-retryable `UpdatesRecoveryExhaustedError` so host applications can stop an
+  unhealthy update stream without relying on log-message parsing.
+
+### Changed
+
+- The schema merge/generation pipeline now identifies constructors by
+  `(TL name, constructor ID)` and emits historical layouts into private inbound registries instead
+  of overwriting same-named versions or exposing old constructors for sending.
+- Bounded TL payloads now require complete consumption. The only trailing-data exception is the
+  explicitly padded MTProto authorization-handshake object.
+- Pinned the PEP 517 and release-workflow build backend to the reviewed Hatchling `1.26.3` so a
+  future backend cannot silently emit a Core Metadata version rejected by the release validator.
+
+### Fixed
+
+- Unknown constructors and unsafe bounded payloads now poison the current connection without an
+  ACK or blind RPC replay, fail all pending calls, replace the TCP connection and MTProto session,
+  repeat `invokeWithLayer(initConnection(...))`, and only then call `getDifference` from the last
+  committed global and channel checkpoints.
+- Added a three-attempt process-local recovery circuit with cross-episode exponential backoff,
+  repeated constructor/path detection, and transactional startup/difference pagination. Recovery
+  output—including a non-empty difference—and date-only movement no longer erase the failure
+  history; only delivered, persisted live cursor progress disarms the circuit.
+- Removed speculative byte scanning that attempted to skip unknown nested theme objects, because
+  arbitrary TL objects do not carry a generic length delimiter.
+- Marked poisoned pre-dispatch RPC failures as non-retryable in the bundled runner, preventing an
+  `on_startup` callback from being replayed indefinitely after an ambiguous response.
+
+### Security
+
+- No credentials, sessions, or captured Telegram payloads are included. The fail-closed decoder
+  and strict object-boundary checks prevent malformed or mismatched legacy layouts from silently
+  shifting the cursor and acknowledging unclassified bytes.
+
+### Migration and limitations
+
+- No supported facade signatures were removed or changed. Upgrade the library and keep the updates
+  engine enabled to receive automatic checkpoint recovery.
+- Compatibility is intentionally limited to the two verified historical `Message` layouts and
+  their allowlisted dependencies, not every constructor ever present in Layers 216 and 220. A
+  future unlisted layout fails closed and surfaces the non-retryable recovery exception after the
+  bounded retry budget.
+- External supervisors such as systemd remain outside the library's control. Applications should
+  map `UpdatesRecoveryExhaustedError` to a non-restarting exit policy instead of configuring an
+  unconditional restart loop.
+
 ## [0.2.2] - 2026-08-07
 
 Production hardening release.

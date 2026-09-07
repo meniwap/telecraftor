@@ -1,0 +1,42 @@
+{
+  "constructors": {
+    "message#9815cec8": "layer216",
+    "message#b92f76cf": "layer220",
+    "messageMediaDice#3f7ee58b": "layer220",
+    "messageMediaPhoto#695150d7": "layer223",
+    "messageMediaPoll#4bd6e798": "layer223",
+    "messageReplyHeader#6917560b": "layer223",
+    "poll#58747131": "layer223",
+    "pollAnswer#ff16e2ca": "layer223",
+    "pollAnswerVoters#3b6ddad2": "layer223",
+    "pollResults#7adf2420": "layer223"
+  },
+  "legacy_api_sha256": "b62253fd8f6f42170f052295329518cc35ffc89219a316db8b99cbf7a67e9fec",
+  "ref": "62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c",
+  "schema_version": 1,
+  "source": "telegram-android",
+  "source_files": {
+    "TLRPC.java": {
+      "constructors": [
+        "messageMediaDice#3f7ee58b",
+        "messageMediaPhoto#695150d7",
+        "messageMediaPoll#4bd6e798",
+        "messageReplyHeader#6917560b",
+        "poll#58747131",
+        "pollAnswer#ff16e2ca",
+        "pollAnswerVoters#3b6ddad2",
+        "pollResults#7adf2420"
+      ],
+      "sha256": "c3fffe2be0c2dcabacb4e6f6ccd03789e5394d86d06464cfbd778e8bda6af5e6",
+      "url": "https://raw.githubusercontent.com/DrKLO/Telegram/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java"
+    },
+    "TL_legacy_message.java": {
+      "constructors": [
+        "message#9815cec8",
+        "message#b92f76cf"
+      ],
+      "sha256": "8bcf9fbf58ef78fbb13f22395d1790e697605a787621f21a59b222be8adad43e",
+      "url": "https://raw.githubusercontent.com/DrKLO/Telegram/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/tgnet/tl/legacy/TL_legacy_message.java"
+    }
+  }
+}

@@ -6,7 +6,14 @@ import struct
 import pytest
 
 from telecraft.mtproto.gzip_utils import MAX_GZIP_UNPACKED_SIZE
-from telecraft.tl.codec import MsgContainer, RpcResult, TLCodecError, dumps, loads
+from telecraft.tl.codec import (
+    MsgContainer,
+    RpcResult,
+    TLCodecError,
+    TrailingTLDataError,
+    dumps,
+    loads,
+)
 from telecraft.tl.generated.types import Pong
 
 
@@ -84,3 +91,33 @@ def test_parse_msg_container() -> None:
     assert obj.messages[0].seqno == seqno
     assert isinstance(obj.messages[0].obj, RpcResult)
     assert isinstance(obj.messages[0].obj.result, Pong)
+
+
+def test_root_bounded_payload_rejects_trailing_bytes() -> None:
+    with pytest.raises(TrailingTLDataError) as raised:
+        loads(dumps(Pong(msg_id=1, ping_id=2)) + b"\x00\x00\x00\x00")
+
+    assert raised.value.path == "root"
+    assert raised.value.trailing_bytes == 4
+
+
+def test_gzip_bounded_payload_rejects_trailing_bytes() -> None:
+    inner = dumps(Pong(msg_id=1, ping_id=2)) + b"\x00\x00\x00\x00"
+    data = struct.pack("<i", 812830625) + _tl_bytes(gzip.compress(inner))
+
+    with pytest.raises(TrailingTLDataError) as raised:
+        loads(data)
+
+    assert raised.value.path == "root.gzip_packed"
+    assert raised.value.trailing_bytes == 4
+
+
+def test_msg_container_bounded_inner_payload_rejects_trailing_bytes() -> None:
+    inner = dumps(Pong(msg_id=1, ping_id=2)) + b"\x00\x00\x00\x00"
+    data = struct.pack("<ii", 1945237724, 1) + struct.pack("<qii", 1111, 1, len(inner)) + inner
+
+    with pytest.raises(TrailingTLDataError) as raised:
+        loads(data)
+
+    assert raised.value.path == "root.msg_container[0]"
+    assert raised.value.trailing_bytes == 4
