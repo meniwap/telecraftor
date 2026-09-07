@@ -71,8 +71,8 @@ def test_get_me_falls_back_to_get_full_user_when_vector_is_empty() -> None:
         _ = timeout
         calls.append(getattr(req, "TL_NAME", ""))
         if getattr(req, "TL_NAME", "") == "users.getUsers":
-            # Simulate top-level Vector<User> decode that has no "users" field.
-            return SimpleNamespace(TL_NAME="vector")
+            # Simulate a valid, empty top-level Vector<User> response.
+            return []
         return SimpleNamespace(users=[me])
 
     c.invoke_api = invoke_api  # type: ignore[assignment]

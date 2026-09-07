@@ -9,6 +9,8 @@ from dataclasses import dataclass
 
 import pytest
 
+import telecraft.mtproto.rpc.sender as sender_module
+from telecraft.client.mtproto import ClientInit, wrap_with_layer_init
 from telecraft.mtproto.core.msg_id import MsgIdGenerator
 from telecraft.mtproto.core.state import MtprotoStateError
 from telecraft.mtproto.gzip_utils import MAX_GZIP_UNPACKED_SIZE
@@ -24,20 +26,29 @@ from telecraft.mtproto.rpc.sender import (
     _validate_nested_message_lengths,
     extract_req_msg_ids_from_payload,
 )
-from telecraft.tl.codec import TLWriter, dumps
+from telecraft.tl.codec import TLWriter, dumps, loads
+from telecraft.tl.generated.functions import (
+    ContactsGetContactIds,
+    MessagesReceivedQueue,
+    UsersGetUsers,
+)
 from telecraft.tl.generated.types import (
     BadMsgNotification,
     BadServerSalt,
+    InputUserSelf,
     MessageMediaPoll,
+    MsgsAck,
     Poll,
     Pong,
     TextWithEntities,
     UpdateConfig,
+    UserEmpty,
 )
 
 _RPC_RESULT_CONSTRUCTOR_ID = -212046591
 _MSG_CONTAINER_CONSTRUCTOR_ID = 1945237724
 _GZIP_PACKED_CONSTRUCTOR_ID = 812830625
+_VECTOR_CONSTRUCTOR_ID = 481674261
 
 
 @dataclass
@@ -138,6 +149,10 @@ def _rpc_result_body(req_msg_id: int, result_payload: bytes) -> bytes:
         + struct.pack("<q", int(req_msg_id))
         + result_payload
     )
+
+
+def _vector_body(*items: bytes) -> bytes:
+    return struct.pack("<ii", _VECTOR_CONSTRUCTOR_ID, len(items)) + b"".join(items)
 
 
 def _tl_bytes(data: bytes) -> bytes:
@@ -254,6 +269,170 @@ def test_sender__unknown_constructor__poisons_connection_and_fails_all_pending()
         assert signal.path == "root.rpc_result"
         assert transport.sent == [], "an undecodable envelope must not be acknowledged"
         assert sender.is_healthy is False
+
+    asyncio.run(_run())
+
+
+@pytest.mark.parametrize(
+    ("request_obj", "result_type", "wire_items", "expected"),
+    [
+        pytest.param(
+            UsersGetUsers(id=[InputUserSelf()]),
+            "Vector<User>",
+            [dumps(UserEmpty(id=123)), dumps(UserEmpty(id=456))],
+            [UserEmpty(id=123), UserEmpty(id=456)],
+            id="users",
+        ),
+        pytest.param(
+            ContactsGetContactIds(hash=0),
+            "Vector<int>",
+            [struct.pack("<i", 123), struct.pack("<i", -456)],
+            [123, -456],
+            id="ints",
+        ),
+        pytest.param(
+            MessagesReceivedQueue(max_qts=0),
+            "Vector<long>",
+            [struct.pack("<q", 2**40), struct.pack("<q", -(2**41))],
+            [2**40, -(2**41)],
+            id="longs",
+        ),
+    ],
+)
+def test_sender__pending_result_type_decodes_typed_rpc_vectors_and_acknowledges(
+    request_obj: object,
+    result_type: str,
+    wire_items: list[bytes],
+    expected: list[object],
+) -> None:
+    async def _run() -> None:
+        transport = _FakeTransport()
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=_FakeMsgIdGen(),
+        )
+        invoke_task = asyncio.create_task(sender.invoke_tl(request_obj, timeout=1.0))
+        try:
+            for _ in range(100):
+                if sender._pending:
+                    break
+                await asyncio.sleep(0)
+            assert len(sender._pending) == 1
+            req_msg_id, call = next(iter(sender._pending.items()))
+            assert call.result_type == result_type
+
+            await transport._queue.put(
+                _make_inner_packet(
+                    _server_msg_id(low_bits=1),
+                    _rpc_result_body(req_msg_id, _vector_body(*wire_items)),
+                )
+            )
+            result = await asyncio.wait_for(invoke_task, timeout=1.0)
+            for _ in range(10):
+                if len(transport.sent) >= 2:
+                    break
+                await asyncio.sleep(0)
+
+            assert result == expected
+            assert sender.is_healthy is True
+            assert len(transport.sent) >= 2, "a fully decoded typed RPC result must be acknowledged"
+        finally:
+            if not invoke_task.done():
+                invoke_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await invoke_task
+            await sender.close()
+
+    asyncio.run(_run())
+
+
+def test_sender__nested_unknown_in_typed_vector_is_terminal_and_not_acknowledged() -> None:
+    async def _run() -> None:
+        unknown_constructor_id = 0x12345678
+        result = _vector_body(
+            dumps(UserEmpty(id=123)),
+            struct.pack("<i", unknown_constructor_id),
+        )
+        transport = _FakeTransport()
+        incoming: asyncio.Queue[ReceivedMessage | ReceiverTerminated | UpdatesRecoveryRequired] = (
+            asyncio.Queue()
+        )
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=_FakeMsgIdGen(),
+            incoming_queue=incoming,
+        )
+        invoke_task = asyncio.create_task(
+            sender.invoke_tl(UsersGetUsers(id=[InputUserSelf()]), timeout=1.0)
+        )
+        for _ in range(100):
+            if sender._pending:
+                break
+            await asyncio.sleep(0)
+        assert len(sender._pending) == 1
+        req_msg_id, call = next(iter(sender._pending.items()))
+        assert call.result_type == "Vector<User>"
+        await transport._queue.put(
+            _make_inner_packet(
+                _server_msg_id(low_bits=1),
+                _rpc_result_body(req_msg_id, result),
+            )
+        )
+
+        with pytest.raises(RpcDecodeError) as raised:
+            await asyncio.wait_for(invoke_task, timeout=1.0)
+        assert raised.value.constructor_id == unknown_constructor_id
+        assert raised.value.expected_type == "User"
+        assert raised.value.path is not None and raised.value.path.endswith("rpc_result[1]")
+        assert raised.value.requires_reconnect is True
+        terminal = incoming.get_nowait()
+        assert isinstance(terminal, ReceiverTerminated)
+        assert terminal.error is raised.value
+        assert len(transport.sent) == 1, "only the original request may have been sent"
+        assert sender.is_healthy is False
+
+    asyncio.run(_run())
+
+
+def test_sender__generic_layer_wrappers_preserve_nested_query_result_type() -> None:
+    async def _run() -> None:
+        transport = _FakeTransport()
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=_FakeMsgIdGen(),
+        )
+        request = wrap_with_layer_init(
+            query=UsersGetUsers(id=[InputUserSelf()]),
+            init=ClientInit(api_id=12345),
+        )
+        invoke_task = asyncio.create_task(sender.invoke_tl(request, timeout=1.0))
+        try:
+            for _ in range(100):
+                if sender._pending:
+                    break
+                await asyncio.sleep(0)
+            assert len(sender._pending) == 1
+            req_msg_id, call = next(iter(sender._pending.items()))
+            assert call.result_type == "Vector<User>"
+
+            result_payload = _vector_body(dumps(UserEmpty(id=789)))
+            await transport._queue.put(
+                _make_inner_packet(
+                    _server_msg_id(low_bits=1),
+                    _rpc_result_body(req_msg_id, result_payload),
+                )
+            )
+
+            assert await asyncio.wait_for(invoke_task, timeout=1.0) == [UserEmpty(id=789)]
+        finally:
+            if not invoke_task.done():
+                invoke_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await invoke_task
+            await sender.close()
 
     asyncio.run(_run())
 
@@ -638,6 +817,118 @@ def test_sender__rpc_timeout_does_not_blindly_resend_non_idempotent_request() ->
         assert len(transport.sent) == 1
         assert sender._pending == {}
         assert sender._sent == {}
+
+    asyncio.run(_run())
+
+
+def test_sender__active_rpc_result_types_are_never_evicted_with_small_recent_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _run() -> None:
+        monkeypatch.setattr(sender_module, "_RPC_RESULT_TYPE_CACHE_SIZE", 1)
+        sender = MtprotoEncryptedSender(
+            _FakeTransport(),
+            state=_FakeState(),
+            msg_id_gen=_FakeMsgIdGen(),
+        )
+        loop = asyncio.get_running_loop()
+        calls = [
+            _PendingCall(
+                req_bytes=f"request-{index}".encode(),
+                future=loop.create_future(),
+                result_type=result_type,
+            )
+            for index, result_type in enumerate(
+                ("Vector<User>", "Vector<int>", "Vector<long>"),
+                start=1,
+            )
+        ]
+        req_msg_ids = [await sender._send_new_attempt(call) for call in calls]
+
+        assert sender._recent_rpc_result_types_by_msg_id == {}
+        assert sender._rpc_result_types_for_decode() == dict(
+            zip(
+                req_msg_ids,
+                ("Vector<User>", "Vector<int>", "Vector<long>"),
+                strict=True,
+            )
+        )
+
+        sender._cleanup_call(calls[0])
+        assert sender._recent_rpc_result_types_by_msg_id == {req_msg_ids[0]: "Vector<User>"}
+        assert sender._rpc_result_types_for_decode() == {
+            req_msg_ids[0]: "Vector<User>",
+            req_msg_ids[1]: "Vector<int>",
+            req_msg_ids[2]: "Vector<long>",
+        }
+
+        sender._cleanup_call(calls[1])
+        assert sender._recent_rpc_result_types_by_msg_id == {req_msg_ids[1]: "Vector<int>"}
+        assert sender._rpc_result_types_for_decode() == {
+            req_msg_ids[1]: "Vector<int>",
+            req_msg_ids[2]: "Vector<long>",
+        }
+
+        sender._cleanup_call(calls[2])
+        assert sender._recent_rpc_result_types_by_msg_id == {req_msg_ids[2]: "Vector<long>"}
+        for call in calls:
+            call.future.cancel()
+
+    asyncio.run(_run())
+
+
+def test_sender__late_typed_vector_after_timeout_uses_recent_cache_and_is_acked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _run() -> None:
+        monkeypatch.setattr(sender_module, "_RPC_RESULT_TYPE_CACHE_SIZE", 1)
+        transport = _FakeTransport()
+        sender = MtprotoEncryptedSender(
+            transport,
+            state=_FakeState(),
+            msg_id_gen=_FakeMsgIdGen(),
+        )
+        call = _PendingCall(
+            req_bytes=b"request",
+            future=asyncio.get_running_loop().create_future(),
+            result_type="Vector<User>",
+        )
+        req_msg_id = await sender._send_new_attempt(call)
+
+        call.future.cancel()
+        sender._cleanup_call(call)
+        assert req_msg_id not in sender._pending
+        assert sender._recent_rpc_result_types_by_msg_id == {req_msg_id: "Vector<User>"}
+        assert sender._rpc_result_types_for_decode()[req_msg_id] == "Vector<User>"
+
+        response_msg_id = _server_msg_id(low_bits=1)
+        await transport._queue.put(
+            _make_inner_packet(
+                response_msg_id,
+                _rpc_result_body(
+                    req_msg_id,
+                    _vector_body(dumps(UserEmpty(id=789))),
+                ),
+            )
+        )
+        recv_task = asyncio.create_task(sender._recv_loop())
+        try:
+            for _ in range(100):
+                if len(transport.sent) >= 2:
+                    break
+                await asyncio.sleep(0)
+
+            assert sender.is_healthy is True
+            assert len(transport.sent) == 2
+            ack_packet = transport.sent[-1]
+            ack_body_length = struct.unpack_from("<i", ack_packet, 12)[0]
+            ack = loads(ack_packet[16 : 16 + ack_body_length])
+            assert isinstance(ack, MsgsAck)
+            assert ack.msg_ids == [response_msg_id]
+        finally:
+            recv_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await recv_task
 
     asyncio.run(_run())
 

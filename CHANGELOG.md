@@ -40,6 +40,9 @@ Legacy Telegram constructor and update-stream recovery patch.
 
 ### Fixed
 
+- Decode bare `Vector<T>` RPC results from the originating request's `TL_RESULT`, including
+  generic query wrappers, message containers, and gzip-packed results. Untyped vectors still fail
+  closed, and complete typed vectors remain subject to the strict bounded-payload check.
 - Unknown constructors and unsafe bounded payloads now poison the current connection without an
   ACK or blind RPC replay, fail all pending calls, replace the TCP connection and MTProto session,
   repeat `invokeWithLayer(initConnection(...))`, and only then call `getDifference` from the last

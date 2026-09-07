@@ -22,6 +22,21 @@ including the allowlisted reply, photo, dice, and poll layouts recorded in
 `legacy_provenance.json`. This is not a claim of full compatibility with every constructor from
 either historical layer. When an unlisted nested layout appears, decoding fails closed.
 
+## Typed RPC result boundary
+
+The `rpc_result` envelope declares its final field as generic `Object`, but a wire-level
+`vector#1cb5c415` does not encode the element type. Telecraft therefore retains the effective
+`TL_RESULT` for each outbound request, resolves generic `query:!X` wrappers such as
+`invokeWithLayer(initConnection(...))`, and uses that type when decoding a matching response.
+Active mappings live with their pending calls; completed mappings move to a bounded recent cache.
+Both are propagated through message containers and gzip-packed results so late responses can still
+be classified without guessing. A vector received without trustworthy request context fails closed;
+Telecraft never assumes that it contains boxed objects because valid methods also return vectors of
+primitives such as `int` and `long`.
+
+Typed result decoding does not relax the object boundary. After the complete vector is consumed,
+any remaining bytes still make the authenticated connection terminal and remain unacknowledged.
+
 ## Recovery contract
 
 When the running updates engine receives an unknown constructor or another unsafe bounded TL
@@ -60,4 +75,5 @@ References:
 
 - [Telegram: Calling API methods](https://core.telegram.org/api/invoking)
 - [Telegram: Working with updates](https://core.telegram.org/api/updates)
+- [Telegram: TL serialization](https://core.telegram.org/mtproto/serialize)
 - [Telegram Android legacy message decoders](https://github.com/DrKLO/Telegram/blob/62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c/TMessagesProj/src/main/java/org/telegram/tgnet/tl/legacy/TL_legacy_message.java)

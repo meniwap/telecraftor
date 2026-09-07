@@ -39,6 +39,7 @@ _RPC_RESULT_CONSTRUCTOR_ID = -212046591  # 0xF35C6D01
 _MSG_CONTAINER_CONSTRUCTOR_ID = 1945237724  # 0x73F1F8DC
 _GZIP_PACKED_CONSTRUCTOR_ID = 812830625  # 0x3072CFA1
 _RECEIVED_MSG_ID_CACHE_SIZE = 1024
+_RPC_RESULT_TYPE_CACHE_SIZE = 4096
 _SERVER_MSG_ID_MAX_FUTURE_SECONDS = 30
 _SERVER_MSG_ID_MAX_PAST_SECONDS = 300
 
@@ -379,10 +380,34 @@ def _validate_nested_message_lengths(payload: bytes, *, depth: int = 0) -> None:
         _validate_nested_message_lengths(unpacked, depth=depth + 1)
 
 
+def _effective_tl_result_type(request: Any) -> str | None:
+    """Resolve a concrete ``TL_RESULT`` through generic query wrappers."""
+
+    current = request
+    seen: set[int] = set()
+    for _ in range(16):
+        identity = id(current)
+        if identity in seen:
+            return None
+        seen.add(identity)
+
+        raw_result = getattr(current, "TL_RESULT", None)
+        if not isinstance(raw_result, str) or not raw_result.strip():
+            return None
+        result_type = raw_result.strip()
+        if result_type != "X":
+            return result_type
+        current = getattr(current, "query", None)
+        if current is None:
+            return None
+    return None
+
+
 @dataclass(slots=True)
 class _PendingCall:
     req_bytes: bytes
     future: asyncio.Future[Any]
+    result_type: str | None = None
     msg_ids: set[int] = field(default_factory=set)
     attempts: int = 0
     active_msg_id: int | None = None
@@ -438,6 +463,10 @@ class MtprotoEncryptedSender:
         self._closed_event = asyncio.Event()
         self._pending: dict[int, _PendingCall] = {}
         self._sent: dict[int, tuple[int, bytes]] = {}  # msg_id -> (seqno, body)
+        # Active calls remain authoritative in ``_pending``. This separate,
+        # bounded cache exists only for late or duplicate results after a call
+        # has completed, so eviction can never erase an active result type.
+        self._recent_rpc_result_types_by_msg_id: dict[int, str] = {}
         self._closed = False
         self._terminal_error: RpcSenderError | None = None
         self._incoming_queue = incoming_queue
@@ -656,7 +685,11 @@ class MtprotoEncryptedSender:
         req_bytes = dumps_fn(req_obj)
         loop = asyncio.get_running_loop()
         fut: asyncio.Future[Any] = loop.create_future()
-        call = _PendingCall(req_bytes=req_bytes, future=fut)
+        call = _PendingCall(
+            req_bytes=req_bytes,
+            future=fut,
+            result_type=_effective_tl_result_type(req_obj),
+        )
 
         try:
             await self._send_new_attempt(call)
@@ -748,10 +781,24 @@ class MtprotoEncryptedSender:
         await self._send_inner_message(msg_id=msg_id, seqno=seqno, body=body)
 
     def _cleanup_call(self, call: _PendingCall) -> None:
+        if call.result_type is not None:
+            for msg_id in call.msg_ids:
+                self._recent_rpc_result_types_by_msg_id[msg_id] = call.result_type
+            excess = len(self._recent_rpc_result_types_by_msg_id) - _RPC_RESULT_TYPE_CACHE_SIZE
+            for _ in range(max(0, excess)):
+                oldest_msg_id = next(iter(self._recent_rpc_result_types_by_msg_id))
+                self._recent_rpc_result_types_by_msg_id.pop(oldest_msg_id, None)
         for mid in list(call.msg_ids):
             if self._pending.get(mid) is call:
                 self._pending.pop(mid, None)
             self._sent.pop(mid, None)
+
+    def _rpc_result_types_for_decode(self) -> dict[int, str]:
+        result_types = dict(self._recent_rpc_result_types_by_msg_id)
+        for req_msg_id, call in self._pending.items():
+            if call.result_type is not None:
+                result_types[req_msg_id] = call.result_type
+        return result_types
 
     def _fail_all_pending(self, error: RpcSenderError) -> None:
         calls = {id(call): call for call in self._pending.values()}.values()
@@ -1191,7 +1238,10 @@ class MtprotoEncryptedSender:
 
                 try:
                     _validate_nested_message_lengths(body)
-                    obj = loads(body)
+                    obj = loads(
+                        body,
+                        rpc_result_types=self._rpc_result_types_for_decode(),
+                    )
                 except (TLCodecError, RpcSenderError) as e:
                     decode_error = self._poison_for_decode_failure(
                         e,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import struct
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -83,6 +83,19 @@ class UnknownConstructorError(UnsafeTLPayloadError):
         super().__init__(
             f"Unknown constructor id: {self.constructor_id} (0x{unsigned_id:08x})"
             f"{type_note} at {path} (pos={position})"
+        )
+
+
+class UntypedVectorError(UnsafeTLPayloadError):
+    """A bare Vector constructor was encountered without its schema element type."""
+
+    def __init__(self, *, path: str, position: int) -> None:
+        self.constructor_id = VECTOR_CONSTRUCTOR_ID
+        self.expected_type: str | None = None
+        self.path = str(path)
+        self.position = int(position)
+        super().__init__(
+            f"Cannot decode bare Vector without its schema element type at {path} (pos={position})"
         )
 
 
@@ -273,11 +286,17 @@ class TLWriter:
 
 
 class TLReader:
-    __slots__ = ("_data", "_pos")
+    __slots__ = ("_data", "_pos", "_rpc_result_types")
 
-    def __init__(self, data: bytes) -> None:
+    def __init__(
+        self,
+        data: bytes,
+        *,
+        rpc_result_types: Mapping[int, str] | None = None,
+    ) -> None:
         self._data = data
         self._pos = 0
+        self._rpc_result_types = rpc_result_types or {}
 
     def _read(self, n: int) -> bytes:
         if self._pos + n > len(self._data):
@@ -302,6 +321,65 @@ class TLReader:
         if self._remaining() < 4:
             raise TLCodecError("Unexpected EOF")
         return int(struct.unpack_from("<i", self._data, self._pos)[0])
+
+    def _read_rpc_result_value(self, *, req_msg_id: int, path: str) -> Any:
+        """Decode the final ``rpc_result`` field using its request result type.
+
+        Telegram's schema declares this field as the generic ``Object`` type,
+        but bare vectors do not carry their element type on the wire.  The
+        request's ``TL_RESULT`` is therefore required to consume them safely.
+        Boxed errors remain self-describing and must be handled before applying
+        the expected result type.
+        """
+
+        expected_type = self._rpc_result_types.get(int(req_msg_id))
+        if expected_type is None:
+            return self.read_object(path=path)
+
+        return self._read_expected_rpc_result_value(
+            expected_type=expected_type,
+            path=path,
+        )
+
+    def _read_expected_rpc_result_value(self, *, expected_type: str, path: str) -> Any:
+        """Read one typed RPC result, preserving boxed error/wrapper semantics."""
+
+        next_cid = self._peek_int()
+        if next_cid == _GZIP_PACKED_CONSTRUCTOR_ID:
+            self.read_int()
+            return self._read_gzip_packed(path=path, expected_type=expected_type)
+
+        from telecraft.tl.generated.registry import INBOUND_CONSTRUCTORS_BY_ID
+
+        next_cls = INBOUND_CONSTRUCTORS_BY_ID.get(next_cid)
+        if getattr(next_cls, "TL_NAME", None) == "rpc_error":
+            return self.read_object(path=path)
+
+        if expected_type.startswith("Vector<") and expected_type.endswith(">"):
+            return self.read_value(expected_type, path=path)
+        return self.read_object(path=path, expected_type=expected_type)
+
+    def _read_gzip_packed(self, *, path: str, expected_type: str | None = None) -> Any:
+        packed = self.read_bytes()
+        try:
+            unpacked = decompress_limited(packed)
+        except Exception as e:  # noqa: BLE001
+            raise TLCodecError("Failed to decompress gzip_packed payload") from e
+        inner = TLReader(unpacked, rpc_result_types=self._rpc_result_types)
+        inner_path = f"{path}.gzip_packed"
+        if expected_type is None:
+            obj = inner.read_object(path=inner_path)
+        else:
+            # This helper is reached after the gzip constructor has already
+            # been consumed from rpc_result.result, so decode the unpacked
+            # value according to the originating request while still accepting
+            # Telegram's boxed rpc_error response.
+            obj = inner._read_expected_rpc_result_value(
+                expected_type=expected_type,
+                path=inner_path,
+            )
+        inner.ensure_eof(path=inner_path)
+        return obj
 
     def read_int(self) -> int:
         return int(struct.unpack("<i", self._read(4))[0])
@@ -529,10 +607,16 @@ class TLReader:
         cid_pos = self._pos
         cid = self.read_int()
 
+        if cid == VECTOR_CONSTRUCTOR_ID:
+            raise UntypedVectorError(path=path, position=cid_pos)
+
         # Manual parsing for core MTProto containers/results.
         if cid == _RPC_RESULT_CONSTRUCTOR_ID:
             req_msg_id = self.read_long()
-            result = self.read_object(path=f"{path}.rpc_result")
+            result = self._read_rpc_result_value(
+                req_msg_id=req_msg_id,
+                path=f"{path}.rpc_result",
+            )
             return RpcResult(req_msg_id=req_msg_id, result=result)
 
         if cid == _MSG_CONTAINER_CONSTRUCTOR_ID:
@@ -547,7 +631,7 @@ class TLReader:
                 if ln < 0:
                     raise TLCodecError("Negative msg_container message length")
                 payload = self._read(ln)
-                inner = TLReader(payload)
+                inner = TLReader(payload, rpc_result_types=self._rpc_result_types)
                 inner_path = f"{path}.msg_container[{idx}]"
                 obj = inner.read_object(path=inner_path)
                 inner.ensure_eof(path=inner_path)
@@ -555,16 +639,7 @@ class TLReader:
             return MsgContainer(messages=messages)
 
         if cid == _GZIP_PACKED_CONSTRUCTOR_ID:
-            packed = self.read_bytes()
-            try:
-                unpacked = decompress_limited(packed)
-            except Exception as e:  # noqa: BLE001
-                raise TLCodecError("Failed to decompress gzip_packed payload") from e
-            inner = TLReader(unpacked)
-            inner_path = f"{path}.gzip_packed"
-            obj = inner.read_object(path=inner_path)
-            inner.ensure_eof(path=inner_path)
-            return obj
+            return self._read_gzip_packed(path=path)
 
         cls = INBOUND_CONSTRUCTORS_BY_ID.get(cid) or METHODS_BY_ID.get(cid)
         if cls is None:
@@ -624,8 +699,13 @@ def dumps(obj: Any) -> bytes:
     return w.to_bytes()
 
 
-def loads(data: bytes, *, allow_trailing: bool = False) -> Any:
-    r = TLReader(data)
+def loads(
+    data: bytes,
+    *,
+    allow_trailing: bool = False,
+    rpc_result_types: Mapping[int, str] | None = None,
+) -> Any:
+    r = TLReader(data, rpc_result_types=rpc_result_types)
     try:
         obj = r.read_object(path="root")
         if not allow_trailing:
